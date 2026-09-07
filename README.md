@@ -6,8 +6,11 @@ ESP32.
 
 ![assembly](out/docs/assembly_exploded.png)
 
-**Status:** design complete and verified in CAD; parts printing. Backlash
-validated on a test pair. Not yet under the sky.
+**Status:** gearbox designed and verified in CAD, parts printing, backlash
+validated on a test pair. Scope now extends to a **standalone scheduled
+device** — wake at dusk, run a GoPro HERO6 night lapse until dawn, rewind for
+the next night. See [HARDWARE.md](HARDWARE.md) for the electronics architecture
+and bill of materials.
 
 ---
 
@@ -125,6 +128,22 @@ convenience.
 
 ---
 
+## Scheduled operation
+
+The gearbox is one half. The other half is an ESP32 that keeps time, talks to the
+camera over the GoPro WiFi API, and knows where the output shaft is pointing.
+
+- **Controller: ESP32**, not a Pi — unattended robustness. A flat battery
+  mid-write corrupts an SD card; LittleFS on an ESP32 comes back.
+- **Camera over WiFi, not BLE.** The documented GoPro BLE API starts at HERO9;
+  HERO5/6 use the `gpControl` HTTP API at 10.5.5.9, woken by a magic packet.
+- **Config over a captive web UI** on the ESP32's own AP. No app, no pairing.
+- **AS5600 absolute encoder** on the output shaft, so "home" is read, not searched.
+- **~43 Wh per night, 69% of it the camera.** Three nights unaided needs 130 Wh;
+  a 6 Ah pack plus a 20 W panel is lighter and never runs out.
+
+Full reasoning, cycle diagram, BOM and pin map: **[HARDWARE.md](HARDWARE.md)**.
+
 ## Repo layout
 
 ```
@@ -133,7 +152,8 @@ make_baseplate_pdf.py       1:1 drilling template (reportlab)
 build.ps1                   regenerates every artifact
 firmware/sidereal_drive/    ESP32 sketch
 PRINTING.md                 what to print, in what order, with what settings
-DESIGN_NOTES.md             why the design is what it is
+DESIGN_NOTES.md             why the gearbox is what it is
+HARDWARE.md                 electronics architecture, BOM, pin map
 out/                        generated — meshes are gitignored
   docs/                     assembly renders, laser SVG, drilling template
   _scratch/                 calibration gauges, test jig, superseded exports
