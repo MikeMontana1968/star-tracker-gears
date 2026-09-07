@@ -1,0 +1,18 @@
+# Generated meshes — large and fully reproducible from the .scad.
+# Regenerate with:  .\build.ps1
+out/*.stl
+out/**/*.stl
+
+# Disposable verification and superseded exports.
+out/_scratch/
+
+# Small human-facing artifacts under out/docs/ ARE tracked on purpose:
+# the assembly renders, the laser SVG and the 1:1 drilling template are
+# deliverables you want visible without running a build.
+
+# Noise
+__pycache__/
+*.pyc
+Thumbs.db
+desktop.ini
+*~

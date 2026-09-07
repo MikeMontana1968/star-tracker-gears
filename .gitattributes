@@ -1,0 +1,17 @@
+# Binaries must never see line-ending conversion — it silently corrupts them.
+# Git stored these correctly on commit, but a fresh checkout on Windows would
+# have rewritten LF to CRLF inside the PDF and PNGs without this.
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.stl  binary
+
+# Text, normalised to LF in the repository
+*.scad text eol=lf
+*.py   text eol=lf
+*.ino  text eol=lf
+*.md   text eol=lf
+*.svg  text eol=lf
+
+# PowerShell is conventionally CRLF on Windows
+*.ps1  text eol=crlf
