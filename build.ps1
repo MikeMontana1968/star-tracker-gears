@@ -40,6 +40,7 @@ $PostD     = 4.70   # test-plate posts, from FITGAUGE
 $BrgFit    = 0.50   # 625ZZ pocket allowance -- SET FROM THE BEARING GAUGE
 $OutBolts  = 6      # output wheel clamp bolts
 $OutBoltR  = 18     # ...on this radius, clear of the 22 mm register
+$PlateT    = 4.0    # baseplate thickness, mm
 
 # ---------------------------------------------------------------------------
 #  TARGETS
@@ -65,6 +66,8 @@ $targets = @(
   @{ g='encoder'; f='output_hub_upper.stl'; p='hubupper';
      d=@("bc_holes=$OutBolts", "bc_r=$OutBoltR") }
   @{ g='encoder'; f='magnet_cap.stl';     p='magnetcap';     d=@() }
+  @{ g='gears';   f='baseplate_4mm.stl';  p='baseplate';     d=@("bp_t=$PlateT") }
+  @{ g='docs';    f='docs/baseplate_cut.svg'; p='baseplatecut'; d=@() }
   @{ g='encoder'; f='as5600_bracket.stl'; p='as5600bracket'; d=@() }
   @{ g='gears'; f='SPACERS_shaft_0-4.stl';          p='spacers';    d=@("bore=$Bore") }
 

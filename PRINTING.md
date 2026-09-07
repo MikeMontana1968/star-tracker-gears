@@ -23,6 +23,43 @@ suits true 5.00 mm ground stock. See *Shafts* below.
 Note `stage.stl` is **2**, not 3 — the third compound is `final_stage_gear.stl`,
 which carries the coarse module-2 pinion.
 
+## Baseplate — cut, not printed
+
+121.5 x 174 mm, too big for either bed and wanting stiffness rather than
+strength, so it is a cut part.
+
+**4 mm 6061 aluminium.** 157 cm2 of material, ~170 g. 3 mm works if the wedge
+sits close to the output shaft; below 3 mm the bearing-tower flange will dimple
+it. Send `out/docs/baseplate_cut.svg` — 122 x 175 mm, 17 closed contours
+(outline, motor boss, 4 motor bolts, 3 nail shafts, tower spigot, 3 flange
+bolts, 4 wedge bolts).
+
+The outline is a hull of lobes at the five shaft centres, not a slab under the
+whole gear footprint: **the wheels overhang the plate on purpose**, so the plate
+only carries the shafts and the motor. That is what takes it from ~740 g to
+170 g.
+
+Holes, all in the SVG and on the 1:1 template:
+
+| Where | What |
+|---|---|
+| S0 | dia 23 NEMA17 pilot boss + 4 x M3 on a 31 mm square |
+| S1-S3 | dia 4.9, light press for 20d nails driven up from underneath |
+| S4 | dia 22.4 tower spigot + 3 x M3 on dia 28 |
+| S4 | **4 x M5 on dia 50 — the wedge/tripod interface** |
+
+The wedge bolts are centred on the **output axis**, not the plate centroid. The
+camera moment is reacted where it is generated, which is the shortest load path
+and the reason the plate can be this thin.
+
+`out/docs/baseplate_template.pdf` is the same thing at 1:1 on US Letter with
+both scale bars — use it to check the SVG before ordering, or as a drilling
+template on stock you cut yourself.
+
+**One consequence:** shaft 0 has no usable spacer. Its hole is dia 23 for the
+motor boss, so the 2 mm spacer would fall through. The motor pinion's height is
+set by its grub screw on the NEMA17 shaft instead. Spacers 1-4 are unaffected.
+
 ## Output shaft and AS5600 encoder
 
 The output is the one shaft that rotates: the encoder magnet has to sit on the

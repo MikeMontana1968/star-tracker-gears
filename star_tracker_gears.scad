@@ -25,7 +25,7 @@
 
 /* [What to render] */
 // train = layout check, plate = ready to slice, test_pair = check the mesh
-part = "test_pair";  // [train, plate, stage, output, pinion, testwheel, testplate, fitgauge, boregauge, spacers, assembly, encoder, tower, hublower, hubupper, magnetcap, as5600bracket, bearinggauge, finalwheel, finalstage, finalpinion, laserwheel, lasercut, dxf, test_pair]
+part = "test_pair";  // [train, plate, stage, output, pinion, testwheel, testplate, fitgauge, boregauge, spacers, assembly, encoder, tower, hublower, hubupper, magnetcap, as5600bracket, bearinggauge, baseplate, baseplatecut, finalwheel, finalstage, finalpinion, laserwheel, lasercut, dxf, test_pair]
 
 /* [Gear cutting] */
 mod_      = 1.0;    // transverse module, mm
@@ -126,6 +126,21 @@ os_flange_d = 38;    // tower flange that bolts to the baseplate
 os_brg_fit = 0.5;    // bearing pocket allowance -- SET THIS FROM THE BEARING GAUGE
 os_cut     = false;  // cut the assembly in half for a section view (needs --render)
 os_exp     = 0;      // exploded view: axial separation between parts, mm
+
+/* [Baseplate] */
+// A real part, not a render stub. It only has to carry the five shafts and
+// the motor -- the wheels overhang it -- so it is a hull of lobes at the
+// shaft centres rather than a slab under the whole footprint.
+bp_t          = 4.0;   // thickness. 4 mm 6061 recommended
+bp_shaft_d    = 4.9;   // light press for the 4.88 mm nail shafts (1-3)
+bp_motor_boss = 23;    // NEMA17 pilot boss registers here
+bp_motor_bc   = 31;    // NEMA17 bolt pattern, square
+bp_tower_bc   = 28;    // bearing tower flange bolts, dia (3 x M3 at r=14)
+bp_tower_d    = 22.4;  // tower spigot clearance at shaft 4
+bp_mount_bc   = 50;    // wedge/tripod bolt circle, centred on the OUTPUT axis
+bp_mount_d    = 5.5;   // M5 clearance
+bp_mount_n    = 4;
+bp_lobe       = [26, 20, 20, 20, 34];  // outline radius at each shaft
 
 /* [Mounting bolt circle] */
 bc_holes = 4;      // number of holes, 0 = none
@@ -568,14 +583,36 @@ function gear_top(i) =
 function shaft_r(i) = [g_ra(zp), g_ra(zw), g_ra(zw), g_ra(zw),
                        g_ra(zwf, mod_f)][i];
 
-module baseplate(margin = 8, t = 4) {
+// 2D outline for cutting. Everything the plate does is in this one profile.
+module baseplate_2d() {
     difference() {
-        translate([0,0,-t]) linear_extrude(t)
-            hull() for (i=[0:4]) let(p = shaftpos(i))
-                translate([p[0], p[1]]) circle(r = shaft_r(i) + margin, $fn = 64);
-        for (i=[0:4]) let(p = shaftpos(i))
-            translate([p[0], p[1], -t-1]) cylinder(d = 5.1, h = t+2, $fn = 32);
+        hull() for (i=[0:4]) let(p = shaftpos(i))
+            translate([p[0], p[1]]) circle(r = bp_lobe[i], $fn = 96);
+
+        // shaft 0 -- NEMA17 boss registers in the bore; the four bolts are
+        // the 31 mm square pattern, so they sit at radius 31/sqrt(2)
+        let(p = shaftpos(0)) translate([p[0], p[1]]) {
+            circle(d = bp_motor_boss, $fn = 72);
+            for (a = [45:90:315]) rotate([0,0,a])
+                translate([bp_motor_bc/sqrt(2), 0]) circle(d = 3.4, $fn = 24);
+        }
+        // shafts 1-3 -- nails, driven up from underneath
+        for (i=[1:3]) let(p = shaftpos(i))
+            translate([p[0], p[1]]) circle(d = bp_shaft_d, $fn = 48);
+
+        // shaft 4 -- tower spigot, its flange bolts, and the wedge interface
+        let(p = shaftpos(4)) translate([p[0], p[1]]) {
+            circle(d = bp_tower_d, $fn = 96);
+            for (i=[0:2]) rotate([0,0, i*120 + 60])
+                translate([bp_tower_bc/2, 0]) circle(d = 3.4, $fn = 24);
+            for (i=[0:bp_mount_n-1]) rotate([0,0, i*360/bp_mount_n + 45])
+                translate([bp_mount_bc/2, 0]) circle(d = bp_mount_d, $fn = 32);
+        }
     }
+}
+
+module baseplate(t = bp_t) {
+    translate([0,0,-t]) linear_extrude(t) baseplate_2d();
 }
 
 shaft_col = ["#8d8d8d", "#7fb2e5", "#3d85c6", "#1c4587", "#d97b3f"];
@@ -717,10 +754,10 @@ module output_shaft_assembly() {
 
 module os_stack() {
     e = os_exp;
-    color("#c8c8c0") translate([0,0,-4])
-        linear_extrude(4) difference() {
+    color("#c8c8c0") translate([0,0,-bp_t])
+        linear_extrude(bp_t) difference() {
             circle(d = 105, $fn = 96);
-            circle(d = os_tower_od + 0.4, $fn = 72);
+            circle(d = bp_tower_d, $fn = 72);
         }
     color("#9aa0a6") translate([0,0,-28]) cylinder(d = os_shaft_d, h = 62, $fn = 48);
     for (z = [-21, 9]) color("#5a5f66") translate([0,0,z]) difference() {
@@ -773,6 +810,8 @@ else if (part == "hubupper")       output_hub_upper();
 else if (part == "magnetcap")      magnet_cap();
 else if (part == "as5600bracket")  as5600_bracket();
 else if (part == "bearinggauge")   bearing_gauge();
+else if (part == "baseplate")      baseplate();
+else if (part == "baseplatecut")   baseplate_2d();
 // all-printed module-2 final wheel -- 196 mm OD, fits a 220x220 bed
 else if (part == "finalwheel")     output_wheel(zwf, mod_f);
 else                          test_pair(zp, zw, $t*360);
