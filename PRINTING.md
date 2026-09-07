@@ -18,10 +18,55 @@ suits true 5.00 mm ground stock. See *Shafts* below.
 | `pinion.stl` | 1 | 15T motor pinion, **D-shaft bore 5.45** for the NEMA17's 5.00 mm ground shaft |
 | `stage.stl` | **2** | 120T + 15T compound, 8:1 — shafts 1 and 2 |
 | `final_stage_gear.stl` | 1 | 120T module-1 wheel + **24T module-2** pinion, one piece — shaft 3 |
-| `final_wheel_96T_m2_PRINTED.stl` | 1 | 96T module-2 output wheel, 196 mm OD, 4:1 |
+| `final_wheel_96T_m2_PRINTED.stl` | 1 | 96T module-2 output wheel, 196 mm OD, 4:1. **Ø22 bore, 6 bolts at r=18** — it locates on the hub register, not on its own bore |
 
 Note `stage.stl` is **2**, not 3 — the third compound is `final_stage_gear.stl`,
 which carries the coarse module-2 pinion.
+
+## Output shaft and AS5600 encoder
+
+The output is the one shaft that rotates: the encoder magnet has to sit on the
+axis and turn with the wheel, and the camera load wants real bearings anyway.
+
+| File | Qty | What |
+|---|---|---|
+| `output_bearing_tower.stl` | 1 | two 625ZZ pockets 30 mm apart, flange bolts to the plate, spigot below registers the sensor |
+| `output_hub_lower.stl` | 1 | clamps the shaft, Ø22 register the wheel locates on |
+| `output_hub_upper.stl` | 1 | camera platform, 1/4"-20 with a captive nut pocket |
+| `magnet_cap.stl` | 1 | presses on the shaft end, 1.5 mm floor under the magnet |
+| `as5600_bracket.stl` | 1 | slides up over the tower spigot, PCB screws to its underside |
+
+Also needed: a **5 x 65 mm ground shaft** (not a nail — this one runs in
+bearings and carries the encoder), 2 x 625ZZ, a **diametrically** magnetised
+6 x 2.5 magnet, and an AS5600 breakout.
+
+**Verified geometry:** tower Ø38 x 35 mm, hubs Ø44, cap Ø9 x 9, bracket
+Ø30 x 27. Bearing centres 30 mm apart. **Magnet face to sensor die = 2.0 mm**,
+inside the AS5600's 0.5-3.0 mm window.
+
+### Print orientation matters on three of these
+
+- **Tower — bottom (the −21 end) on the bed.** The lower bearing pocket opens
+  downward onto the bed so the bearing can actually go in, and its ceiling is a
+  45 deg cone, not a flat annular bridge. The flange has a 45 deg cone
+  underneath for the same reason. **No supports needed** — and if you flip it,
+  you get an unsupported ledge and a pocket you cannot insert a bearing into.
+- **Magnet cap — magnet pocket down.** Small part: print three or four at once
+  or the layers never cool.
+- **Bracket — floor down.** Everything above it is open upward.
+
+Both hubs print flat-face-down with no overhangs.
+
+### Concentricity comes from the parts, not from you
+
+The AS5600 needs the magnet centred over the die within ~0.25 mm. The bracket
+therefore registers on the **same tower boss that holds the lower bearing**, so
+concentricity is built in rather than dialled in. Do not substitute slotted
+holes and eyeballing.
+
+Firmware setup aid: read the AS5600's `AGC` and `MAGNITUDE` registers over I2C.
+They tell you "too far / too close" as a number, so the air gap is measured
+rather than guessed.
 
 ## Shaft spacers
 
@@ -110,12 +155,16 @@ re-rendering `final_stage_gear.stl` at a larger `bore`.
 
 ## Calibration — print these FIRST
 
+Three gauges, all in `out/_scratch/`, all sub-15-minute prints. Each exists
+because a dimension on this printer cannot be predicted, only measured.
+
 | File | Why |
 |---|---|
 | `BOREGAUGE_hole_diameters.stl` | Stepped holes 5.0–5.6. Push a real 5 mm shaft through (a 5 mm drill shank is a precise gauge pin); the smallest hole that turns freely is what `bore` should be. **Needed for the motor pinion** — a NEMA 17 shaft is ground 5.00 mm and will not enter a bore that printed at 4.9. Push the actual motor shaft through the gauge and re-render `pinion.stl` at that bore. The other four gears run on 4.88 mm nails and are fine as cut. |
 | `FITGAUGE_post_diameters.stl` | Stepped posts. Already run → **4.70** on this printer. Re-run with `-D fg_d0=` if you change filament. |
 | `TESTPLATE_15T_30T.stl` | Backlash jig, posts at 22.5 mm centres, cut for the measured 4.70. |
 | `TEST_wheel_30T.stl` | The 30T mate for the test plate. Pairs with `pinion.stl`. |
+| `BEARINGGAUGE_pockets.stl` | **Print before the bearing tower.** Eight stepped pockets, 16.0 to 16.7. Printed holes come out undersize, so a nominal 16.0 pocket will not take a 16.0 bearing. Push a real 625ZZ into each; use the smallest that seats with firm thumb pressure — not one you have to hammer, and not one it drops into. Then set `os_brg_fit` (or `$BrgFit` in `build.ps1`) to that value minus 16.0. |
 
 ## Laser option
 

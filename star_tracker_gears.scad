@@ -25,7 +25,7 @@
 
 /* [What to render] */
 // train = layout check, plate = ready to slice, test_pair = check the mesh
-part = "test_pair";  // [train, plate, stage, output, pinion, testwheel, testplate, fitgauge, boregauge, spacers, assembly, finalwheel, finalstage, finalpinion, laserwheel, lasercut, dxf, test_pair]
+part = "test_pair";  // [train, plate, stage, output, pinion, testwheel, testplate, fitgauge, boregauge, spacers, assembly, encoder, tower, hublower, hubupper, magnetcap, as5600bracket, bearinggauge, finalwheel, finalstage, finalpinion, laserwheel, lasercut, dxf, test_pair]
 
 /* [Gear cutting] */
 mod_      = 1.0;    // transverse module, mm
@@ -92,6 +92,10 @@ bg_d0       = 5.00;  // bore gauge: smallest hole
 bg_step     = 0.10;  // bore gauge: step
 bg_n        = 7;     // bore gauge: number of holes
 bg_t        = 6;     // bore gauge thickness (~ a gear face width)
+bpg_d0      = 16.0;  // bearing gauge: smallest pocket (625ZZ is 16.0 nominal)
+bpg_step    = 0.1;
+bpg_n       = 8;
+bpg_t       = 8;     // bearing gauge bar thickness
 tp_plate_t  = 4;     // plate thickness
 tp_collar_d = 11;    // collar the gear rides on, clear of the plate face
 tp_collar_h = 1.2;
@@ -106,6 +110,22 @@ tp_screw_d  = 2.7;   // M3 thread-forming, retains the keeper washer
 sp_od  = 10;   // spacer outside diameter -- HARD MAX 13
 sp_clr = 2;    // running clearance between baseplate and the lowest gear
 explode = 0;   // assembly view only: lift every gear off its spacer, mm
+
+/* [Output shaft and AS5600 encoder] */
+// The output is the ONE shaft that rotates: the magnet must sit on the axis
+// and turn with the wheel, and the camera load wants real bearings anyway.
+os_shaft_d = 5.0;    // ground shaft, not a nail
+os_brg_od  = 16;     // 625ZZ outer race
+os_brg_w   = 5;      // 625ZZ width
+os_tower_od = 22;    // bearing tower OD -- also the sensor bracket's register
+os_hub_od  = 44;     // clamp hubs; must exceed 2*bc_r so the bolts land in meat
+os_reg_d   = 22;     // register the wheel is located on
+os_mag_d   = 6;      // diametric magnet
+os_mag_h   = 2.5;
+os_flange_d = 38;    // tower flange that bolts to the baseplate
+os_brg_fit = 0.5;    // bearing pocket allowance -- SET THIS FROM THE BEARING GAUGE
+os_cut     = false;  // cut the assembly in half for a section view (needs --render)
+os_exp     = 0;      // exploded view: axial separation between parts, mm
 
 /* [Mounting bolt circle] */
 bc_holes = 4;      // number of holes, 0 = none
@@ -579,6 +599,146 @@ module assembly(explode = 0) {
         color(shaft_col[4]) output_wheel(zwf, mod_f);
 }
 
+// Stepped POCKETS for a 625ZZ. Printed holes come out undersize, so a
+// nominal 16.0 pocket will not take a 16.0 bearing. Push a real bearing into
+// each and use the smallest that seats with firm thumb pressure -- not one
+// you have to hammer, and not one that drops in.
+module bearing_gauge() {
+    sp = 21; W = bpg_n*sp + 6;
+    difference() {
+        linear_extrude(bpg_t) translate([W/2, 14]) offset(r=3)
+            square([W-6, 22], center=true);
+        for (i=[0:bpg_n-1]) translate([i*sp + 12, 14, bpg_t - 5.5])
+            cylinder(d = bpg_d0 + i*bpg_step, h = 6, $fn = 72);
+        for (i=[0:bpg_n-1]) translate([i*sp + 12, 3.6, bpg_t - 0.6])
+            linear_extrude(1)
+                text(str((round(bpg_d0*100) + i*round(bpg_step*100))/100),
+                     size = 3, halign = "center");
+    }
+}
+
+// ---------------------------------------------------------------------
+//  OUTPUT SHAFT + AS5600 ENCODER
+//
+//  Datum: baseplate top = z 0. The wheel sits where the gear train puts it.
+//  Everything below the plate is the encoder; everything above is the clamp
+//  stack and the camera platform.
+// ---------------------------------------------------------------------
+function os_zw()  = sp_clr + 3*sp_step();          // wheel underside, 21.5
+function os_ztop() = os_zw() + fw_wheel;           // wheel top face, 26.5
+
+// Section cut is applied at the call site rather than through a children()
+// wrapper: children() nested inside union() inside difference() inside if()
+// does not resolve, and the cut silently does nothing.
+
+// Printed: two bearing pockets, a flange onto the baseplate, and a spigot
+// below that the sensor bracket registers on.
+module output_bearing_tower() {
+    zb = -21; zt = 14;
+    bd = os_brg_od + os_brg_fit;
+    difference() {
+        union() {
+            translate([0,0,zb]) cylinder(d = os_tower_od, h = zt - zb, $fn = 72);
+            // 45 deg cone under the flange: a flat ledge here is an
+            // unsupported overhang when the part prints bottom-up
+            translate([0,0,-8])
+                cylinder(d1 = os_tower_od, d2 = os_flange_d, h = 8, $fn = 72);
+            cylinder(d = os_flange_d, h = 4, $fn = 72);
+        }
+        // lower pocket opens at the BOTTOM face so the bearing can go in
+        translate([0,0,zb-0.01]) cylinder(d = bd, h = os_brg_w, $fn = 72);
+        // and a 45 deg cone out of it -- a flat pocket ceiling would be an
+        // unsupported annular bridge
+        translate([0,0, zb + os_brg_w - 0.01])
+            cylinder(d1 = bd, d2 = os_shaft_d + 0.8,
+                     h = (bd - os_shaft_d - 0.8)/2, $fn = 72);
+        // upper pocket opens at the TOP face; its floor is supported
+        translate([0,0, zt - os_brg_w]) cylinder(d = bd, h = os_brg_w + 1, $fn = 72);
+        translate([0,0,zb-1]) cylinder(d = os_shaft_d + 0.8, h = zt-zb+2, $fn = 48);
+        for (i=[0:2]) rotate([0,0, i*120 + 60])
+            translate([os_flange_d/2 - 5, 0, -1]) cylinder(d = 3.4, h = 8, $fn = 24);
+    }
+}
+
+// Printed: clamps the shaft, carries the register the wheel locates on.
+module output_hub_lower() {
+    difference() {
+        union() {
+            translate([0,0, os_zw()-7.5]) cylinder(d = os_hub_od, h = 7.5, $fn = 72);
+            translate([0,0, os_zw()])     cylinder(d = os_reg_d,  h = fw_wheel-0.5, $fn = 72);
+        }
+        translate([0,0, os_zw()-8.5]) cylinder(d = os_shaft_d+0.15, h = 20, $fn = 48);
+        for (i=[0:bc_holes-1]) rotate([0,0, i*360/bc_holes])
+            translate([bc_r, 0, os_zw()-8.5]) cylinder(d = 2.7, h = 9.5, $fn = 24);
+        translate([0,0, os_zw()-4]) rotate([0,-90,0])
+            cylinder(d = 2.7, h = os_hub_od/2 + 2, $fn = 24);
+    }
+}
+
+// Printed: the other half of the clamp, and the camera platform.
+module output_hub_upper() {
+    difference() {
+        translate([0,0, os_ztop()]) cylinder(d = os_hub_od, h = 7.5, $fn = 72);
+        translate([0,0, os_ztop()-1]) cylinder(d = 6.6,  h = 10, $fn = 48);  // 1/4-20
+        translate([0,0, os_ztop()-1]) cylinder(d = 12.8, h = 3.2, $fn = 6);  // captive nut
+        for (i=[0:bc_holes-1]) rotate([0,0, i*360/bc_holes])
+            translate([bc_r, 0, os_ztop()-1]) cylinder(d = 3.4, h = 10, $fn = 24);
+    }
+}
+
+// Printed: presses onto the shaft end. The 1.5 mm floor keeps the steel shaft
+// from shunting flux out of the magnet.
+module magnet_cap() {
+    difference() {
+        translate([0,0,-37]) cylinder(d = os_mag_d + 3, h = 9, $fn = 48);
+        translate([0,0,-33]) cylinder(d = os_shaft_d + 0.15, h = 8, $fn = 48);
+        translate([0,0,-37.01]) cylinder(d = os_mag_d + 0.15, h = os_mag_h, $fn = 48);
+    }
+}
+
+// Printed: slides up over the tower spigot, so the sensor is concentric by
+// construction rather than by eye.
+module as5600_bracket() {
+    difference() {
+        translate([0,0,-40]) cylinder(d = 30, h = 27, $fn = 72);
+        translate([0,0,-20])   cylinder(d = os_tower_od + 0.3, h = 9, $fn = 72);
+        translate([0,0,-38.4]) cylinder(d = 24, h = 18.6, $fn = 72);
+        translate([0,0,-40.1]) cylinder(d = 14, h = 1.9, $fn = 48);
+        for (i=[-1,1]) translate([i*8.5, 0, -40.1]) cylinder(d = 2.7, h = 3, $fn = 24);
+    }
+}
+
+module output_shaft_assembly() {
+    if (os_cut) difference() {
+        os_stack();
+        translate([-200, 0, -200]) cube(400);
+    } else os_stack();
+}
+
+module os_stack() {
+    e = os_exp;
+    color("#c8c8c0") translate([0,0,-4])
+        linear_extrude(4) difference() {
+            circle(d = 105, $fn = 96);
+            circle(d = os_tower_od + 0.4, $fn = 72);
+        }
+    color("#9aa0a6") translate([0,0,-28]) cylinder(d = os_shaft_d, h = 62, $fn = 48);
+    for (z = [-21, 9]) color("#5a5f66") translate([0,0,z]) difference() {
+        cylinder(d = os_brg_od, h = os_brg_w, $fn = 64);
+        translate([0,0,-1]) cylinder(d = os_shaft_d, h = os_brg_w + 2, $fn = 48);
+    }
+    color("#7fb2e5")               output_bearing_tower();
+    color("#3d85c6") translate([0,0, e])     output_hub_lower();
+    color("#d97b3f") translate([0,0, os_zw() + 2*e]) output_wheel(zwf, mod_f);
+    color("#2f6fa8") translate([0,0, 3*e])   output_hub_upper();
+    color("#7fb2e5") translate([0,0,-1.0*e]) magnet_cap();
+    color("#a48fd0") translate([0,0,-36.9 - 1.9*e])
+        cylinder(d = os_mag_d, h = os_mag_h, $fn = 48);
+    color("#aeb6c2") translate([0,0,-3.6*e]) as5600_bracket();
+    color("#2f7d4f") translate([-10,-7.5,-41.6 - 3.6*e]) cube([20, 15, 1.6]);
+    color("#222222") translate([-3,-3,-40 - 3.6*e]) cube([6, 6, 1.0]);
+}
+
 // ---------------------------------------------------------------------
 //  print plate
 // ---------------------------------------------------------------------
@@ -606,6 +766,13 @@ else if (part == "fitgauge")       fit_gauge();
 else if (part == "boregauge")      bore_gauge();
 else if (part == "spacers")        spacer_set();
 else if (part == "assembly")       assembly(explode);
+else if (part == "encoder")        output_shaft_assembly();
+else if (part == "tower")          output_bearing_tower();
+else if (part == "hublower")       output_hub_lower();
+else if (part == "hubupper")       output_hub_upper();
+else if (part == "magnetcap")      magnet_cap();
+else if (part == "as5600bracket")  as5600_bracket();
+else if (part == "bearinggauge")   bearing_gauge();
 // all-printed module-2 final wheel -- 196 mm OD, fits a 220x220 bed
 else if (part == "finalwheel")     output_wheel(zwf, mod_f);
 else                          test_pair(zp, zw, $t*360);

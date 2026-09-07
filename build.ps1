@@ -16,7 +16,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('all', 'gears', 'calibration', 'docs')]
+    [ValidateSet('all', 'gears', 'encoder', 'calibration', 'docs')]
     [string] $Group = 'all',
     [string] $Only,
     [switch] $List,
@@ -37,6 +37,9 @@ $Bore      = 5.20   # gears 1-4, running on 4.88 mm 20d common nails
 $MotorBore = 5.45   # motor pinion, on the NEMA17's 5.00 mm ground shaft
 $MotorFlat = 2.225  # D-cut flat: 2.0 + (MotorBore - 5.0) / 2
 $PostD     = 4.70   # test-plate posts, from FITGAUGE
+$BrgFit    = 0.50   # 625ZZ pocket allowance -- SET FROM THE BEARING GAUGE
+$OutBolts  = 6      # output wheel clamp bolts
+$OutBoltR  = 18     # ...on this radius, clear of the 22 mm register
 
 # ---------------------------------------------------------------------------
 #  TARGETS
@@ -51,7 +54,18 @@ $targets = @(
      d=@("mount_type=\`"dshaft\`"", 'bore=5.60', 'd_flat=2.30') }
   @{ g='gears'; f='stage.stl';                      p='stage';      d=@("bore=$Bore") }
   @{ g='gears'; f='final_stage_gear.stl';           p='finalstage'; d=@("bore=$Bore") }
-  @{ g='gears'; f='final_wheel_96T_m2_PRINTED.stl'; p='finalwheel'; d=@("bore=$Bore") }
+  @{ g='gears'; f='final_wheel_96T_m2_PRINTED.stl'; p='finalwheel';
+     d=@('bore=22', "bc_holes=$OutBolts", "bc_r=$OutBoltR") }
+
+  # --- output shaft + AS5600 encoder ------------------------------------
+  @{ g='encoder'; f='output_bearing_tower.stl'; p='tower';
+     d=@("os_brg_fit=$BrgFit", "bc_holes=$OutBolts", "bc_r=$OutBoltR") }
+  @{ g='encoder'; f='output_hub_lower.stl'; p='hublower';
+     d=@("bc_holes=$OutBolts", "bc_r=$OutBoltR") }
+  @{ g='encoder'; f='output_hub_upper.stl'; p='hubupper';
+     d=@("bc_holes=$OutBolts", "bc_r=$OutBoltR") }
+  @{ g='encoder'; f='magnet_cap.stl';     p='magnetcap';     d=@() }
+  @{ g='encoder'; f='as5600_bracket.stl'; p='as5600bracket'; d=@() }
   @{ g='gears'; f='SPACERS_shaft_0-4.stl';          p='spacers';    d=@("bore=$Bore") }
 
   # --- calibration and test rig, into _scratch --------------------------
@@ -61,6 +75,7 @@ $targets = @(
      d=@("tp_post_d=$PostD") }
   @{ g='calibration'; f='_scratch/TEST_wheel_30T.stl';           p='testwheel';
      d=@('zw=30', "bore=$Bore") }
+  @{ g='calibration'; f='_scratch/BEARINGGAUGE_pockets.stl';     p='bearinggauge'; d=@() }
 
   # --- documentation ----------------------------------------------------
   # Laser profile: high flank resolution and a looser backlash, because a
