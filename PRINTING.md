@@ -67,7 +67,9 @@ axis and turn with the wheel, and the camera load wants real bearings anyway.
 
 | File | Qty | What |
 |---|---|---|
-| `output_bearing_tower.stl` | 1 | two 625ZZ pockets 30 mm apart, flange bolts to the plate, spigot below registers the sensor |
+| `output_tower_LOWER.stl` | 1 | tube + taper, lower 625ZZ pocket, spigot the sensor bracket registers on |
+| `output_tower_UPPER.stl` | 1 | flange onto the baseplate, upper 625ZZ pocket |
+| `output_tower_DOWELS.stl` | 1 | three Ø2.9 x 7.6 alignment dowels |
 | `output_hub_lower.stl` | 1 | clamps the shaft, Ø22 register the wheel locates on |
 | `output_hub_upper.stl` | 1 | camera platform, 1/4"-20 with a captive nut pocket |
 | `magnet_cap.stl` | 1 | presses on the shaft end, 1.5 mm floor under the magnet |
@@ -81,13 +83,31 @@ bearings and carries the encoder), 2 x 625ZZ, a **diametrically** magnetised
 Ø30 x 27. Bearing centres 30 mm apart. **Magnet face to sensor die = 2.0 mm**,
 inside the AS5600's 0.5-3.0 mm window.
 
-### Print orientation matters on three of these
+### The tower is split, because one piece will not print
 
-- **Tower — bottom (the −21 end) on the bed.** The lower bearing pocket opens
-  downward onto the bed so the bearing can actually go in, and its ceiling is a
-  45 deg cone, not a flat annular bridge. The flange has a 45 deg cone
-  underneath for the same reason. **No supports needed** — and if you flip it,
-  you get an unsupported ledge and a pocket you cannot insert a bearing into.
+It fails in **both** orientations, for different reasons:
+
+- **Bottom-up:** the first layer is a 2.75 mm wide ring — only **166 mm2** of
+  bed contact under a 35 mm tall part. It lifts.
+- **Top-down:** the flange's top face becomes an 8 mm wide 90 degree ledge.
+
+Split at the taper/flange junction (z = 0, where the taper meets the max
+radius). **Both halves then print flange-face-down on ~1080 mm2** — 6.5x the
+bed contact — and neither has an overhang: the lower half's cone shrinks going
+up, the upper half steps inward going up. No supports on either.
+
+Three Ø3.2 sockets straddle the joint, 4 mm into each half, on a 16 mm circle
+clear of the bore and the M3s. **Both mating faces want to be on the bed** —
+that is the whole point of the split — so an integral male pin would have to
+print as an overhang on whichever half carried it. Hence separate dowels.
+`output_tower_DOWELS.stl` gives three; a 3 mm rod or filament offcut works
+just as well. Glue with the dowels dry-fitted first, then bolt down.
+
+The three M3 flange holes pass through **both** halves, so the mounting screws
+also key the joint.
+
+### Print orientation matters on three of these
+- **Tower halves — flange face down**, both of them.
 - **Magnet cap — magnet pocket down.** Small part: print three or four at once
   or the layers never cool.
 - **Bracket — floor down.** Everything above it is open upward.

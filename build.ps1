@@ -59,8 +59,15 @@ $targets = @(
      d=@('bore=22', "bc_holes=$OutBolts", "bc_r=$OutBoltR") }
 
   # --- output shaft + AS5600 encoder ------------------------------------
-  @{ g='encoder'; f='output_bearing_tower.stl'; p='tower';
-     d=@("os_brg_fit=$BrgFit", "bc_holes=$OutBolts", "bc_r=$OutBoltR") }
+  # The one-piece tower does not print -- see PRINTING.md. Kept as a target
+  # only for rendering and reference; build the two halves.
+  @{ g='encoder'; f='_scratch/output_bearing_tower_ONEPIECE.stl'; p='tower';
+     d=@("os_brg_fit=$BrgFit") }
+  @{ g='encoder'; f='output_tower_LOWER.stl';  p='towerlower';
+     d=@("os_brg_fit=$BrgFit") }
+  @{ g='encoder'; f='output_tower_UPPER.stl';  p='towerupper';
+     d=@("os_brg_fit=$BrgFit") }
+  @{ g='encoder'; f='output_tower_DOWELS.stl'; p='towerdowels'; d=@() }
   @{ g='encoder'; f='output_hub_lower.stl'; p='hublower';
      d=@("bc_holes=$OutBolts", "bc_r=$OutBoltR") }
   @{ g='encoder'; f='output_hub_upper.stl'; p='hubupper';

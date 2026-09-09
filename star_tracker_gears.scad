@@ -25,7 +25,7 @@
 
 /* [What to render] */
 // train = layout check, plate = ready to slice, test_pair = check the mesh
-part = "test_pair";  // [train, plate, stage, output, pinion, testwheel, testplate, fitgauge, boregauge, spacers, assembly, encoder, tower, hublower, hubupper, magnetcap, as5600bracket, bearinggauge, baseplate, baseplatecut, finalwheel, finalstage, finalpinion, laserwheel, lasercut, dxf, test_pair]
+part = "test_pair";  // [train, plate, stage, output, pinion, testwheel, testplate, fitgauge, boregauge, spacers, assembly, encoder, tower, hublower, hubupper, magnetcap, as5600bracket, bearinggauge, baseplate, baseplatecut, towerlower, towerupper, towerdowels, towersplit, finalwheel, finalstage, finalpinion, laserwheel, lasercut, dxf, test_pair]
 
 /* [Gear cutting] */
 mod_      = 1.0;    // transverse module, mm
@@ -125,6 +125,17 @@ os_mag_h   = 2.5;
 os_flange_d = 38;    // tower flange that bolts to the baseplate
 os_brg_fit = 0.5;    // bearing pocket allowance -- SET THIS FROM THE BEARING GAUGE
 os_cut     = false;  // cut the assembly in half for a section view (needs --render)
+
+/* [Split bearing tower] */
+// The one-piece tower will not print. Bottom-up its first layer is a 2.75 mm
+// ring (166 mm2) under a 35 mm tall part; top-down the flange top face becomes
+// an 8 mm 90 deg ledge. Split at the taper/flange junction and BOTH halves
+// print flange-face-down on ~1080 mm2 of bed, with nothing overhanging.
+os_split_z  = 0;     // split plane -- where the taper meets the max radius
+os_pin_n    = 3;     // alignment dowels
+os_pin_r    = 8;     // dowel circle radius (clear of the bore and the M3s)
+os_pin_d    = 3.2;   // socket dia
+os_pin_len  = 4.0;   // socket depth into EACH half
 os_exp     = 0;      // exploded view: axial separation between parts, mm
 
 /* [Baseplate] */
@@ -692,9 +703,50 @@ module output_bearing_tower() {
         // upper pocket opens at the TOP face; its floor is supported
         translate([0,0, zt - os_brg_w]) cylinder(d = bd, h = os_brg_w + 1, $fn = 72);
         translate([0,0,zb-1]) cylinder(d = os_shaft_d + 0.8, h = zt-zb+2, $fn = 48);
+        // material exists at r=14 only between z=-5 and z=+4, so the hole has
+        // to span that whole band -- at h=8 from z=-1 it was blind and the
+        // tower could not actually be bolted down
         for (i=[0:2]) rotate([0,0, i*120 + 60])
-            translate([os_flange_d/2 - 5, 0, -1]) cylinder(d = 3.4, h = 8, $fn = 24);
+            translate([os_flange_d/2 - 5, 0, -7]) cylinder(d = 3.4, h = 13, $fn = 24);
     }
+}
+
+// Sockets straddle the split plane, so one call cuts both halves.
+module tower_pin_sockets() {
+    for (i=[0:os_pin_n-1]) rotate([0,0, i*360/os_pin_n])
+        translate([os_pin_r, 0, os_split_z - os_pin_len])
+            cylinder(d = os_pin_d, h = os_pin_len*2, $fn = 32);
+}
+
+module output_tower_lower() {
+    intersection() {
+        difference() { output_bearing_tower(); tower_pin_sockets(); }
+        translate([-100,-100,-200]) cube([200, 200, 200 + os_split_z]);
+    }
+}
+
+module output_tower_upper() {
+    intersection() {
+        difference() { output_bearing_tower(); tower_pin_sockets(); }
+        translate([-100,-100,os_split_z]) cube([200, 200, 200]);
+    }
+}
+
+// Both mating faces want to be on the bed -- that is the whole point of the
+// split -- so an integral male pin would have to print as an overhang on
+// whichever half carried it. Separate dowels instead. A 3 mm rod or filament
+// offcut works just as well.
+module tower_split_view() {
+    color("#7fb2e5") output_tower_lower();
+    color("#2f6fa8") translate([0,0,26]) output_tower_upper();
+    for (i=[0:os_pin_n-1]) rotate([0,0, i*360/os_pin_n])
+        color("#d97b3f") translate([os_pin_r, 0, 11])
+            cylinder(d = os_pin_d - 0.3, h = os_pin_len*2 - 0.4, $fn = 32);
+}
+
+module tower_dowels() {
+    for (i=[0:os_pin_n-1]) translate([i*8, 0, 0])
+        cylinder(d = os_pin_d - 0.3, h = os_pin_len*2 - 0.4, $fn = 32);
 }
 
 // Printed: clamps the shaft, carries the register the wheel locates on.
@@ -812,6 +864,10 @@ else if (part == "as5600bracket")  as5600_bracket();
 else if (part == "bearinggauge")   bearing_gauge();
 else if (part == "baseplate")      baseplate();
 else if (part == "baseplatecut")   baseplate_2d();
+else if (part == "towerlower")     output_tower_lower();
+else if (part == "towerupper")     output_tower_upper();
+else if (part == "towerdowels")    tower_dowels();
+else if (part == "towersplit")     tower_split_view();
 // all-printed module-2 final wheel -- 196 mm OD, fits a 220x220 bed
 else if (part == "finalwheel")     output_wheel(zwf, mod_f);
 else                          test_pair(zp, zw, $t*360);

@@ -263,6 +263,10 @@ Each of these cost real time and none of them announce themselves.
   must open onto the bed or the bearing cannot be inserted at all, and both the
   pocket ceiling and the flange underside are 45° cones rather than flat
   overhangs. Upside down it is unusable.
+- **A part can be un-printable in every orientation.** The bearing tower had a
+  166 mm2 first layer one way up and an 8 mm 90° ledge the other. Splitting it
+  at the taper/flange junction gave both halves 1080 mm2 and zero overhang.
+  Check bed contact area, not just overhang angle.
 - **Verify meshes, not file sizes.** Bounding-box checks caught a wheel that had
   changed only in float formatting, and a D-shaft cut that had sliced the pinion
   into five disconnected bodies (`Volumes: 5` instead of 2).
