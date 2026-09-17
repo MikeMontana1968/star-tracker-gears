@@ -270,6 +270,7 @@ Ignore it otherwise.
 | `assembly_exploded.png` | Same, every gear lifted 45 mm so the spacers and shafts are visible |
 | `assembly_top.png` | Plan view, matches the baseplate template |
 | `baseplate_template.pdf` | **1:1 drilling template**, US Letter portrait |
+| `baseplate_assembly_guide.pdf` | bench reference: what sits on each shaft, spacer heights, fasteners. **Not to scale** |
 
 The PDF must be printed at **100% / Actual size** — no page scaling, no
 fit-to-page. It carries a 100 mm scale bar on each axis; measure both with a

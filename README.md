@@ -141,6 +141,9 @@ that short load path is why 4 mm is enough.
   State **mm** on upload; R12 DXF has no reliable units record
 - `out/docs/baseplate_cut.svg` — same geometry as SVG, 17 closed contours
 - `out/docs/baseplate_template.pdf` — 1:1 on US Letter, two scale bars
+- `out/docs/baseplate_assembly_guide.pdf` — bench reference: component outlines,
+  spacer heights, fastener sizes. **Not to scale**, by necessity — the gear
+  footprint is 226 × 279 mm
 
 `baseplate_geom.py` is the single source for all three, so they cannot drift.
 Never export DXF from OpenSCAD — it emits 708 loose LINE segments and no
