@@ -30,9 +30,27 @@ strength, so it is a cut part.
 
 **4 mm 6061 aluminium.** 157 cm2 of material, ~170 g. 3 mm works if the wedge
 sits close to the output shaft; below 3 mm the bearing-tower flange will dimple
-it. Send `out/docs/baseplate_cut.svg` — 122 x 175 mm, 17 closed contours
-(outline, motor boss, 4 motor bolts, 3 nail shafts, tower spigot, 3 flange
-bolts, 4 wedge bolts).
+it.
+
+**Send `out/docs/baseplate_cut.dxf`** — SendCutSend wants DXF. It carries the
+outline as **4 ARC + 4 LINE** (the hull of circles decomposes exactly into arcs
+joined by their common tangents) and every hole as a true **CIRCLE**: 16 of
+them, 24 entities total.
+
+Do **not** export DXF from OpenSCAD. Its writer emits the whole profile as
+loose line segments — **708** of them for this part, with every hole a faceted
+polygon and not one CIRCLE. Services reject or mis-cut that.
+
+`baseplate_cut.svg` is the same geometry (17 closed contours) if a vendor
+prefers SVG. R12 DXF has no reliable units record, so **state mm on upload**;
+the file measures 121.50 x 174.00 mm, which is the giveaway if anything reads
+it as inches.
+
+**DFM note:** the tower flange bolt circle is Ø35, not Ø28. At Ø28 the web
+between the plate's Ø22.4 spigot bore and each M3 was only **1.10 mm** — under
+the min-feature rule for 4 mm aluminium. Ø35 gives 4.60 mm, and the tower
+flange grew to Ø44 to suit, which still clears shaft 1's wheel by 2.5 mm.
+`os_flange_bc` and `bp_tower_bc` must stay equal.
 
 The outline is a hull of lobes at the five shaft centres, not a slab under the
 whole gear footprint: **the wheels overhang the plate on purpose**, so the plate

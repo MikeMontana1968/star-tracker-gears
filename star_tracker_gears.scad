@@ -122,7 +122,12 @@ os_hub_od  = 44;     // clamp hubs; must exceed 2*bc_r so the bolts land in meat
 os_reg_d   = 22;     // register the wheel is located on
 os_mag_d   = 6;      // diametric magnet
 os_mag_h   = 2.5;
-os_flange_d = 38;    // tower flange that bolts to the baseplate
+os_flange_d = 44;    // tower flange. Sized by the bolt circle below, then
+                     // checked against shaft 1's wheel: 85.5 - 61 - 22 = 2.5 mm
+os_flange_bc = 35;   // flange bolt circle dia. At Ø28 the web between the
+                     // plate's Ø22.4 spigot bore and each M3 was only 1.10 mm
+                     // -- under the min-feature rule for 4 mm aluminium.
+                     // Ø35 gives 4.60 mm.
 os_brg_fit = 0.5;    // bearing pocket allowance -- SET THIS FROM THE BEARING GAUGE
 os_cut     = false;  // cut the assembly in half for a section view (needs --render)
 
@@ -146,7 +151,7 @@ bp_t          = 4.0;   // thickness. 4 mm 6061 recommended
 bp_shaft_d    = 4.9;   // light press for the 4.88 mm nail shafts (1-3)
 bp_motor_boss = 23;    // NEMA17 pilot boss registers here
 bp_motor_bc   = 31;    // NEMA17 bolt pattern, square
-bp_tower_bc   = 28;    // bearing tower flange bolts, dia (3 x M3 at r=14)
+bp_tower_bc   = 35;    // bearing tower flange bolts, dia -- must equal os_flange_bc
 bp_tower_d    = 22.4;  // tower spigot clearance at shaft 4
 bp_mount_bc   = 50;    // wedge/tripod bolt circle, centred on the OUTPUT axis
 bp_mount_d    = 5.5;   // M5 clearance
@@ -707,7 +712,7 @@ module output_bearing_tower() {
         // to span that whole band -- at h=8 from z=-1 it was blind and the
         // tower could not actually be bolted down
         for (i=[0:2]) rotate([0,0, i*120 + 60])
-            translate([os_flange_d/2 - 5, 0, -7]) cylinder(d = 3.4, h = 13, $fn = 24);
+            translate([os_flange_bc/2, 0, -7]) cylinder(d = 3.4, h = 13, $fn = 24);
     }
 }
 

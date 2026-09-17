@@ -133,8 +133,14 @@ The wedge/tripod interface is **4 × M5 on Ø50 centred on the output axis**, no
 on the plate centroid. The camera moment gets reacted where it is generated, and
 that short load path is why 4 mm is enough.
 
-- `out/docs/baseplate_cut.svg` — send this, 122 × 175 mm, 17 closed contours
-- `out/docs/baseplate_template.pdf` — same geometry 1:1 on US Letter, two scale bars
+- `out/docs/baseplate_cut.dxf` — **send this**, 4 ARC + 4 LINE + 16 CIRCLE.
+  State **mm** on upload; R12 DXF has no reliable units record
+- `out/docs/baseplate_cut.svg` — same geometry as SVG, 17 closed contours
+- `out/docs/baseplate_template.pdf` — 1:1 on US Letter, two scale bars
+
+`baseplate_geom.py` is the single source for all three, so they cannot drift.
+Never export DXF from OpenSCAD — it emits 708 loose LINE segments and no
+circles at all.
 
 ---
 

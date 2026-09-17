@@ -103,6 +103,7 @@ $targets = @(
 if ($List) {
     $targets | ForEach-Object { "{0,-12} {1}" -f $_.g, $_.f }
     "{0,-12} {1}" -f 'docs', 'docs/baseplate_template.pdf  (make_baseplate_pdf.py)'
+    "{0,-12} {1}" -f 'docs', 'docs/baseplate_cut.dxf       (make_baseplate_dxf.py)'
     return
 }
 
@@ -158,10 +159,11 @@ foreach ($t in $selected) {
 # ---- the 1:1 drilling template ---------------------------------------------
 if ($Group -eq 'all' -or $Group -eq 'docs') {
     if (-not $Only -or 'baseplate_template.pdf' -like "*$Only*") {
-        Write-Host '-> docs/baseplate_template.pdf' -ForegroundColor Cyan
+        Write-Host '-> docs/baseplate_template.pdf + baseplate_cut.dxf' -ForegroundColor Cyan
         Push-Location $root
         try {
             python (Join-Path $root 'make_baseplate_pdf.py') | Out-Null
+            python (Join-Path $root 'make_baseplate_dxf.py') | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 Write-Host '   ok' -ForegroundColor Green
             } else {
