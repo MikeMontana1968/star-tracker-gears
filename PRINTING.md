@@ -28,7 +28,21 @@ which carries the coarse module-2 pinion.
 121.5 x 174 mm, too big for either bed and wanting stiffness rather than
 strength, so it is a cut part.
 
-**4 mm 6061 aluminium.** 157 cm2 of material, ~170 g. 3 mm works if the wedge
+**6061 aluminium, 4.3 mm as ordered** (nearest stock to the 4.0 mm designed).
+157 cm2, ~182 g.
+
+The extra 0.3 mm changes nothing dimensional: **every gear height is referenced
+from the plate's top face**, so thickness lives entirely below the datum. It
+buys 24% more bending stiffness (t^3) for 13 g. Two fastener consequences:
+the tower flange grip becomes 8.3 mm (M3x12 or 14 + nut), and the motor bolts
+want **M3x10, not M3x8**, into the NEMA17's ~4.5 mm tapped holes.
+
+**Watch for one thing on the DFM review:** the M3 holes are Ø3.4, which is
+0.79 x material thickness. The usual laser rule is minimum hole diameter >= 1 x
+thickness. This was already true at 4.0 mm (0.85x) and is slightly worse at
+4.3. If the quote priced without comment it passed their check; if it comes
+back flagged, this is why, and the fix is to open those four motor holes and
+three flange holes to Ø4.5 and use washers. 3 mm works if the wedge
 sits close to the output shaft; below 3 mm the bearing-tower flange will dimple
 it.
 

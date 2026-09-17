@@ -147,7 +147,7 @@ os_exp     = 0;      // exploded view: axial separation between parts, mm
 // A real part, not a render stub. It only has to carry the five shafts and
 // the motor -- the wheels overhang it -- so it is a hull of lobes at the
 // shaft centres rather than a slab under the whole footprint.
-bp_t          = 4.0;   // thickness. 4 mm 6061 recommended
+bp_t          = 4.3;   // AS ORDERED from SendCutSend (nearest stock to 4.0)
 bp_shaft_d    = 4.9;   // light press for the 4.88 mm nail shafts (1-3)
 bp_motor_boss = 23;    // NEMA17 pilot boss registers here
 bp_motor_bc   = 31;    // NEMA17 bolt pattern, square

@@ -16,7 +16,7 @@ rewinds ready for the next night.
 | Gearbox design | **Settled.** 2048:1, verified in CAD, every STL manifold |
 | Printer calibration | **Measured.** Post/hole offset 0.50 mm; motor pinion bore pending one test print |
 | Backlash | **Validated** on a test pair at 0.25 mm. One drag spot traced to the pinion — reprint with Z Seam = Random |
-| Baseplate | **Designed**, cutting SVG ready to send |
+| Baseplate | **Ordered** from SendCutSend, 4.3 mm 6061 |
 | Output shaft + encoder | **Designed**, needs the bearing gauge printed before the tower |
 | Electronics | **Architecture decided**, BOM written, nothing built |
 | Firmware | **Not started** beyond the timing core |
@@ -50,7 +50,7 @@ NEMA17 --15T--> [120T|15T] --> [120T|15T] --> [120T|24T] --> 96T --> camera
 | output resolution | 0.099 arcsec/µstep |
 | centre distances | 67.5 / 67.5 / 67.5 / 120.0 mm |
 | gear stack | 226.5 × 279 mm envelope, 24.5 mm tall |
-| baseplate | 121.5 × 174 × 4 mm, ~170 g |
+| baseplate | 121.5 × 174 × 4.3 mm, ~182 g |
 
 ---
 
@@ -122,8 +122,12 @@ bands, irreducible. Band *height* can shrink (3 mm faces take the stack from
 
 ## Baseplate
 
-121.5 × 174 × 4 mm 6061 aluminium, ~170 g. Cut, not printed — too big for the
-bed, and it wants stiffness rather than strength.
+121.5 × 174 × **4.3 mm** 6061 aluminium, ~182 g (4.3 was the nearest stock to
+the 4.0 designed). Cut, not printed — too big for the bed, and it wants
+stiffness rather than strength.
+
+Thickness is dimensionally free here: **all gear heights reference the plate's
+top face**, so it lives below the datum. It only moves fastener lengths.
 
 The outline is a hull of lobes at the five shaft centres, **not** a slab under
 the whole gear footprint: the wheels overhang on purpose, so the plate only

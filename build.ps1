@@ -40,7 +40,7 @@ $PostD     = 4.70   # test-plate posts, from FITGAUGE
 $BrgFit    = 0.50   # 625ZZ pocket allowance -- SET FROM THE BEARING GAUGE
 $OutBolts  = 6      # output wheel clamp bolts
 $OutBoltR  = 18     # ...on this radius, clear of the 22 mm register
-$PlateT    = 4.0    # baseplate thickness, mm
+$PlateT    = 4.3    # baseplate thickness, mm (as ordered)
 
 # ---------------------------------------------------------------------------
 #  TARGETS

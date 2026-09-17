@@ -23,24 +23,20 @@ MODULE, ZP, ZW, ZWF, MOD_F, ZPF = 1.0, 15, 120, 96, 2.0, 24
 CD_M1 = MODULE * (ZP + ZW) / 2           # 67.5
 CD_M2 = MOD_F * (ZPF + ZWF) / 2          # 120.0
 
-PLATE_T     = 4.0      # bp_t
-SHAFT_HOLE  = 4.9      # bp_shaft_d, light press for a 20d nail
-MOTOR_BOSS  = 23.0     # bp_motor_boss, NEMA17 pilot registers here
-MOTOR_BC    = 31.0     # bp_motor_bc, square pattern
-TOWER_D     = 22.4     # bp_tower_d, bearing tower spigot
-TOWER_BC    = 35.0     # bp_tower_bc, 3 x M3
-MOUNT_BC    = 50.0     # bp_mount_bc, wedge interface on the OUTPUT axis
-MOUNT_D     = 5.5      # bp_mount_d, M5
-MOUNT_N     = 4
-M3          = 3.4
+import baseplate_geom as G
 
-SHAFTS = [("S0", 0.0, 0.0, "motor"), ("S1", 67.5, 0.0, ""),
-          ("S2", 67.5, 67.5, ""), ("S3", 0.0, 67.5, ""),
-          ("S4", 0.0, -52.5, "output")]
-
-# outline is the convex hull of a lobe at each shaft (bp_lobe)
-LOBES = [((0.0, 0.0), 26.0), ((67.5, 0.0), 20.0), ((67.5, 67.5), 20.0),
-         ((0.0, 67.5), 20.0), ((0.0, -52.5), 34.0)]
+PLATE_T    = G.PLATE_T
+SHAFT_HOLE = G.SHAFT_HOLE
+MOTOR_BOSS = G.MOTOR_BOSS
+MOTOR_BC   = G.MOTOR_BC
+TOWER_D    = G.TOWER_D
+TOWER_BC   = G.TOWER_BC
+MOUNT_BC   = G.MOUNT_BC
+MOUNT_D    = G.MOUNT_D
+MOUNT_N    = G.MOUNT_N
+M3         = G.M3
+SHAFTS     = G.SHAFTS
+LOBES      = G.LOBES
 
 # gear tip circles, drawn faintly so you can see what overhangs the plate
 TIPS = [(0.0, 0.0, MODULE*ZP/2 + MODULE), (67.5, 0.0, MODULE*ZW/2 + MODULE),
@@ -64,27 +60,7 @@ def Y(v):
     return ORIGIN_Y + v * mm
 
 
-def hull_of_lobes(lobes, n=360):
-    pts = []
-    for (cx, cy), r in lobes:
-        for k in range(n):
-            a = 2 * math.pi * k / n
-            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
-    pts = sorted(set(pts))
-
-    def half(seq):
-        st = []
-        for q in seq:
-            while len(st) > 1:
-                (ax, ay), (bx, by) = st[-2], st[-1]
-                if (bx - ax) * (q[1] - ay) - (by - ay) * (q[0] - ax) <= 0:
-                    st.pop()
-                else:
-                    break
-            st.append(q)
-        return st
-
-    return half(pts)[:-1] + half(pts[::-1])[:-1]
+hull_of_lobes = lambda lobes=None, n=360: G.hull_polygon(lobes, n)
 
 
 def main():

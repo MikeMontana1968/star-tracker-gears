@@ -11,7 +11,7 @@ hundred loose line segments.
 import math
 
 # ---- parameters, mirroring star_tracker_gears.scad -----------------------
-PLATE_T    = 4.0      # bp_t
+PLATE_T    = 4.3      # bp_t -- as ordered; nearest stock to 4.0
 SHAFT_HOLE = 4.9      # bp_shaft_d, light press for a 20d nail
 MOTOR_BOSS = 23.0     # bp_motor_boss, NEMA17 pilot registers here
 MOTOR_BC   = 31.0     # bp_motor_bc, square pattern
