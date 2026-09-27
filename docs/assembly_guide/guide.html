@@ -1,0 +1,1186 @@
+<title>STJÄRNSPÅR Assembly Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&family=Noto+Sans+Mono:wght@500&display=swap">
+<style>
+:root{
+  --desk:#d8dcdf; --paper:#ffffff; --ink:#131416; --ink2:#5a6066; --rule:#cfd3d6;
+  --shade:rgba(19,20,22,.14); --metal:#e6e8ea; --warn:#ffd21f; --warnink:#131416;
+  --board:#eef2ec; --padc:#d5d8da; --clash:#ffd21f; --hl:#fff1a8;
+  --sans:'Noto Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Noto Sans Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --desk:#0a0202; --paper:#160505; --ink:#ff5b47; --ink2:#bf4a3b; --rule:#46140f;
+    --shade:rgba(255,91,71,.17); --metal:#2a0a07; --warn:#ff5b47; --warnink:#160505;
+    --board:#1e0706; --padc:#3a0e0a; --clash:rgba(255,91,71,.42); --hl:rgba(255,91,71,.2);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --desk:#0a0202; --paper:#160505; --ink:#ff5b47; --ink2:#bf4a3b; --rule:#46140f;
+  --shade:rgba(255,91,71,.17); --metal:#2a0a07; --warn:#ff5b47; --warnink:#160505;
+  --board:#1e0706; --padc:#3a0e0a; --clash:rgba(255,91,71,.42); --hl:rgba(255,91,71,.2);
+}
+:root.night{
+  color-scheme:dark;
+  --desk:#0a0202; --paper:#160505; --ink:#ff5b47; --ink2:#bf4a3b; --rule:#46140f;
+  --shade:rgba(255,91,71,.17); --metal:#2a0a07; --warn:#ff5b47; --warnink:#160505;
+  --board:#1e0706; --padc:#3a0e0a; --clash:rgba(255,91,71,.42); --hl:rgba(255,91,71,.2);
+}
+:root.day{
+  color-scheme:light;
+  --desk:#d8dcdf; --paper:#ffffff; --ink:#131416; --ink2:#5a6066; --rule:#cfd3d6;
+  --shade:rgba(19,20,22,.14); --metal:#e6e8ea; --warn:#ffd21f; --warnink:#131416;
+  --board:#eef2ec; --padc:#d5d8da; --clash:#ffd21f; --hl:#fff1a8;
+}
+*{box-sizing:border-box}
+body{background:var(--desk);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:0 56px;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1.5px solid var(--ink);margin-inline:-16px;padding:8px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.bar .code{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.bar nav{display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.bar nav::-webkit-scrollbar{display:none}
+.bar nav a{text-decoration:none;font-weight:700;font-size:13px;padding:3px 9px;border:1.5px solid var(--ink);border-radius:999px;white-space:nowrap;flex:none}
+.bar{flex-wrap:nowrap}
+.bar button{flex:none}
+@media (max-width:700px){ .bar .code{display:none} }
+.bar nav a:hover,.bar nav a:focus-visible{background:var(--ink);color:var(--paper);outline:none}
+.bar button{font:700 13px var(--sans);color:var(--paper);background:var(--ink);border:0;border-radius:999px;padding:6px 14px;cursor:pointer}
+.bar button:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
+.wrap{max-width:1140px;margin:24px auto 0;display:flex;flex-direction:column;gap:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,500px),1fr));gap:18px;align-items:start}
+.sheet{background:var(--paper);border:1px solid var(--rule);padding:22px 24px 42px;position:relative;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sheet.wide{grid-column:1/-1}
+.sheet>footer{position:absolute;bottom:12px;left:24px;right:24px;display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink2);font-family:var(--mono)}
+.head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.no-{font-weight:800;font-size:52px;line-height:.9;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.head h3{margin:0;font-size:16px;font-weight:700;text-wrap:balance}
+.head .tag{margin-left:auto}
+.fig{margin:0;display:flex;justify-content:center;min-width:0}
+.fig svg{max-width:100%;height:auto;display:block;overflow:visible}
+.fig svg *{vector-effect:non-scaling-stroke}
+.do{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:3px}
+.do li::marker{font-weight:800}
+.hw{font-family:var(--mono);font-size:13px;background:var(--shade);padding:0 5px;border-radius:3px;white-space:nowrap}
+.note{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;font-size:14px;border-top:1px solid var(--rule);padding-top:10px}
+.note p{margin:0}
+.note p+p{margin-top:6px}
+.ico{width:28px;height:28px;display:block}
+.ki{display:inline-block;font:800 11.5px var(--sans);background:var(--warn);color:var(--warnink);padding:1px 7px;border-radius:3px;text-decoration:none;letter-spacing:.02em;white-space:nowrap}
+.pill{display:inline-block;font:700 11.5px var(--sans);border:1.5px solid var(--ink);padding:0 8px;border-radius:999px;white-space:nowrap}
+.pill.now{background:var(--ink);color:var(--paper)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cmp>div{border:1.5px solid var(--ink);border-radius:12px;padding:10px 8px 8px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:110px;font-size:12.5px;text-align:center}
+.cmp .ok::before{content:'';position:absolute;top:6px;left:8px;width:18px;height:10px;border-left:3.5px solid var(--ink);border-bottom:3.5px solid var(--ink);transform:rotate(-45deg)}
+.cmp svg.x{position:absolute;inset:6px;width:calc(100% - 12px);height:calc(100% - 12px);pointer-events:none}
+.cmp svg.x path{fill:none;stroke:var(--ink);stroke-width:5;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.bag{border:1.5px solid var(--ink);border-radius:4px 18px 4px 18px;outline:1px dashed var(--ink);outline-offset:-10px;padding:24px 24px 20px}
+.bag .n{font-weight:800;font-size:44px;line-height:1}
+.parts{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:16px 14px;align-items:end;margin-top:8px}
+.part{display:grid;grid-template-columns:1fr auto;align-items:end;gap:2px 4px}
+.part .code{writing-mode:vertical-rl;transform:rotate(180deg);font:500 10px var(--mono);color:var(--ink2);max-height:120px}
+.part .q{grid-column:1/-1;font-size:21px;font-weight:600;line-height:1.1}
+.part .d{grid-column:1/-1;font-size:12px;color:var(--ink2);line-height:1.3}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+.tbl th{text-align:left;font-weight:700;border-bottom:1.5px solid var(--ink);padding:4px 8px 4px 0}
+.tbl td{border-bottom:1px solid var(--rule);padding:5px 8px 5px 0;vertical-align:top}
+.tblwrap{overflow-x:auto}
+.divider{background:var(--ink);color:var(--paper);padding:18px 24px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.divider .L{font-size:60px;font-weight:800;line-height:.9}
+.divider h2{margin:0;font-size:24px;font-weight:800;letter-spacing:-.3px}
+.divider p{margin:2px 0 0;font-size:14px;opacity:.85;max-width:62ch}
+.cover{padding:30px 32px 48px;gap:8px}
+.cover h1{margin:0;font-size:clamp(46px,11vw,128px);font-weight:800;letter-spacing:-.04em;line-height:.95}
+.cover .sub{font-size:17px;font-weight:600;max-width:52ch}
+.badge{align-self:flex-end;display:flex;align-items:center;gap:10px;border:2.5px solid var(--ink);border-radius:999px;padding:8px 18px 8px 12px;font-weight:800;font-size:14px;line-height:1.15}
+.badge small{display:block;font-weight:600;font-size:11.5px}
+.row{display:flex;gap:18px;flex-wrap:wrap;align-items:center;justify-content:center}
+.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:10px}
+.toc a{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;text-decoration:none;border:1.5px solid var(--ink);border-radius:10px;padding:10px 12px}
+.toc a:hover,.toc a:focus-visible{background:var(--shade);outline:none}
+.toc b{font-size:28px;line-height:1;grid-row:span 2}
+.toc span{font-weight:700}
+.toc small{color:var(--ink2);font-size:12px}
+.issues{counter-reset:ki;display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+.issues li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:14px}
+.issues li p{margin:0}
+.lead-in{font-size:14px;margin:0;max-width:70ch}
+p{margin:0}
+@media (max-width:560px){
+  .sheet{padding:18px 16px 40px}
+  .sheet>footer{left:16px;right:16px}
+  .no-{font-size:42px}
+  .cmp{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:no-preference){ html{scroll-behavior:smooth} }
+
+/* figure line work */
+.fig .f{fill:var(--paper);stroke:var(--ink);stroke-width:1.3;stroke-linejoin:round}
+.fig .l{fill:none;stroke:var(--ink);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
+.fig .lt{fill:none;stroke:var(--ink);stroke-width:.7}
+.fig .t{fill:none;stroke:var(--ink);stroke-width:.8}
+.fig .ft{fill:var(--paper);stroke:var(--ink);stroke-width:.7}
+.fig .gs{fill:var(--paper);stroke:var(--ink);stroke-width:.45;stroke-opacity:.75}
+.fig .m{fill:var(--metal);stroke:var(--ink);stroke-width:1.1;stroke-linejoin:round}
+.fig .k,.fig .silkk,.fig .kd{fill:var(--ink)}
+.fig .kd2{fill:var(--ink2);stroke:var(--ink);stroke-width:1}
+.bag .bagt{display:inline-block;margin:0 0 0 14px;font-size:20px;font-weight:800;vertical-align:10px}
+.eparts{grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:18px}
+.eparts .part{grid-template-columns:1fr auto;align-items:start}
+.fig .sh{fill:var(--shade)}
+.fig .ax{fill:none;stroke:var(--ink);stroke-width:.8;stroke-dasharray:10 3 2 3}
+.fig .dl{fill:none;stroke:var(--ink);stroke-width:.9;stroke-dasharray:4 3}
+.fig .ar{fill:var(--ink);stroke:var(--paper);stroke-width:1.5;stroke-linejoin:round}
+.fig .ra{fill:none;stroke:var(--ink);stroke-width:2.3;stroke-linecap:round}
+.fig .cut{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-dasharray:3 2}
+.fig .pcbf,.fig .pcb{fill:var(--board);stroke:var(--ink);stroke-width:1}
+.fig .pad{fill:var(--padc);stroke:var(--ink);stroke-width:1}
+.fig .drill{fill:var(--paper);stroke:var(--ink);stroke-width:.6}
+.fig .silk{fill:none;stroke:var(--ink);stroke-width:1.5}
+.fig .lead{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linecap:round}
+.fig .stripe{fill:var(--paper)}
+.fig .stripe2{fill:var(--shade);stroke:var(--ink);stroke-width:1}
+.fig .lp{stroke:var(--ink);stroke-width:2.5}
+.fig .clash{fill:var(--clash);stroke:var(--ink);stroke-width:1}
+.fig .hl,.fig .disp{fill:var(--hl);stroke:var(--ink);stroke-width:1}
+.fig .wire{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
+.fig .dlw{fill:none;stroke:var(--ink);stroke-width:1.4;stroke-dasharray:5 4}
+.fig .probe{fill:none;stroke:var(--ink);stroke-width:2.4}
+.fig .grid{fill:none;stroke:var(--rule);stroke-width:1}
+.fig .warnln{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-dasharray:6 4}
+.fig .sp{fill:var(--ink2)}
+.fig .arc{fill:none;stroke:var(--ink);stroke-width:7;opacity:.85}
+.fig text{fill:var(--ink);font-family:var(--sans);font-weight:600}
+.fig .cnt,.fig .silkt{font-weight:800}
+.fig .mono{font-family:var(--mono);font-weight:500}
+.fig .rail{fill:none;stroke:var(--ink);stroke-width:3.2;stroke-linecap:round}
+/* Fritzing and KiCad exports: full colour on a white "print"; dimmed and
+   red-shifted in red-light mode so they do not blow dark adaptation */
+:root{--artfilter:none;--schfilter:none}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--artfilter:grayscale(1) sepia(1) saturate(5) hue-rotate(-50deg) brightness(.55);--schfilter:invert(1) grayscale(1) sepia(1) saturate(6) hue-rotate(-50deg) brightness(.8)}}
+:root[data-theme="dark"],:root.night{--artfilter:grayscale(1) sepia(1) saturate(5) hue-rotate(-50deg) brightness(.55);--schfilter:invert(1) grayscale(1) sepia(1) saturate(6) hue-rotate(-50deg) brightness(.8)}
+:root.day{--artfilter:none;--schfilter:none}
+.fzimg{display:block;width:100%;height:auto;background:#fff;border:1px solid var(--rule);border-radius:6px;filter:var(--artfilter)}
+.fzimg.sch{padding:6px}
+.fzimg.crop{height:clamp(220px,34vw,340px)}
+.fzcap{font-size:12px;color:var(--ink2);margin-top:-6px}
+.zoomer{position:relative;border:1px solid var(--rule);border-radius:6px;overflow:hidden;height:min(72vh,720px);background:var(--paper);touch-action:none;cursor:grab}
+.zoomer.drag{cursor:grabbing}
+.zoomer svg{width:100%;height:100%;display:block;filter:var(--schfilter)}
+.zoomer .zb{position:absolute;right:10px;top:10px;display:flex;gap:6px;z-index:1}
+.zoomer .zb button{font:700 15px var(--sans);width:34px;height:34px;border-radius:8px;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer}
+.zoomer .zb button:focus-visible{outline:3px solid var(--warn)}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-info" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="14" cy="8.5" r="1.8" fill="currentColor"/><path d="M14 12.5v9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 28 28"><path d="M14 2.5 26.5 25H1.5Z" fill="var(--warn)" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/><path d="M14 10v7" stroke="var(--warnink)" stroke-width="3" stroke-linecap="round"/><circle cx="14" cy="21" r="1.7" fill="var(--warnink)"/></symbol>
+  <symbol id="i-tip" viewBox="0 0 28 28"><path d="M14 3a8 8 0 0 0-5 14.2V21h10v-3.8A8 8 0 0 0 14 3Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M10 24.5h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-star" viewBox="0 0 28 28"><path d="M14 2.5l3.3 7.4 8 .8-6 5.4 1.8 7.9L14 20l-7.1 4 1.8-7.9-6-5.4 8-.8Z" fill="currentColor"/></symbol>
+</svg>
+<!--ASSETS-->
+
+<div class="bar">
+  <span class="code">ST-2048:1 · mechanics rev B · board rev B, 38-pin (redraw pending) · 2026-09-27</span>
+  <nav aria-label="Sections">
+    <a href="#before">Before</a><a href="#A">A Gearbox</a><a href="#B">B Board</a><a href="#C">C Smoke</a><a href="#D">D Wiring</a><a href="#E">E First power</a><a href="#F">F Use</a><a href="#G">G Appendix</a>
+  </nav>
+  <button id="mode" type="button">Red light</button>
+</div>
+
+<main class="wrap">
+
+<!-- ===================== COVER ===================== -->
+<section class="sheet wide cover" id="cover">
+  <h1>STJÄRNSPÅR</h1>
+  <p class="sub">Sidereal camera tracker, 2048 : 1. Assembly, wiring, smoke test, first light.</p>
+  <figure class="fig" data-fig="cover" data-w="620" data-alt="The finished tracker: baseplate, four-stage gear train, output tower and a GoPro on top"></figure>
+  <div class="badge"><svg class="ico" style="width:26px;height:26px"><use href="#i-star"/></svg><span>Design and Quality<small>the bench of Mike</small></span></div>
+  <footer><span>ST-2048:1</span><span>1</span></footer>
+</section>
+
+<div class="grid" id="before">
+<section class="sheet">
+  <div class="row"><figure class="fig" data-fig="man_ok"></figure><figure class="fig" data-fig="tools" data-alt="Tools: hex keys, calipers, countersink, soldering iron, flush cutters, multimeter, cut-off wheel"></figure></div>
+  <div class="cmp">
+    <div class="ok"><figure class="fig" data-fig="roll_ok"></figure>measure it</div>
+    <div class="no"><figure class="fig" data-fig="roll_no"></figure>assume it</div>
+  </div>
+  <p class="lead-in">This build has three measured numbers and several guessed ones. Where a step says <b>measure</b>, the design depends on it: the printer offsets, the bearing fit and the magnet gap were all found this way, and none of them can be predicted.</p>
+  <footer><span>ST-2048:1</span><span>2</span></footer>
+</section>
+
+<section class="sheet">
+  <div class="head"><h3>Contents</h3></div>
+  <nav class="toc" aria-label="Contents">
+    <a href="#A"><b>A</b><span>Gearbox</span><small>steps 1 to 20</small></a>
+    <a href="#B"><b>B</b><span>Controller board</span><small>steps 21 to 29</small></a>
+    <a href="#C"><b>C</b><span>Smoke test</span><small>steps 30 to 38</small></a>
+    <a href="#D"><b>D</b><span>Wiring</span><small>steps 39 to 43</small></a>
+    <a href="#E"><b>E</b><span>First power-up, calibration</span><small>steps 44 to 53</small></a>
+    <a href="#F"><b>F</b><span>How to use</span><small>steps 54 to 59</small></a>
+    <a href="#G"><b>G</b><span>Appendix: schematics</span><small>system, logical, full board</small></a>
+  </nav>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><div><p>Print first, assemble second. The calibration gauges set the numbers every later step depends on: <span class="hw">BOREGAUGE</span> picks the motor pinion, <span class="hw">BEARINGGAUGE</span> sets <span class="hw">$BrgFit</span> before the tower is printed, and the fit gauge already gave the 0.50 mm post/hole offset. PRINTING.md has the order and settings.</p></div></div>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><div><p>Build the polar wedge <b>before</b> the gearbox. One degree of polar misalignment drifts about 16 arcsec a minute, which is more than every gear error in this machine put together.</p></div></div>
+  <footer><span>ST-2048:1</span><span>3</span></footer>
+</section>
+
+<!-- bags -->
+<section class="sheet">
+  <div class="bag">
+    <div class="n">1</div><h3 class="bagt">Fasteners</h3>
+    <div class="parts">
+      <div class="part"><figure class="fig" data-fig="hw_m3x8f"></figure><span class="code">ISO 10642 M3×8</span><span class="q">4x</span><span class="d">countersunk, motor</span></div>
+      <div class="part"><figure class="fig" data-fig="hw_m3x14"></figure><span class="code">ISO 4762 M3×14</span><span class="q">3x</span><span class="d">tower, into the disc</span></div>
+     <div class="part"><figure class="fig" data-fig="hw_m3x20"></figure><span class="code">ISO 4762 M3×20</span><span class="q">6x</span><span class="d">wheel clamp</span></div>
+      <div class="part"><figure class="fig" data-fig="hw_m3x6"></figure><span class="code">M3×6</span><span class="q">2x</span><span class="d">AS5600 board</span></div>
+      <div class="part"><figure class="fig" data-fig="hw_grub"></figure><span class="code">ISO 4029 M3×4</span><span class="q">2x</span><span class="d">pinion, lower hub</span></div>
+      <div class="part"><figure class="fig" data-fig="hw_qnut"></figure><span class="code">1/4"-20 UNC hex</span><span class="q">1x</span><span class="d">7/16" AF, full height</span></div>
+     <div class="part"><figure class="fig" data-fig="hw_m5"></figure><span class="code">M5, to suit</span><span class="q">4x</span><span class="d">wedge adapter</span></div>
+    </div>
+  </div>
+  <footer><span>ST-2048:1</span><span>4</span></footer>
+</section>
+
+<section class="sheet">
+  <div class="bag">
+    <div class="n">2</div><h3 class="bagt">Metal parts</h3>
+    <div class="parts">
+      <div class="part"><figure class="fig" data-fig="hw_nail"></figure><span class="code">20d bright common</span><span class="q">3x</span><span class="d">4.88 mm, buy a box</span></div>
+      <div class="part"><figure class="fig" data-fig="hw_shaft"></figure><span class="code">5 mm ground, h6</span><span class="q">1x</span><span class="d">65 mm, cut to 55</span></div>
+      <div class="part"><figure class="fig" data-fig="hw_625"></figure><span class="code">625ZZ 5×16×5</span><span class="q">2x</span><span class="d">output shaft</span></div>
+      <div class="part"><figure class="fig" data-fig="hw_magnet"></figure><span class="code">6×2.5 diametric</span><span class="q">1x</span><span class="d">must be diametric</span></div>
+    </div>
+  </div>
+  <div class="bag">
+    <div class="n">3</div><h3 class="bagt">Parts you will need to 3D print</h3>
+    <div class="parts">
+      <div class="part"><figure class="fig" data-fig="pp_pinion"></figure><span class="code">pinion.stl</span><span class="q">1x</span><span class="d">15T, D-bore variant</span></div>
+      <div class="part"><figure class="fig" data-fig="pp_stage"></figure><span class="code">stage.stl</span><span class="q">2x</span><span class="d">120T + 15T</span></div>
+      <div class="part"><figure class="fig" data-fig="pp_final"></figure><span class="code">final_stage_gear.stl</span><span class="q">1x</span><span class="d">120T + 24T m2</span></div>
+      <div class="part"><figure class="fig" data-fig="pp_wheel"></figure><span class="code">final_wheel_96T_m2</span><span class="q">1x</span><span class="d">196 mm OD</span></div>
+      <div class="part"><figure class="fig" data-fig="pp_tower"></figure><span class="code">output_tower_*.stl</span><span class="q">1+1</span><span class="d">3 dowels, 11.9 long</span></div>
+      <div class="part"><figure class="fig" data-fig="pp_hubs"></figure><span class="code">output_hub_*.stl</span><span class="q">1+1</span><span class="d">lower, upper</span></div>
+      <div class="part"><figure class="fig" data-fig="pp_small"></figure><span class="code">cap, washer, bracket</span><span class="q">1+1+1</span></div>
+      <div class="part"><figure class="fig" data-fig="pp_spacers"></figure><span class="code">SPACERS_shaft_0-4</span><span class="q">3x</span><span class="d">use S1, S2, S3 only</span></div>
+    </div>
+  </div>
+  <footer><span>ST-2048:1</span><span>5</span></footer>
+</section>
+
+<!-- known issues -->
+<section class="sheet wide" id="issues">
+  <div class="row"><figure class="fig" data-fig="man_ok"></figure><figure class="fig" data-fig="man_call"></figure></div>
+  <div class="head"><h3>What changed in Rev B</h3><span class="tag pill now">fixed in the CAD</span></div>
+  <p class="lead-in">Drawing Rev A for this guide turned up eight conflicts. All are fixed in <span class="hw">star_tracker_gears.scad</span>, rebuilt, and checked for interference in OpenSCAD. Two need your hands: <b>countersink the plate</b>, which is already cut, and <b>cut the shaft</b> to 55 mm. If you printed Rev A parts, reprint the tower halves, both hubs and the bracket.</p>
+  <ol class="issues">
+    <li id="k1"><span class="ki">KI 1</span><p><b>Tower cone sat inside the plate.</b> Rev A's 45° cone was 32 to 44 mm across inside a 22.4 mm hole, so the flange could never seat. <b>Rev B:</b> the halves clamp the plate. The flange is on top, a 41 mm disc is underneath, dowels cross the gap, and 3 × M3×14 thread-form into the disc. <a href="#s13">Step 13</a>.</p></li>
+    <li id="k2"><span class="ki">KI 2</span><p><b>Shaft ran through the camera nut.</b> <b>Rev B:</b> cut it to 55 mm, z −33 to 22. <a href="#s14">Step 14</a>.</p></li>
+    <li id="k3"><span class="ki">KI 3</span><p><b>M3×10 motor screws bottomed out.</b> <b>Rev B:</b> M3×8 flat head, 3.7 mm of thread. <a href="#s5">Step 5</a>.</p></li>
+    <li id="k4"><span class="ki">KI 4</span><p><b>Screw heads under the S1 wheel.</b> The wheel is 2.0 mm above the plate, over two motor screws and one M5 wedge hole. <b>Rev B:</b> countersink those holes by hand. <a href="#s5">Step 5</a>, <a href="#s19">step 19</a>.</p></li>
+    <li id="k5"><span class="ki">KI 5</span><p><b>Lower hub rubbed the tower.</b> <b>Rev B:</b> a printed 7.2 × 1.0 washer sits on the bearing's inner race, and the hub is 1 mm shorter, so the wheel stays at 21.5 mm. <a href="#s15">Step 15</a>.</p></li>
+    <li id="k6"><span class="ki">KI 6</span><p><b>Bracket had no axial stop.</b> <b>Rev B:</b> it slides up until it stops on the clamp disc, so the 2.0 mm magnet gap comes from the parts. <a href="#s18">Step 18</a>.</p></li>
+    <li id="k7"><span class="ki">KI 7</span><p><b>Grub-screw holes in gears that turn on fixed nails.</b> <b>Rev B:</b> removed from both stage gear files. On Rev A prints, leave them empty. <a href="#s6">Step 6</a>.</p></li>
+    <li id="k8"><span class="ki">KI 8</span><p><b>Camera nut pocket 2.2 mm deep.</b> <b>Rev B:</b> the upper hub is 10 mm thick with a 5.9 mm pocket for a full-height nut. The wheel screws become M3×20. <a href="#s17">Step 17</a>.</p></li>
+  </ol>
+  <footer><span>ST-2048:1</span><span>6</span></footer>
+</section>
+</div>
+
+<!-- ===================== A GEARBOX ===================== -->
+<div class="divider" id="A"><span class="L">A</span><div><h2>Gearbox</h2><p>Plate, nails, motor, then each stage from the motor outwards, then the output tower. Heights all measure from the top face of the plate.</p></div></div>
+<div class="grid">
+
+<section class="sheet" id="s1">
+  <div class="head"><span class="no-">1</span><h3>Check the plate, find its top</h3></div>
+  <figure class="fig" data-fig="plate_top" data-alt="Baseplate from above with shafts S0 to S4 labelled"></figure>
+  <ul class="do">
+    <li>Deburr every hole on both faces. Do not open up the three 4.9 mm nail holes; they are a light press.</li>
+    <li>Seen from the top, S0 → S1 → S2 → S3 runs <b>counter-clockwise</b>. Mark <b>TOP</b> with a marker.</li>
+    <li>Lay it on <span class="hw">baseplate_template.pdf</span>, printed at 100 %, and check every hole lines up.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>7</span></footer>
+</section>
+
+<section class="sheet" id="s2">
+  <div class="head"><span class="no-">2</span><h3>Pick and cut the nails</h3></div>
+  <figure class="fig" data-fig="nails" data-alt="Three nails cut to 20, 27 and 33 mm under the head"></figure>
+  <div class="cmp">
+    <div class="ok"><figure class="fig" data-fig="roll_ok"></figure>roll on glass</div>
+    <div class="no"><figure class="fig" data-fig="roll_no"></figure>bent: reject</div>
+  </div>
+  <ul class="do">
+    <li>20d <b>bright common</b> only. Box nails and sinkers run a gauge thinner; galvanised coating is lumpy.</li>
+    <li>Roll-test the box, keep the three straightest. The very straightest goes to <b>S3</b>: it carries the final pinion.</li>
+    <li>Cut the point off, square and deburr the end. Lengths under the head: <b>S1 20</b>, <b>S2 27</b>, <b>S3 33 mm</b>.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>8</span></footer>
+</section>
+
+<section class="sheet" id="s3">
+  <div class="head"><span class="no-">3</span><h3>Press the nails in from underneath</h3></div>
+  <figure class="fig" data-fig="nail_press" data-alt="Plate turned top face down, three nails pressed in head first"></figure>
+  <div class="cmp">
+    <div class="ok"><figure class="fig" data-fig="square_ok"></figure>square to the plate</div>
+    <div class="no"><figure class="fig" data-fig="square_no"></figure>leaning</div>
+  </div>
+  <ul class="do">
+    <li>Turn the plate TOP face down. Support each hole on an open socket so the tip has somewhere to go, then press or tap until the head seats.</li>
+    <li>Height above the top face: S1 15.7, S2 22.7, S3 28.7 mm.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p><b>S1 must stay under 19 mm.</b> The 96T output wheel passes over S0 and S1 with its underside at 21.5 mm.</p></div>
+  <footer><span>ST-2048:1</span><span>9</span></footer>
+</section>
+
+<section class="sheet" id="s4">
+  <div class="head"><span class="no-">4</span><h3>Trim the motor shaft</h3></div>
+  <figure class="fig" data-fig="motor_trim" data-alt="Pancake NEMA 17 with its shaft marked for cutting 13.8 mm above the mounting face"></figure>
+  <ul class="do">
+    <li>The pinion sits 2 to 9 mm above the plate, so the shaft ends about 9.5 mm above the plate: <b>13.8 mm above the motor's mounting face</b>.</li>
+    <li>Only cut if it is longer. Check the D-flat still covers the 6.3 to 13.3 mm band where the pinion's grub screw lands.</li>
+    <li>Tape over the gap around the shaft first. Steel filings and a magnet rotor do not part.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>10</span></footer>
+</section>
+
+<section class="sheet" id="s5">
+  <div class="head"><span class="no-">5</span><h3>Mount the motor</h3><span class="tag"><a class="ki" href="#k3">KI 3</a> <a class="ki" href="#k4">KI 4</a></span></div>
+  <figure class="fig" data-fig="motor_mount" data-alt="Motor under the plate, four countersunk screws from above"></figure>
+  <figure class="fig" data-fig="head_clash" data-alt="Section: a socket-cap head hits the S1 wheel, a countersunk head sits flush"></figure>
+  <ul class="do">
+    <li>Pilot boss into the 23 mm hole. Connector on the side <b>away from S4</b>; the encoder bracket hangs there.</li>
+    <li>Countersink the four holes from the top (90°, 6 mm across), then <span class="hw">4 × M3×8 flat head</span>. That leaves 3.7 mm of thread in the motor.</li><li>While the countersink is out: do the M5 wedge hole nearest S1 too (<a href="#s19">step 19</a>).</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>Push a drill bit into a motor hole to gauge its depth before choosing a length. <b>Thread engaged = length − 4.3</b>, and it must be shorter than the hole. M3×10 needs 5.7 mm.</p></div>
+  <footer><span>ST-2048:1</span><span>11</span></footer>
+</section>
+
+<section class="sheet" id="s6">
+  <div class="head"><span class="no-">6</span><h3>Shaft 1</h3><span class="tag"><a class="ki" href="#k7">KI 7</a></span></div>
+  <figure class="fig" data-fig="s1" data-alt="Spacer 2.0 and a stage gear dropping onto the S1 nail"></figure>
+  <div class="cmp">
+    <div class="ok"><b style="font-size:15px">spins free<br>on the nail</b></div>
+    <div class="no"><figure class="fig" data-fig="grub_no"></figure>grub screw in a stage gear</div>
+  </div>
+  <ul class="do">
+    <li><span class="hw">spacer 2.0</span>, then <span class="hw">stage.stl</span> with the <b>120T wheel down</b>.</li>
+    <li>It should spin a full turn from a flick and wobble only as much as the nail.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>12</span></footer>
+</section>
+
+<section class="sheet" id="s7">
+  <div class="head"><span class="no-">7</span><h3>Motor pinion</h3></div>
+  <figure class="fig" data-fig="pinion" data-alt="Motor pinion lowered onto the shaft; detail shows its underside flush with the 120T wheel's underside"></figure>
+  <ul class="do">
+    <li>Use the bore variant that slid onto the motor shaft without force: <span class="hw">5.30</span>, <span class="hw">5.45</span> or <span class="hw">5.60</span>.</li>
+    <li>Grub hole over the D-flat. Lower until the pinion's underside is <b>flush with the S1 wheel's underside</b>. It is 2 mm taller than the wheel on purpose and overhangs at the top.</li>
+    <li>Run the <span class="hw">M3 grub</span> in and out once to form the thread, then tighten onto the flat.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>Shaft 0 has no spacer. The 2 mm spacer would drop through the 23 mm motor hole, so the grub screw sets this height.</p></div>
+  <footer><span>ST-2048:1</span><span>13</span></footer>
+</section>
+
+<section class="sheet" id="s8">
+  <div class="head"><span class="no-">8</span><h3>Shaft 2</h3></div>
+  <figure class="fig" data-fig="s2" data-alt="Spacer 8.5 and a stage gear dropping onto S2"></figure>
+  <ul class="do">
+    <li><span class="hw">spacer 8.5</span>, then <span class="hw">stage.stl</span>, 120T down. It meshes with S1's 15T pinion.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>Never fit a stock shaft collar at S2 or S3. The printed spacer is 10 mm across; a spacer 13 mm across touches the neighbouring wheel's tips.</p></div>
+  <footer><span>ST-2048:1</span><span>14</span></footer>
+</section>
+
+<section class="sheet" id="s9">
+  <div class="head"><span class="no-">9</span><h3>Shaft 3</h3></div>
+  <figure class="fig" data-fig="s3" data-alt="Spacer 15.0 and the final stage gear with its coarse 24-tooth pinion"></figure>
+  <ul class="do">
+    <li><span class="hw">spacer 15.0</span>, then <span class="hw">final_stage_gear.stl</span>: 120T down, <b>coarse 24T module-2 pinion up</b>.</li>
+    <li>This pinion's radius sets short-exposure trailing. It goes on the straightest nail.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>15</span></footer>
+</section>
+
+<section class="sheet" id="s10">
+  <div class="head"><span class="no-">10</span><h3>Turn test</h3></div>
+  <figure class="fig" data-fig="turn" data-alt="The first three stages assembled, S1 turned by hand"></figure>
+  <ul class="do">
+    <li>Turn the S1 wheel with a finger. Motor, S2 and S3 should follow smoothly with a small, even click of backlash at each mesh.</li>
+    <li>A tight spot once per pinion turn is a Z seam on one tooth. Reprint that pinion with <b>Z Seam = Random</b>.</li>
+    <li>Look along each mesh: every wheel face sits inside its pinion's face.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>Turn the train from the S1 end only. Once the output wheel is on, never turn the output by hand: that is 2048 turns of the motor for one of the wheel, and the teeth strip first.</p></div>
+  <footer><span>ST-2048:1</span><span>16</span></footer>
+</section>
+
+<section class="sheet" id="s11">
+  <div class="head"><span class="no-">11</span><h3>Dowels into the lower half</h3></div>
+  <figure class="fig" data-fig="tower_dowels" data-alt="Lower tower half standing on its tube, disc face up, three 11.9 mm dowels going into it"></figure>
+  <ul class="do">
+    <li>Stand the lower half on its tube, <b>disc face up</b>. That is the face that meets the plate.</li>
+    <li>Three dowels, <b>11.9 mm</b> long: 4 in this half, 4.3 across the plate, 4 into the upper half. A 3 mm rod cut to length works too.</li>
+    <li>No glue anywhere in the tower. The halves never touch each other; the screws clamp them to the plate.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>17</span></footer>
+</section>
+
+<section class="sheet" id="s12">
+  <div class="head"><span class="no-">12</span><h3>Press in the bearings</h3></div>
+  <figure class="fig" data-fig="bearings" data-alt="One 625ZZ bearing up into the lower half's bottom pocket, one down into the upper half's top pocket"></figure>
+  <div class="cmp">
+    <div class="ok"><figure class="fig" data-fig="press_ok"></figure></div>
+    <div class="no"><figure class="fig" data-fig="press_no"></figure></div>
+  </div>
+  <ul class="do">
+    <li>Lower half: its pocket opens at the bottom of the tube. Upper half: at the top. Use a socket that fits the outer race, with firm thumb or vise pressure.</li>
+    <li>Loose? Print again with a smaller <span class="hw">$BrgFit</span>. Needs a hammer? Larger.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>18</span></footer>
+</section>
+
+<section class="sheet" id="s13">
+  <div class="head"><span class="no-">13</span><h3>Clamp the tower to the plate</h3><span class="tag"><a class="ki" href="#k1">KI 1</a></span></div>
+  <figure class="fig" data-fig="tower_mount" data-alt="Lower half up under the plate with dowels through the hole, upper half on top, three M3x14 screws from above"></figure>
+  <figure class="fig" data-fig="tower_section" data-alt="Section: plate clamped between the flange and the disc, dowel crossing the plate, screw threading into the disc, bracket stopping on the disc"></figure>
+  <ul class="do">
+    <li>Lower half up under the plate at S4, dowels up through the 22.4 mm hole. Upper half down onto the dowels.</li>
+    <li><span class="hw">3 × M3×14</span> from above: through the flange and the plate, then they thread-form 5.7 mm into the disc. No nuts.</li>
+    <li>Snug the three in turn. Flange and disc sit flat on both faces of the plate, and the tube stands square to it.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>19</span></footer>
+</section>
+
+<section class="sheet" id="s14">
+  <div class="head"><span class="no-">14</span><h3>Cut the output shaft</h3><span class="tag"><a class="ki" href="#k2">KI 2</a></span></div>
+  <figure class="fig" data-fig="shaft_cut" data-alt="The 65 mm ground shaft cut to 55 mm"></figure>
+  <figure class="fig" data-fig="shaft_nut" data-alt="Section: the 55 mm shaft ends at z 22, below the camera nut"></figure>
+  <ul class="do">
+    <li>Ground 5 mm stock, not a nail. This one runs in bearings and carries the magnet.</li>
+    <li><b>55 mm</b>: bottom end in the magnet cap at z −33, top end at z 22, above the hub grub (z 17.5) and below the camera nut (z 26.5). Chamfer both ends lightly.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>20</span></footer>
+</section>
+
+<section class="sheet" id="s15">
+  <div class="head"><span class="no-">15</span><h3>Washer, lower hub and shaft</h3><span class="tag"><a class="ki" href="#k5">KI 5</a></span></div>
+  <figure class="fig" data-fig="hub_shaft" data-alt="Printed washer, lower hub and shaft lowered into the tower"></figure>
+  <figure class="fig" data-fig="shim_detail" data-alt="Section: washer between the bearing inner race and the hub"></figure>
+  <ul class="do">
+    <li><span class="hw">hub_washer.stl</span> (7.2 × 1.0) on the upper bearing's inner race. Hold it against the bearing first: it must not touch the shield.</li>
+    <li>Lower hub on, register <b>up</b>. Shaft down through the hub and both bearings.</li>
+    <li>Hub grub (<span class="hw">M3</span>, radial) finger-tight: the height is set in the next step.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>Washer, inner race, hub and shaft all turn together, so the washer never wears. It only keeps the hub off the stationary tower rim.</p></div>
+  <footer><span>ST-2048:1</span><span>21</span></footer>
+</section>
+
+<section class="sheet" id="s16">
+  <div class="head"><span class="no-">16</span><h3>Magnet and cap</h3></div>
+  <div class="row"><figure class="fig" data-fig="cap" data-alt="Magnet into its cap, cap pressed up onto the shaft end"></figure><figure class="fig" data-fig="cap_gauge" data-alt="Cap face 16.0 mm below the tower's bottom face"></figure></div>
+  <ul class="do">
+    <li>Check the magnet is <b>diametric</b>: spin it flat beside a compass and the needle turns a full circle with it.</li>
+    <li>Magnet flush into the pocket in the cap's end face. Press the cap up onto the shaft until the shaft bottoms. Do not glue it yet; <a href="#s48">step 48</a> sets its rotation.</li>
+    <li>Slide the shaft until the cap's face is <b>16.0 mm below the tower's bottom face</b> (caliper depth rod), then tighten the hub grub.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>22</span></footer>
+</section>
+
+<section class="sheet" id="s17">
+  <div class="head"><span class="no-">17</span><h3>Output wheel and camera platform</h3><span class="tag"><a class="ki" href="#k8">KI 8</a></span></div>
+  <figure class="fig" data-fig="wheel" data-alt="96T wheel onto the register, nut into the upper hub, upper hub and six M3x20 screws"></figure>
+  <ul class="do">
+    <li>96T wheel over the 22 mm register. It is located by the register, not by its own bore.</li>
+    <li>Full-height ¼"-20 nut into the hex pocket under the upper hub, then the hub on top.</li>
+    <li><span class="hw">6 × M3×20</span> through hub and wheel into the lower hub (thread-forming, 5 mm engagement). Tighten in a star pattern.</li>
+    <li>The wheel face must sit inside the 24T pinion's face: 21.5 to 26.5 mm inside 20 to 27 mm.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>23</span></footer>
+</section>
+
+<section class="sheet" id="s18">
+  <div class="head"><span class="no-">18</span><h3>AS5600 and its bracket</h3><span class="tag"><a class="ki" href="#k6">KI 6</a></span></div>
+  <figure class="fig" data-fig="as5600" data-alt="AS5600 board screwed to the bracket underside, bracket pushed up the tower until it stops on the disc"></figure>
+  <ul class="do">
+    <li>Solder a 5-wire lead to the breakout first: GND, VCC, SDA, SCL, DIR.</li>
+    <li>Board to the bracket underside, chip <b>up</b> into the window: <span class="hw">2 × M3×6</span>, thread-forming.</li>
+    <li>Push the bracket up the tower spigot until it <b>stops on the clamp disc</b>. That puts the die 2.0 mm from the magnet. <a href="#s47">Step 47</a> confirms it with the AGC reading; then a dab of hot glue holds it there.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>At 3.3 V the AS5600 wants its VDD5V and VDD3V3 pins tied together. Many breakouts have a solder bridge for this; check yours.</p></div>
+  <footer><span>ST-2048:1</span><span>24</span></footer>
+</section>
+
+<section class="sheet" id="s19">
+  <div class="head"><span class="no-">19</span><h3>Wedge adapter</h3><span class="tag"><a class="ki" href="#k4">KI 4</a></span></div>
+  <figure class="fig" data-fig="wedge" data-alt="Four M5 bolts on a 50 mm circle around the output axis into the wedge adapter"></figure>
+  <ul class="do">
+    <li><span class="hw">4 × M5</span> on a 50 mm circle, centred on the <b>output</b> axis, not the plate's middle. That is where the camera load is.</li>
+    <li>The adapter needs a <b>42 × 7 mm relief</b> for the tower's clamp disc, and a hole at least 32 mm across with about 45 mm of depth for the bracket and its lead.</li>
+    <li>The M5 hole nearest S1 is under the S1 wheel. Anything above the plate there must stay under 1.5 mm: countersunk, or leave that bolt out.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>25</span></footer>
+</section>
+
+<section class="sheet" id="s20">
+  <div class="head"><span class="no-">20</span><h3>Camera</h3></div>
+  <figure class="fig" data-fig="camera" data-alt="GoPro in its frame on the camera platform"></figure>
+  <ul class="do">
+    <li>GoPro frame and ¼"-20 adapter. At most <b>10 mm</b> of thread below the platform top.</li>
+    <li>Bias the balance so the load always pulls the same way. A perfectly balanced camera lets the teeth rattle across the backlash.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>From here on, the platform moves only under power (jog, slew, track). Turning it by hand back-drives 2048 : 1.</p></div>
+  <footer><span>ST-2048:1</span><span>26</span></footer>
+</section>
+
+<section class="sheet wide">
+  <div class="head"><h3>Every mesh gets its own height band</h3></div>
+  <figure class="fig" data-fig="zbands" data-w="640" data-alt="Side elevation: spacer, wheel and pinion heights for each shaft"></figure>
+  <p class="lead-in">A pinion always collides with any wheel next to it, meshing or not, so four meshes need four bands. Spacers (dark) set each wheel's height. Every pinion is 7 mm tall against a 5 mm wheel so the wheel stays inside it.</p>
+  <footer><span>ST-2048:1</span><span>27</span></footer>
+</section>
+</div>
+
+<!-- ===================== B BOARD ===================== -->
+<div class="divider" id="B"><span class="L">B</span><div><h2>Controller board</h2><p>All through-hole, every module in a socket. Solder in rounds, lowest parts first, and test after each round (section C) before the next.</p></div></div>
+<div class="grid">
+
+<section class="sheet wide" id="b0">
+  <div class="head"><h3>The finished board</h3></div>
+  <figure class="fig" data-fig="pcb_iso" data-alt="Isometric view of the assembled controller board with its main parts called out"></figure>
+  <p class="lead-in">Drawn from the KiCad layout, so every part is where the board puts it. Modules shown seated in their sockets. This is the Rev B layout; the ESP32 socket changes in the 30-pin redraw, and this drawing follows it on the next build.</p>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<section class="sheet wide" id="b1">
+  <div class="bag">
+    <div class="n">4</div><h3 class="bagt">Electronic parts for the board</h3>
+    <p class="lead-in">Each card shows the part, its schematic symbol, and the letter it carries on the silkscreen: <b>Q4</b> is the fourth transistor, <b>R12</b> the twelfth resistor.</p>
+    <div class="parts eparts">
+      <div class="part"><figure class="fig" data-fig="ec_r"></figure><span class="code">R1–R19</span><span class="q">17x</span><span class="d"><b>Resistors, ¼ W.</b> 10k ×7, 1k ×4, 100k ×2, 4.7k, 330R, and the 1 % pair 100k + 18k. R10, R11 stay empty.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_c"></figure><span class="code">C2 C4 C6 C8 C10 C12 C13 C15–C17</span><span class="q">10x</span><span class="d"><b>Ceramic capacitors,</b> 100 nF, marked 104. No polarity.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_cp"></figure><span class="code">C1 C3 C5 C7 C9 C11</span><span class="q">6x</span><span class="d"><b>Electrolytic capacitors.</b> 470 µF ×2 (C3 low-ESR), 220 µF low-ESR, 100 µF ×3 (C11 low-ESR). Polarised.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_dz"></figure><span class="code">D1</span><span class="q">1x</span><span class="d"><b>Zener diode,</b> 1N4744A 15 V. Clamps Q1's gate.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_tvs"></figure><span class="code">D2</span><span class="q">1x</span><span class="d"><b>TVS diode,</b> P6KE20CA. Bidirectional, fits either way.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_ds"></figure><span class="code">D3</span><span class="q">1x</span><span class="d"><b>Schottky diode,</b> 1N5822 3 A. The buck's catch diode.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_led"></figure><span class="code">LED1 LED2 LED3</span><span class="q">3x</span><span class="d"><b>LEDs, 3 mm.</b> Green ×2 (5 V, camera), red ×1 (status).</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_pmos"></figure><span class="code">Q1 Q2</span><span class="q">2x</span><span class="d"><b>P-channel MOSFET,</b> IRF4905, TO-220. Reverse polarity and the camera switch.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_npn"></figure><span class="code">Q3 Q5</span><span class="q">2x</span><span class="d"><b>NPN transistor,</b> 2N3904, TO-92. The arrow points out.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_pnp"></figure><span class="code">Q4</span><span class="q">1x</span><span class="d"><b>PNP transistor,</b> 2N3906, TO-92. The arrow points in. Looks just like the 2N3904; read the print.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_u"></figure><span class="code">U2</span><span class="q">1x</span><span class="d"><b>Regulator,</b> LM2596T-5.0, TO-220-5, with a clip-on heatsink.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_l"></figure><span class="code">L1</span><span class="q">1x</span><span class="d"><b>Inductor,</b> 33 µH, 3 A or more, 12 mm radial.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_f"></figure><span class="code">F1</span><span class="q">1x</span><span class="d"><b>Fuse,</b> 3 A 5×20 mm, in two PCB clips.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_sw"></figure><span class="code">SW1</span><span class="q">1x</span><span class="d"><b>Tactile switch,</b> 6 mm. CONFIG and wake.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_term"></figure><span class="code">J1 J3 J4</span><span class="q">3x</span><span class="d"><b>Screw terminals,</b> 5 mm pitch. 2-way ×2, 4-way ×1.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_usb"></figure><span class="code">J2</span><span class="q">1x</span><span class="d"><b>USB-A receptacle,</b> through-hole, horizontal. Camera power.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_hdr"></figure><span class="code">J5 J7–J11 JP3–JP5</span><span class="q">1x</span><span class="d"><b>Male header strip,</b> 1×40, 2.54 mm. Cut to length.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_sock"></figure><span class="code">J20 J21 J30 J31 J6</span><span class="q">5x</span><span class="d"><b>Female sockets,</b> 2.54 mm: 1×15 ×2 for the 30-pin ESP32 (Rev B: 1×19), 1×8 ×2, 1×6.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_shunt"></figure><span class="code">JP4 JP5</span><span class="q">2x</span><span class="d"><b>Jumper shunts,</b> 2.54 mm. MS1 and MS2 to GND.</span></div>
+    </div>
+    <p class="lead-in" style="margin-top:14px">Modules go in the sockets last, after section C: ESP32 + OLED, TMC2209, DS3231 with a CR2032. Plus four M3 standoffs for the corners.</p>
+  </div>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<section class="sheet" id="s21">
+  <div class="head"><span class="no-">21</span><h3>Which board?</h3></div>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><div><p><b>Do not yet build the board as shown in the Git repo.</b> Rev B is drawn for a 38-pin DevKitC on 25.4 mm rows. The module in hand is the 30-pin ideaspark ESP32 + OLED on 27.94 mm rows. <span class="hw">gen_board.py</span> refuses to run until its pin map is filled in.</p><p>That needs the <b>pin check</b> (<a href="#s44">step 44</a>) you still owe: whether the OLED answers on GPIO 21/22 or 4/15 decides where WAKE lives.</p></div></div>
+  <p class="lead-in">Everything in this section is about part orientation, which does not change between revisions. Where a step names a pin, it uses the signal name printed beside the socket (<b>CAM_EN</b>, <b>GPS_EN</b>, <b>VBAT_SENSE</b>), not a GPIO number.</p>
+  <footer><span>ST-2048:1</span><span>28</span></footer>
+</section>
+
+<section class="sheet" id="s22">
+  <div class="head"><span class="no-">22</span><h3>Read the silkscreen</h3></div>
+  <figure class="fig" data-fig="pcb_iso_power" data-alt="Isometric close-up of the board's power corner: regulator, electrolytics, standing resistors and diodes, LED, fuse clips"></figure>
+  <figure class="fig" data-fig="pcb_legend" data-alt="Silkscreen symbols: square pad, plus sign, flat edge, bold bar, circle, pin 1"></figure>
+  <ul class="do">
+    <li>The <b>square pad</b> is the one to find: pin 1 of an IC or socket, <b>+</b> of an electrolytic, <b>K</b> (cathode) of an LED or diode.</li>
+    <li>Nothing on this board is fitted by guessing. If a part does not match its outline, stop.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>29</span></footer>
+</section>
+
+<section class="sheet" id="s23">
+  <div class="head"><span class="no-">23</span><h3>Round 1: resistors</h3></div>
+  <figure class="fig" data-fig="pcb_res" data-alt="Resistor standing over the circle, top lead bent over into the other pad"></figure>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>Value</th><th>Refs</th><th></th></tr>
+    <tr><td>10k</td><td>R1 R3 R4 R9 R13 R16 R18</td><td></td></tr>
+    <tr><td>100k</td><td>R5 R19</td><td>hold camera and GPS off</td></tr>
+    <tr><td>4.7k</td><td>R12</td><td>WAKE pull-up, always fit</td></tr>
+    <tr><td>1k</td><td>R2 R6 R7 R17</td><td></td></tr>
+    <tr><td>330R</td><td>R8</td><td>red status LED</td></tr>
+    <tr><td>100k 1%, 18k 1%</td><td>R14, R15</td><td>battery divider</td></tr>
+    <tr><td>leave empty</td><td>R10 R11</td><td>the DS3231 module has its own</td></tr>
+  </table></div>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>Measure each resistor with the meter before it goes in. It is faster and more reliable than reading bands.</p></div>
+  <footer><span>ST-2048:1</span><span>30</span></footer>
+</section>
+
+<section class="sheet" id="s24">
+  <div class="head"><span class="no-">24</span><h3>Round 1: small caps and D1</h3></div>
+  <figure class="fig" data-fig="pcb_diode" data-alt="Diode standing over the circle, stripe at the top, bent lead into the square K pad"></figure>
+  <ul class="do">
+    <li><span class="hw">10 × 100 nF</span> ceramics, marked <b>104</b>. No polarity.</li>
+    <li><b>D1</b> <span class="hw">1N4744A</span> zener stands like a resistor, <b>stripe at the top</b>. The bent top lead goes into the <b>square K pad</b>; the body stands over the circle.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>31</span></footer>
+</section>
+
+<section class="sheet" id="s25">
+  <div class="head"><span class="no-">25</span><h3>Round 2: power input</h3></div>
+  <figure class="fig" data-fig="pcb_to220" data-alt="TO-220 transistor: tab toward the bold bar, pin 1 in the square pad"></figure>
+  <figure class="fig" data-fig="pcb_fuse" data-alt="Fuse clips with their stop tabs facing outward"></figure>
+  <ul class="do">
+    <li><b>Q1</b> <span class="hw">IRF4905</span>: metal tab toward the bold bar, pin 1 (gate) in the square pad. Printed face toward you, the legs read G D S.</li>
+    <li><b>D2</b> <span class="hw">P6KE20CA</span> is bidirectional, so either way up.</li>
+    <li><b>F1</b> clips with stop tabs <b>out</b>, <b>C1</b> 470 µF (next panel), <b>J1</b> terminal with its openings to the board edge.</li>
+    <li>Then go to <a href="#s30">Test 0 to Test 2</a>.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>Q1 is where reverse-polarity protection is won or lost: drain to the supply, source to the load. The footprint fixes that, as long as pin 1 is in the square pad.</p></div>
+  <footer><span>ST-2048:1</span><span>32</span></footer>
+</section>
+
+<section class="sheet" id="s26">
+  <div class="head"><span class="no-">26</span><h3>Round 3: the 5 V buck</h3></div>
+  <figure class="fig" data-fig="pcb_lm2596" data-alt="LM2596T-5.0 with five staggered legs"></figure>
+  <figure class="fig" data-fig="pcb_cap" data-alt="Electrolytic capacitor: long leg into the square plus pad, stripe away"></figure>
+  <ul class="do">
+    <li><b>U2</b> <span class="hw">LM2596T-5.0</span>: legs 1, 3, 5 in one row, 2 and 4 in the other; pin 1 square. <b>Fit the clip heatsink.</b></li>
+    <li><b>L1</b> 33 µH, no polarity. <b>D3</b> <span class="hw">1N5822</span> stands like D1: stripe up, bent lead to K.</li>
+    <li><b>C3</b> 470 µF and <b>C5</b> 220 µF must be the <b>low-ESR</b> ones. Long leg into the square <b>+</b> pad, stripe away from it.</li>
+    <li><b>R2 + LED1</b> (next page). Then <a href="#s33">Test 3</a>.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>33</span></footer>
+</section>
+
+<section class="sheet" id="s27">
+  <div class="head"><span class="no-">27</span><h3>Round 4: camera switch, LEDs</h3></div>
+  <figure class="fig" data-fig="pcb_led" data-alt="LED: short leg and flat side into the square K pad"></figure>
+  <ul class="do">
+    <li><b>Q2</b> <span class="hw">IRF4905</span> as Q1. <b>Q3</b> <span class="hw">2N3904</span> (next panel). <b>C7</b> 100 µF 16 V, <b>J2</b> USB-A, <b>J3</b> terminal.</li>
+    <li><b>LED1, LED2</b> green, <b>LED3</b> red: flat side and short leg into the <b>square K pad</b>.</li>
+    <li>Then <a href="#s34">Test 4</a>.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>TO-220 tabs are live. Q1's tab is the 12 V input, Q2's is the camera 5 V, U2's is ground. Keep U2's heatsink clear of both.</p></div>
+  <footer><span>ST-2048:1</span><span>34</span></footer>
+</section>
+
+<section class="sheet" id="s28">
+  <div class="head"><span class="no-">28</span><h3>Round 5: GPS switch</h3></div>
+  <figure class="fig" data-fig="pcb_to92" data-alt="TO-92 transistor: flat face over the flat edge of the outline"></figure>
+  <ul class="do">
+    <li><b>Q5</b> <span class="hw">2N3904</span> NPN and <b>Q4</b> <span class="hw">2N3906</span> PNP. Flat face over the flat edge of the outline.</li>
+    <li>Read the print on each one before it goes in. They look identical and swapping them fails quietly.</li>
+    <li><b>C17</b> 100 nF if not already in. Then <a href="#s35">Test 5</a>.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>35</span></footer>
+</section>
+
+<section class="sheet" id="s29">
+  <div class="head"><span class="no-">29</span><h3>Round 6: sockets, headers, the rest</h3></div>
+  <figure class="fig" data-fig="pcb_socket" data-alt="Female header socket soldered with the module plugged in to keep it square"></figure>
+  <ul class="do">
+    <li><b>C11</b> 100 µF low-ESR sits at the driver socket (VMOT). <b>C9</b> 100 µF 10 V on 3V3.</li>
+    <li><b>J4</b> motor terminal, <b>SW1</b>, headers <b>J5 J7 J8 J9 J10 J11</b>, jumpers <b>JP3 JP4 JP5</b>.</li>
+    <li>Sockets: ESP32 (2 × 1×15), TMC2209 (2 × 1×8), DS3231 (1×6). Plug the module in, tack the two end pins of each row, check it sits square, then solder the rest. Unplug the module afterwards.</li>
+    <li>Jumpers <b>JP4, JP5 to GND</b>: UART address 0, which the firmware expects. <b>JP3</b> open.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>36</span></footer>
+</section>
+</div>
+
+<!-- ===================== C SMOKE ===================== -->
+<div class="divider" id="C"><span class="L">C</span><div><h2>Smoke test</h2><p>Nothing expensive goes in until every rail reads right. A bench supply with a current limit, or a 12 V bulb in series with the lead, turns a mistake into a reading instead of a smell.</p></div></div>
+<div class="grid">
+
+<section class="sheet" id="s30">
+  <div class="head"><span class="no-">30</span><h3>Test 0: Look, then measure</h3></div>
+  <figure class="fig" data-fig="meter" data-v="OL" data-a="J1 +12V" data-b="J1 GND"></figure>
+  <ul class="do">
+    <li>Look for bridges and dull joints under a light. Clean the flux off.</li>
+    <li>Unpowered, meter on Ω: <b>J1 +12V to GND</b> climbs as C1 charges. <b>5 V to GND</b> and <b>3V3 to GND</b> (socket pins) are not below 10 Ω.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>A steady reading under 10 Ω is a short. Find it before any power goes in.</p></div>
+  <footer><span>ST-2048:1</span><span>37</span></footer>
+</section>
+
+<section class="sheet" id="s31">
+  <div class="head"><span class="no-">31</span><h3>Test 1: First power, current-limited</h3></div>
+  <figure class="fig" data-fig="meter" data-v="12.0" data-a="Q1 source (pin 3)" data-b="J1 GND"></figure>
+  <ul class="do">
+    <li>After round 2. Supply at <b>12 V, 100 mA limit</b> into J1.</li>
+    <li>Q1's source leg reads the input voltage, within 0.1 V.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>38</span></footer>
+</section>
+
+<section class="sheet" id="s32">
+  <div class="head"><span class="no-">32</span><h3>Test 2: Reverse polarity</h3></div>
+  <figure class="fig" data-fig="meter" data-v="0.00" data-a="Q1 source (pin 3)" data-b="J1 GND"></figure>
+  <ul class="do">
+    <li>Swap the leads at J1, still current-limited. The rail reads <b>0 V</b> and nothing gets warm.</li>
+    <li>If the rail shows −12 V, Q1 is in backwards. Stop here.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>39</span></footer>
+</section>
+
+<section class="sheet" id="s33">
+  <div class="head"><span class="no-">33</span><h3>Test 3: The 5 V rail</h3></div>
+  <figure class="fig" data-fig="meter" data-v="5.02" data-a="C5 +, or the socket's VIN pin" data-b="GND"></figure>
+  <ul class="do">
+    <li>After round 3. <b>4.9 to 5.1 V</b> at C5 and at the ESP32 socket's VIN pin. LED1 lights.</li>
+    <li>Idle draw at 12 V is around 10 to 20 mA: the regulator's own current plus LED1.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>40</span></footer>
+</section>
+
+<section class="sheet" id="s34">
+  <div class="head"><span class="no-">34</span><h3>Test 4: Camera switch</h3></div>
+  <figure class="fig" data-fig="meter" data-v="5.00" data-a="J3 +5V" data-b="J3 GND"></figure>
+  <ul class="do">
+    <li>After round 4. J3 reads <b>0 V</b> at rest: the camera is off by default.</li>
+    <li>Hold a <b>1 kΩ</b> resistor from the socket's VIN pin to its <b>CAM_EN</b> pin. J3 and the USB-A read 5 V, LED2 lights. Take it away and they drop to 0.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>41</span></footer>
+</section>
+
+<section class="sheet" id="s35">
+  <div class="head"><span class="no-">35</span><h3>Test 5: GPS switch</h3></div>
+  <figure class="fig" data-fig="meter" data-v="4.81" data-a="J9 pin 2 (VCC)" data-b="J9 pin 5 (GND)"></figure>
+  <ul class="do">
+    <li>After round 5. The same 1 kΩ from VIN to the <b>GPS_EN</b> pin: J9 pin 2 reads about <b>4.8 V</b>. Without it, 0 V.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>42</span></footer>
+</section>
+
+<section class="sheet" id="s36">
+  <div class="head"><span class="no-">36</span><h3>Test 6: Battery divider</h3></div>
+  <figure class="fig" data-fig="meter" data-v="1.83" data-a="VBAT_SENSE socket pin" data-b="GND"></figure>
+  <ul class="do">
+    <li>VBAT_SENSE = input × 18 / 118. <b>12.0 V in gives 1.83 V</b>, a full 14.6 V LiFePO4 gives 2.23 V. Both are safely under the ESP32's 3.3 V.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>43</span></footer>
+</section>
+
+<section class="sheet" id="s37">
+  <div class="head"><span class="no-">37</span><h3>Test 7: Warm check, then the ESP32</h3></div>
+  <figure class="fig" data-fig="meter" data-v="3.30" data-a="J7 pin 2 (3V3)" data-b="J7 pin 1 (GND)"></figure>
+  <ul class="do">
+    <li>Five minutes powered with nothing fitted. U2 and Q1 barely warm.</li>
+    <li><b>Power off.</b> Fit the ESP32 only: USB <b>toward the arrow</b>, its pin 1 at the socket's <b>1</b>. If it does not line up, stop.</li>
+    <li>Power on. <b>3.2 to 3.4 V</b> at J7 pin 2, J10 pin 2, the DS3231 socket's VCC and the driver socket's VIO. The OLED may light.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>3.3 V comes out of the ESP32 module's own regulator. With no module fitted, the 3V3 net reads nothing, and that is correct.</p></div>
+  <footer><span>ST-2048:1</span><span>44</span></footer>
+</section>
+
+<section class="sheet" id="s38">
+  <div class="head"><span class="no-">38</span><h3>Test 8: The driver and the clock</h3></div>
+  <ul class="do">
+    <li><b>Power off.</b> Motor wired to J4 <b>before</b> the driver goes in (<a href="#s40">step 40</a>).</li>
+    <li><b>TMC2209</b>: match <b>EN</b> on the module to EN on the silkscreen. On BTT modules the chip is on the underside, which is normal. Turn the V<sub>REF</sub> pot to its low end for now.</li>
+    <li>DIAG: no vendor brings it out on the header. Flying lead from the module's DIAG pad to <b>J5</b> pin 1.</li>
+    <li><b>DS3231</b> (ZS-042) with a CR2032, in the order printed: <span class="hw">32K SQW SCL SDA VCC GND</span>. Its charging circuit is harmless at 3.3 V.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>Never plug or unplug the motor with power on. The driver dies from the inductive kick, and C11 must be fitted at VMOT before the driver sees 12 V.</p></div>
+  <footer><span>ST-2048:1</span><span>45</span></footer>
+</section>
+</div>
+
+<!-- ===================== D WIRING ===================== -->
+<div class="divider" id="D"><span class="L">D</span><div><h2>Wiring</h2><p>The board, the battery, the motor, the encoder, the GPS and the camera.</p></div></div>
+<div class="grid">
+
+<section class="sheet wide" id="s39">
+  <div class="head"><span class="no-">39</span><h3>The whole loom</h3></div>
+  <!--FZ:bb|Fritzing breadboard view of the whole loom: battery through a 3 A fuse to J1, motor to J4, camera to J2, AS5600 to J7, GPS to J9-->
+  <p class="fzcap">Fritzing, breadboard view. Source: <span class="hw">hardware/fritzing/star_tracker_wiring.fzz</span>, generated by <span class="hw">gen_fritzing.py</span> from the KiCad layout.</p>
+  <!--FZ:power|Close-up: battery positive through the inline fuse to J1 pin 1, battery negative to J1 pin 2-->
+  <ul class="do">
+    <li><b>Battery</b> 12 V LiFePO4 → inline <b>3 A fuse</b> → XT60 → <b>J1</b>, + to +12V. With solar, feed from the charge controller's load output.</li>
+    <li>Board fuse F1 is also 3 A. The inline fuse protects the lead.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>46</span></footer>
+</section>
+
+<section class="sheet" id="s40">
+  <div class="head"><span class="no-">40</span><h3>Motor coils</h3></div>
+  <!--FZ:motor|Close-up: J4 A1 A2 B1 B2 to the motor's two coils-->
+  <figure class="fig" data-fig="coils" data-alt="Find the two coil pairs with an ohmmeter"></figure>
+  <ul class="do">
+    <li>Wire colours vary between pancake motors, so measure. One pair to <b>A1 A2</b>, the other to <b>B1 B2</b> on J4.</li>
+    <li>Wrong direction on first spin? Swap <b>A1 and A2 only</b>, with power off.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>47</span></footer>
+</section>
+
+<section class="sheet" id="s41">
+  <div class="head"><span class="no-">41</span><h3>Encoder lead</h3></div>
+  <!--FZ:encoder|Close-up: J7 GND 3V3 SDA SCL DIR to the AS5600 breakout-->
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>J7</th><th>Board</th><th>AS5600</th></tr>
+    <tr><td>1</td><td>GND</td><td>GND</td></tr>
+    <tr><td>2</td><td>3V3</td><td>VCC</td></tr>
+    <tr><td>3</td><td>SDA</td><td>SDA</td></tr>
+    <tr><td>4</td><td>SCL</td><td>SCL</td></tr>
+    <tr><td>5</td><td>GND</td><td>DIR</td></tr>
+  </table></div>
+  <ul class="do">
+    <li>Under about 30 cm, SDA and SCL twisted with a ground. The bus runs at 400 kHz.</li>
+    <li>The bracket and sensor stay still; only the magnet turns. This lead never has to follow the camera.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>48</span></footer>
+</section>
+
+<section class="sheet" id="s42">
+  <div class="head"><span class="no-">42</span><h3>GPS and the PPS lead</h3></div>
+  <!--FZ:gps|Close-up: J9 PPS VCC RXD TXD GND to the GY-NEO6MV2, PPS as a flying lead from the LED-->
+  <ul class="do">
+    <li>The GY-NEO6MV2's own 4-wire cable plugs into <b>J9 pins 2 to 5</b> (VCC RX TX GND), in the module's own order.</li>
+    <li><b>PPS</b> is not on its header. It drives the on-board PPS LED. Solder a flying lead from that LED's driven side to <b>J9 pin 1</b>.</li>
+    <li>Pick the pad that swings to about 3 V once a second after a fix. If you see only about 2 V, you are on the LED side of its resistor: move to the other end.</li>
+    <li>The antenna goes where it sees sky, outside the IP54 box.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>PPS measures the crystal and sets the clock to under a second. It does not steer tracking: 20 ppm over a 12-hour night is 3.6 arcsec.</p></div>
+  <footer><span>ST-2048:1</span><span>49</span></footer>
+</section>
+
+<section class="sheet" id="s43">
+  <div class="head"><span class="no-">43</span><h3>Camera cable</h3></div>
+  <!--FZ:camera|Close-up: J2 USB-A to the GoPro's USB-C-->
+  <ul class="do">
+    <li><b>J2</b> USB-A → short right-angle USB-C → HERO6. J2's data lines are shorted, which tells the camera it may draw full charge current.</li>
+    <li>Route it with the platform at the start angle. A night is <b>180.5°</b> of travel, so leave a slack loop that reaches both ends without pulling on the camera.</li>
+    <li>Tie the cable to the platform so the loop, not the USB-C plug, takes the bend.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>Measure the real arc the loop allows. It becomes <span class="hw">TRAVEL_MIN_DEG</span> / <span class="hw">TRAVEL_MAX_DEG</span> in <a href="#s50">step 50</a>.</p></div>
+  <footer><span>ST-2048:1</span><span>50</span></footer>
+</section>
+</div>
+
+<!-- ===================== E FIRST POWER ===================== -->
+<div class="divider" id="E"><span class="L">E</span><div><h2>First power-up and calibration</h2><p><span class="pill now" style="background:var(--paper);color:var(--ink)">today</span> works with a sketch already in the repo. <span class="pill" style="border-color:var(--paper)">planned</span> needs the firmware laid out in FIRMWARE.md, which is not written yet.</p></div></div>
+<div class="grid">
+
+<section class="sheet" id="s44">
+  <div class="head"><span class="no-">44</span><h3>Pin check</h3><span class="tag pill now">today</span></div>
+  <ul class="do">
+    <li>Flash <span class="hw">firmware/pincheck/pincheck.ino</span>. Arduino IDE, board "DOIT ESP32 DEVKIT V1", serial monitor at 115200. Nothing else needs to be connected.</li>
+    <li>It scans three I²C buses and names what answers, then prints PSRAM.</li>
+  </ul>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>You see</th><th>Means</th></tr>
+    <tr><td><span class="hw">0x3C</span> on GPIO 21/22</td><td>OLED shares the sensor bus. WAKE stays on GPIO 4.</td></tr>
+    <tr><td><span class="hw">0x3C</span> on GPIO 4/15</td><td>Those pins are taken. WAKE moves to the upper row.</td></tr>
+    <tr><td>PSRAM: none</td><td>WROOM, as expected.</td></tr>
+    <tr><td>PSRAM: present</td><td>WROVER. GPIO 16/17 are taken and the driver UART moves.</td></tr>
+  </table></div>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>This is the one measurement the PCB is waiting on. Paste the serial output into a session and the board regenerates from it.</p></div>
+  <footer><span>ST-2048:1</span><span>51</span></footer>
+</section>
+
+<section class="sheet" id="s45">
+  <div class="head"><span class="no-">45</span><h3>First spin, and which way</h3><span class="tag pill now">today</span></div>
+  <figure class="fig" data-fig="direction" data-alt="Facing north the sky turns counter-clockwise; seen from the camera end the platform turns clockwise"></figure>
+  <ul class="do">
+    <li><span class="hw">sidereal_drive.ino</span> drives STEP 25, DIR 26, EN 27, which the planned pin map keeps.</li>
+    <li>V<sub>REF</sub> pot near its low end. Motor buzzes but does not turn? Raise it a little.</li>
+    <li>Wrong way round? Change <span class="hw">digitalWrite(PIN_DIR, …)</span> or swap A1/A2 with the power off.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p><b>Without UART setup the TMC2209 runs standalone.</b> With MS1 and MS2 at GND that is 1/8 microstepping, not the 1/32 the sketch assumes, so the output turns <b>4 × sidereal</b>, about 1° a minute. That is fine for seeing the direction, and it is not tracking.</p></div>
+  <footer><span>ST-2048:1</span><span>52</span></footer>
+</section>
+
+<section class="sheet" id="s46">
+  <div class="head"><span class="no-">46</span><h3>Driver current and microsteps</h3><span class="tag pill">planned</span></div>
+  <ul class="do">
+    <li>Over UART: run current <b>300 to 400 mA</b>. There is a 250 × torque margin, and low current means less vibration and heat.</li>
+    <li>MRES <b>1/32</b> for tracking, <b>1/8</b> for slews. The position counter always stays in 1/32 units.</li>
+    <li>Once UART sets the current, the V<sub>REF</sub> pot does nothing.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>53</span></footer>
+</section>
+
+<section class="sheet" id="s47">
+  <div class="head"><span class="no-">47</span><h3>Magnet gap</h3><span class="tag pill">planned</span></div>
+  <figure class="fig" data-fig="agc" data-alt="AGC scale 0 to 128, aim for the middle"></figure>
+  <ul class="do">
+    <li>Read <b>AGC</b>, <b>MAGNITUDE</b> and the <b>MD / ML / MH</b> status bits. Shown on the OLED and the phone page.</li>
+    <li>Want: MD = 1, ML = 0, MH = 0, AGC near mid-scale (about 64 of 128 at 3.3 V).</li>
+    <li>Slide the bracket to get there, then lock it with a dab of hot glue.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>54</span></footer>
+</section>
+
+<section class="sheet" id="s48">
+  <div class="head"><span class="no-">48</span><h3>Encoder zero</h3><span class="tag pill">planned</span></div>
+  <figure class="fig" data-fig="dial" data-alt="Encoder dial: the night's sweep runs from 1024 to about 3080 counts and never crosses the 0/4095 seam"></figure>
+  <ul class="do">
+    <li>Park the platform at the start angle. Turn the magnet cap on the shaft until the raw reading is near <b>1024</b>.</li>
+    <li>The 180.5° sweep then ends near 3080 and never crosses the 0 / 4095 seam, so the firmware needs no wrap handling.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>55</span></footer>
+</section>
+
+<section class="sheet" id="s49">
+  <div class="head"><span class="no-">49</span><h3>Clock and site</h3><span class="tag pill">planned</span></div>
+  <ul class="do">
+    <li>Set the DS3231 from the phone's clock (<span class="hw">POST /api/time</span>), or let TIME_SYNC take it from a GPS fix.</li>
+    <li>Put your latitude and longitude into the schedule's <span class="hw">site</span>. The default is 0, 0. With a GPS fix, the tracker overrides it each night.</li>
+    <li>Watch <span class="hw">rtc_drift_s</span> for a few nights before deciding the clock needs correcting at all.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>56</span></footer>
+</section>
+
+<section class="sheet" id="s50">
+  <div class="head"><span class="no-">50</span><h3>Travel limits</h3><span class="tag pill">planned</span></div>
+  <ul class="do">
+    <li>Jog to each end of the arc the camera cable allows (<a href="#s43">step 43</a>) and note the encoder angle.</li>
+    <li>Set <span class="hw">TRAVEL_MIN_DEG</span> / <span class="hw">TRAVEL_MAX_DEG</span> in <span class="hw">include/config.h</span>. They are compile-time on purpose, so a phone cannot widen them.</li>
+    <li>A schedule that would run past them is refused at upload, with the reason.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>57</span></footer>
+</section>
+
+<section class="sheet" id="s51">
+  <div class="head"><span class="no-">51</span><h3>Backlash</h3><span class="tag pill">planned</span></div>
+  <ul class="do">
+    <li>Start with <span class="hw">BACKLASH_USTEPS = 10000</span>. The estimate from 0.35 mm on the final mesh is about 7,600, or 750 arcsec.</li>
+    <li>Run <span class="hw">repeat_test</span>: orient, short track, rewind, read the encoder at the start angle, N times. It reports mean and σ of the return error in arcsec.</li>
+    <li>Adjust until the mean return error sits near zero.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>The start angle is always approached going forward. Stop on a reverse stroke and the first minutes of tracking take up the backlash as drift.</p></div>
+  <footer><span>ST-2048:1</span><span>58</span></footer>
+</section>
+
+<section class="sheet" id="s52">
+  <div class="head"><span class="no-">52</span><h3>Camera profile</h3><span class="tag pill">planned</span></div>
+  <ul class="do">
+    <li>Run <span class="hw">discover</span>. It joins the HERO6, dumps its <span class="hw">/gp/gpControl</span> settings tree and serves it at <span class="hw">/api/camera/dump</span>.</li>
+    <li>Fill <span class="hw">camera_profile.json</span> from your camera's own tree. The IDs in FIRMWARE.md are placeholders.</li>
+    <li>Three things to find out on the bench: does wake-on-LAN wake it, what it draws in standby, and whether it stays rejoinable after the ESP32 leaves mid-record.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>59</span></footer>
+</section>
+
+<section class="sheet" id="s53">
+  <div class="head"><span class="no-">53</span><h3>First light</h3><span class="tag pill now">today</span></div>
+  <ul class="do">
+    <li>Open-loop drive, a 50 mm lens, <b>one 5-minute exposure</b>. Measure the trailing.</li>
+    <li>Only then decide what to fix. Upgrading shaft 3 to ground stock is the first mechanical step if the numbers call for it.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>The encoder in this design is for scheduling and stall detection. Using it to correct tracking before you have trailing data solves a problem you have not measured.</p></div>
+  <footer><span>ST-2048:1</span><span>60</span></footer>
+</section>
+</div>
+
+<!-- ===================== F USE ===================== -->
+<div class="divider" id="F"><span class="L">F</span><div><h2>How to use</h2><p>Set it up at dusk once, then leave it. The phone page and the night report reflect the planned firmware.</p></div></div>
+<div class="grid">
+
+<section class="sheet" id="s54">
+  <div class="head"><span class="no-">54</span><h3>Set up and polar align</h3></div>
+  <figure class="fig" data-fig="wedge_setup" data-alt="Tripod and wedge tilted to your latitude, output axis pointing at Polaris"></figure>
+  <ul class="do">
+    <li>Level the tripod. Tilt the wedge to your latitude and point the output axis north.</li>
+    <li>Sight Polaris down the axis. Aim for 0.25° or better.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>61</span></footer>
+</section>
+
+<section class="sheet" id="s55">
+  <div class="head"><span class="no-">55</span><h3>Load the camera</h3></div>
+  <ul class="do">
+    <li>Camera on, cable tied, slack loop free to swing.</li>
+    <li>Bias the balance so the load pulls one way through the whole sweep. That keeps the mesh on one flank.</li>
+    <li>Card empty, camera battery charged. It still runs on USB, and the battery rides through a hiccup.</li>
+  </ul>
+  <div class="cmp">
+    <div class="ok"><b style="font-size:15px">slightly<br>off-balance</b></div>
+    <div class="no"><b style="font-size:15px">perfectly<br>balanced</b></div>
+  </div>
+  <footer><span>ST-2048:1</span><span>62</span></footer>
+</section>
+
+<section class="sheet" id="s56">
+  <div class="head"><span class="no-">56</span><h3>Configure from your phone</h3></div>
+  <div class="row"><figure class="fig" data-fig="phone" data-alt="Example of the planned phone status page"></figure>
+  <ul class="do" style="flex:1;min-width:220px">
+    <li>Press <b>CONFIG</b> (SW1). The tracker raises its own Wi-Fi network for 10 minutes.</li>
+    <li>Join it, open the page. Upload a schedule: site, start and stop events (dusk and dawn with offsets), start angle, camera profile.</li>
+    <li>A bad schedule comes back with every error listed. One that would pass the travel limits is refused.</li>
+    <li>Values on the example screen are illustrative.</li>
+  </ul></div>
+  <footer><span>ST-2048:1</span><span>63</span></footer>
+</section>
+
+<section class="sheet" id="s57">
+  <div class="head"><span class="no-">57</span><h3>Walk away</h3></div>
+  <figure class="fig" data-fig="timeline" data-w="600" data-alt="The night: idle, preflight, GPS, orient, camera, track, stop, rewind, idle"></figure>
+  <ul class="do">
+    <li>It sleeps until the dusk alarm, checks itself, takes a GPS fix, slews to the start angle going forward, starts the camera, then tracks.</li>
+    <li>At dawn it stops the camera, rewinds with an overshoot and comes forward to the start, then sleeps.</li>
+    <li>Camera or GPS trouble is logged and the night tracks anyway. A stall, encoder disagreement over 2° or a flat battery stops the motor first, then the camera.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>64</span></footer>
+</section>
+
+<section class="sheet" id="s58">
+  <div class="head"><span class="no-">58</span><h3>Next morning</h3></div>
+  <ul class="do">
+    <li>Read the night report: planned against actual start and stop, the largest encoder disagreement, lowest battery, camera result, every warning.</li>
+    <li>Encoder disagreement over <b>0.5°</b> is a warning worth a look; the train may be slipping.</li>
+    <li>Keep the reports. When something odd happens on Tuesday, you want Tuesday's file.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span>65</span></footer>
+</section>
+
+<section class="sheet" id="s59">
+  <div class="head"><span class="no-">59</span><h3>Care</h3></div>
+  <div class="cmp">
+    <div class="ok"><b style="font-size:14px">jog under power</b></div>
+    <div class="no"><b style="font-size:14px">turn the platform<br>by hand</b></div>
+    <div class="ok"><b style="font-size:14px">power off, then<br>the motor plug</b></div>
+    <div class="no"><b style="font-size:14px">unplug the motor<br>while powered</b></div>
+  </div>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>Symptom</th><th>First look</th></tr>
+    <tr><td>Drift from the first minutes</td><td>Polar alignment, then the forward approach to start</td></tr>
+    <tr><td>Once-per-turn trailing wobble</td><td>Shaft 3 nail straightness, the 24T pinion</td></tr>
+    <tr><td>FAULT at boot</td><td>Encoder not answering: J7 lead, magnet gap</td></tr>
+    <tr><td>Night skipped, no fault</td><td>Battery low, schedule invalid, or no twilight at your latitude</td></tr>
+    <tr><td>No frames, tracking fine</td><td>Camera profile IDs, wake-on-LAN, camera battery</td></tr>
+  </table></div>
+  <footer><span>ST-2048:1</span><span>66</span></footer>
+</section>
+
+<section class="sheet wide">
+  <div class="head"><h3>The numbers</h3></div>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>Train</th><td>15→120, 15→120, 15→120 (module 1), 24→96 (module 2): 8 × 8 × 8 × 4 = <b>2048 : 1</b></td></tr>
+    <tr><th>Microsteps per sidereal day</th><td>13,107,200 at 1/32 (200 × 32 × 2048)</td></tr>
+    <tr><th>Step interval</th><td>6573.80 µs, 152.13 steps/s, motor 1.426 rpm, 0.099 arcsec per microstep</td></tr>
+    <tr><th>Centre distances</th><td>67.5 / 67.5 / 67.5 / 120.0 mm</td></tr>
+    <tr><th>Shafts (x, y)</th><td>S0 (0, 0) · S1 (67.5, 0) · S2 (67.5, 67.5) · S3 (0, 67.5) · S4 (0, −52.5)</td></tr>
+    <tr><th>Output backlash</th><td>≈ 750 arcsec, 0.208°. <span class="hw">BACKLASH_USTEPS</span> 10,000 to start</td></tr>
+    <tr><th>One night</th><td>12 h, 180.5° of output. About 43 Wh, 69 % of it the camera</td></tr>
+    <tr><th>Magnet to die</th><td>2.0 mm (window 0.5 to 3.0)</td></tr>
+  </table></div>
+  <footer><span>ST-2048:1</span><span>67</span></footer>
+</section>
+</div>
+
+<!-- ===================== G APPENDIX ===================== -->
+<div class="divider" id="G"><span class="L">G</span><div><h2>Appendix: schematics</h2><p>The whole system as one diagram, the controller board as blocks, then the board's full schematic straight from KiCad.</p></div></div>
+<div class="grid">
+
+<section class="sheet wide" id="g1">
+  <div class="head"><h3>G1 · System wiring, schematic view</h3></div>
+  <!--FZ:sch|Fritzing schematic view: battery, fuse, AS5600 and GPS on the left of the controller, motor and camera on the right, one straight line per wire-->
+  <p class="fzcap">Fritzing, schematic view of the same sketch as section D. Each external part sits level with the board pins it meets, so every wire is one straight line.</p>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>Harness</th><th>Board</th><th>Far end</th><th>Wires</th></tr>
+    <tr><td>Power</td><td>J1 +12V, GND</td><td>battery via 3 A inline fuse</td><td>red through the fuse, black direct</td></tr>
+    <tr><td>Motor</td><td>J4 A1 A2 B1 B2</td><td>NEMA 17, coil A and coil B</td><td>pairs found with a meter (step 40)</td></tr>
+    <tr><td>Encoder</td><td>J7 GND 3V3 SDA SCL DIR</td><td>AS5600 GND VCC SDA SCL DIR</td><td>DIR is tied to GND on the board</td></tr>
+    <tr><td>GPS</td><td>J9 PPS VCC RXD TXD GND</td><td>GY-NEO6MV2, PPS from its LED</td><td>module's own 4-wire cable + one lead</td></tr>
+    <tr><td>Camera</td><td>J2 USB-A</td><td>HERO6 USB-C</td><td>short right-angle cable, slack loop</td></tr>
+  </table></div>
+  <footer><span>ST-2048:1</span><span>68</span></footer>
+</section>
+
+<section class="sheet wide" id="g2">
+  <div class="head"><h3>G2 · Controller board, logical diagram</h3></div>
+  <figure class="fig" data-fig="logic" data-alt="Block diagram: 12 V in through fuse and reverse-polarity FET to the 12 V rail; LM2596 buck to 5 V; ESP32 on 5 V making 3.3 V; TMC2209 on 12 V driving J4; switched 5 V to the camera and GPS; I2C to the RTC, AS5600 and expansion header"></figure>
+  <ul class="do">
+    <li><b>Three rails.</b> 12 V from the battery through F1 and Q1; 5 V from the LM2596 buck; 3.3 V from the ESP32 module's own regulator, about 20 mA of extra load.</li>
+    <li><b>Two loads are switched and off by default:</b> the camera's 5 V (CAM_EN) and the GPS's 5 V (GPS_EN). Pull-downs hold both off while the ESP32 boots.</li>
+    <li><b>One wake line</b> takes both the RTC alarm and the CONFIG button, wired-OR on a single 4.7k pull-up. Firmware tells them apart from the RTC's alarm flag.</li>
+    <li>Signal names, not GPIO numbers: the ESP32 pin map is redrawn for the 30-pin module after the pin check.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p><b>GPS UART naming, open.</b> On the Rev B netlist the ESP32 pin named <span class="hw">GPS_TX</span> (the one FIRMWARE.md transmits on) meets J9 pin 4, the module's <b>TXD</b>, and <span class="hw">GPS_RX</span> meets its <b>RXD</b>. As drawn that is TX to TX. The ESP32 can put its UART on any pin, so firmware can swap the two with no board change. Settle which in <span class="hw">design.py</span> before the 30-pin redraw.</p></div>
+  <footer><span>ST-2048:1</span><span>69</span></footer>
+</section>
+
+<section class="sheet wide" id="g3">
+  <div class="head"><h3>G3 · Controller board, full schematic</h3><span class="tag pill">Rev B · 38-pin sockets</span></div>
+  <div class="zoomer" id="kizoom" tabindex="0" aria-label="Board schematic. Drag to pan, scroll or use the buttons to zoom.">
+    <div class="zb"><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit" aria-label="Fit">⤢</button></div>
+    <!--FZ:kicad|The controller board's full KiCad schematic-->
+  </div>
+  <p class="fzcap">From <span class="hw">hardware/star_tracker_ctrl/star_tracker_ctrl.kicad_sch</span> via <span class="hw">kicad-cli</span>. Drag to pan, scroll or pinch to zoom. The text is real text, so the browser's find works on it.</p>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>This is the committed Rev B board, drawn for a 38-pin DevKitC. Everything off the ESP32 socket stands; the socket and its pin assignments change in the 30-pin redraw. Rebuild the guide after regenerating the board and this page follows.</p></div>
+  <footer><span>ST-2048:1</span><span>70</span></footer>
+</section>
+</div>
+
+</main>
+
+<script src="engine.js"></script>
+<script src="figs_mech.js"></script>
+<script src="figs_elec.js"></script>
+<script src="figs_pcb.js"></script>
+<script>
+(function () {
+  document.querySelectorAll('.fig[data-fig]').forEach(function (el) {
+    try { ISO.render(el, window.FIG); }
+    catch (e) { el.textContent = '[figure ' + el.getAttribute('data-fig') + ': ' + e.message + ']'; }
+  });
+  document.querySelectorAll('.sheet > footer span:last-child').forEach(function (el, i) { el.textContent = String(i + 1); });
+  document.querySelectorAll('.cmp .no').forEach(function (el) {
+    el.insertAdjacentHTML('beforeend', '<svg class="x" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M8 12 C38 38 62 60 92 88"/><path d="M92 12 C62 40 38 62 8 88"/></svg>');
+    el.setAttribute('aria-label', 'Wrong: ' + el.textContent.trim());
+  });
+  var root = document.documentElement, btn = document.getElementById('mode');
+  function isNight() {
+    if (root.classList.contains('night')) return true;
+    if (root.classList.contains('day')) return false;
+    if (root.getAttribute('data-theme') === 'dark') return true;
+    if (root.getAttribute('data-theme') === 'light') return false;
+    return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function label() { btn.textContent = isNight() ? 'Paper' : 'Red light'; }
+  try { var m = localStorage.getItem('st-mode'); if (m === 'night' || m === 'day') root.classList.add(m); } catch (e) {}
+  label();
+  btn.addEventListener('click', function () {
+    var next = isNight() ? 'day' : 'night';
+    root.classList.remove('night', 'day'); root.classList.add(next);
+    try { localStorage.setItem('st-mode', next); } catch (e) {}
+    label();
+  });
+  // pan/zoom for the board schematic: drag, wheel, pinch, buttons
+  document.querySelectorAll('.zoomer').forEach(function (z) {
+    var svg = z.querySelector('svg'); if (!svg) return;
+    var full = svg.getAttribute('viewBox').split(/\s+/).map(Number), vb = full.slice();
+    function set() { svg.setAttribute('viewBox', vb.map(function (v) { return v.toFixed(2); }).join(' ')); }
+    function zoom(k, cx, cy) {
+      var r = svg.getBoundingClientRect(), fx = cx == null ? .5 : (cx - r.left) / r.width, fy = cy == null ? .5 : (cy - r.top) / r.height;
+      var nw = Math.min(full[2], Math.max(full[2] / 60, vb[2] * k)), nh = nw * vb[3] / vb[2];
+      vb = [vb[0] + (vb[2] - nw) * fx, vb[1] + (vb[3] - nh) * fy, nw, nh]; set();
+    }
+    z.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () { var m = b.getAttribute('data-z'); if (m === 'fit') { vb = full.slice(); set(); } else zoom(m === 'in' ? .6 : 1 / .6); });
+    });
+    z.addEventListener('wheel', function (e) { e.preventDefault(); zoom(e.deltaY < 0 ? .8 : 1.25, e.clientX, e.clientY); }, { passive: false });
+    var pts = {}, last = null;
+    z.addEventListener('pointerdown', function (e) { if (e.target.closest('button')) return; z.setPointerCapture(e.pointerId); pts[e.pointerId] = [e.clientX, e.clientY]; z.classList.add('drag'); });
+    z.addEventListener('pointermove', function (e) {
+      if (!pts[e.pointerId]) return;
+      var ids = Object.keys(pts), r = svg.getBoundingClientRect(), s = Math.max(vb[2] / r.width, vb[3] / r.height);
+      if (ids.length === 1) { vb[0] -= (e.clientX - pts[e.pointerId][0]) * s; vb[1] -= (e.clientY - pts[e.pointerId][1]) * s; set(); }
+      pts[e.pointerId] = [e.clientX, e.clientY];
+      if (ids.length === 2) {
+        var a = pts[ids[0]], b = pts[ids[1]], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (last) zoom(last / d, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+        last = d;
+      }
+    });
+    function up(e) { delete pts[e.pointerId]; last = null; if (!Object.keys(pts).length) z.classList.remove('drag'); }
+    z.addEventListener('pointerup', up); z.addEventListener('pointercancel', up);
+    z.addEventListener('keydown', function (e) { if (e.key === '+' || e.key === '=') zoom(.8); else if (e.key === '-') zoom(1.25); else if (e.key === '0') { vb = full.slice(); set(); } });
+  });
+})();
+</script>

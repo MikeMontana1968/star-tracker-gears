@@ -60,10 +60,8 @@ $targets = @(
      d=@("bore=$OutBore", "bc_holes=$OutBolts", "bc_r=$OutBoltR") }
 
   # --- output shaft + AS5600 encoder ------------------------------------
-  # The one-piece tower does not print -- see PRINTING.md. Kept as a target
-  # only for rendering and reference; build the two halves.
-  @{ g='encoder'; f='_scratch/output_bearing_tower_ONEPIECE.stl'; p='tower';
-     d=@("os_brg_fit=$BrgFit") }
+  # The tower is two halves that clamp the baseplate between them -- see
+  # PRINTING.md. There is no one-piece tower any more.
   @{ g='encoder'; f='output_tower_LOWER.stl';  p='towerlower';
      d=@("os_brg_fit=$BrgFit") }
   @{ g='encoder'; f='output_tower_UPPER.stl';  p='towerupper';
@@ -74,6 +72,7 @@ $targets = @(
   @{ g='encoder'; f='output_hub_upper.stl'; p='hubupper';
      d=@("bc_holes=$OutBolts", "bc_r=$OutBoltR") }
   @{ g='encoder'; f='magnet_cap.stl';     p='magnetcap';     d=@() }
+  @{ g='encoder'; f='hub_washer.stl';     p='hubwasher';     d=@() }
   @{ g='gears';   f='baseplate_4mm.stl';  p='baseplate';     d=@("bp_t=$PlateT") }
   @{ g='docs';    f='docs/baseplate_cut.svg'; p='baseplatecut'; d=@() }
   @{ g='encoder'; f='as5600_bracket.stl'; p='as5600bracket'; d=@() }

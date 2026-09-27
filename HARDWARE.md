@@ -216,8 +216,7 @@ camera output.
 |---|---|---|---|
 | 1 | NEMA 17 pancake, ~13 N·cm, 0.7 A | 14 | 250× torque margin; run at 300–400 mA |
 | 2 | 625ZZ bearing 5 × 16 × 5 | 3 | output shaft only |
-| 1 | 5 mm ground shaft, 100 mm | 4 | output shaft, carries encoder magnet |
-| 2 | 5 mm shaft collar | 4 | output shaft only — **not** at shafts 2 or 3 |
+| 1 | 5 mm ground shaft | 4 | output shaft, cut to **55 mm**; carries the encoder magnet |
 | 1 | 20d bright common nails, small box | 6 | 4.88 mm, shafts 1–4 |
 | 1 | M3 hardware assortment | 8 | grub screws, caps, washers |
 

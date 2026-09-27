@@ -22,7 +22,7 @@ STACK = [
     (1, "S0  motor", 0.0, 0.0, None,
      [(42.0, "NEMA17 body, under plate"), (17.0, "15T pinion")],
      "NEMA17 below plate; pinion.stl above",
-     "4 x M3x10 into the motor"),
+     "4 x M3x8 flat head, countersunk"),
     (2, "S1", 67.5, 0.0, 2.0,
      [(122.0, "120T wheel"), (17.0, "15T pinion")],
      "spacer, then stage.stl (120T + 15T)",
@@ -37,8 +37,8 @@ STACK = [
      "20d nail shaft, head under the plate"),
     (5, "S4  output", 0.0, -52.5, None,
      [(196.0, "96T module-2 wheel"), (44.0, "hubs / tower flange")],
-     "tower halves glued, 2x625ZZ, shaft, hubs, 96T wheel",
-     "3 x M3x14 + nut; 6 x M3 hub clamp"),
+     "tower halves clamp the plate, 2x625ZZ, shaft, washer, hubs, 96T wheel",
+     "3 x M3x14 into the disc; 6 x M3x20 hub clamp"),
 ]
 
 PW, PH = letter
@@ -171,7 +171,9 @@ def main():
         "(pinion height is set by its grub screw); S4's job is done by the bearing tower.",
         "Nails go in from UNDERNEATH, head against the plate's underside. Cut the point off and square the end.",
         "Trim the NEMA17 shaft to ~10 mm above the plate. At full 24 mm length it fouls the 96T output wheel.",
-        "Plate is 4.3 mm, so: motor bolts M3x10 (not M3x8), tower flange grip 8.3 mm.",
+        "Countersink the 4 motor holes: socket-cap heads hit the S1 wheel 2.0 mm above the plate. "
+        "M3x8 flat head leaves 3.7 mm of thread; M3x10 bottoms out in the motor.",
+        "The M5 wedge hole nearest S1 is also under the S1 wheel: countersink it or leave that bolt out.",
         "Nothing over dia 13 mm may sit inline at S1-S3 - a stock 5 mm shaft collar will hit the neighbouring wheel.",
         "Rewind then approach the start angle FORWARDS; the train has ~750 arcsec of backlash at the output.",
     ]

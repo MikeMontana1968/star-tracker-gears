@@ -34,8 +34,20 @@ strength, so it is a cut part.
 The extra 0.3 mm changes nothing dimensional: **every gear height is referenced
 from the plate's top face**, so thickness lives entirely below the datum. It
 buys 24% more bending stiffness (t^3) for 13 g. Two fastener consequences:
-the tower flange grip becomes 8.3 mm (M3x12 or 14 + nut), and the motor bolts
-want **M3x10, not M3x8**, into the NEMA17's ~4.5 mm tapped holes.
+
+- **Tower:** flange 4 + plate 4.3 = 8.3 mm of grip, then **M3x14** thread-forms
+  5.7 mm into the lower tower half's clamp disc. No nuts.
+- **Motor: countersink the four holes and use M3x8 flat head (ISO 10642).**
+  The S1 120T wheel runs 2.0 mm above the plate and passes over the two motor
+  screws on its side, 54 mm from S1, so a 3 mm socket-cap head hits it. A
+  button head (1.65 mm) clears by 0.35 mm if you would rather not countersink.
+  M3x10 is too long: 5.7 mm of thread past the plate bottoms out in the
+  NEMA17's ~4.5 mm holes before it clamps. The rule is **thread = length -
+  4.3, and it must be shorter than the motor's holes** -- gauge them with a
+  drill bit.
+- **Wedge:** the M5 hole nearest S1 is also under the S1 wheel. Nothing above
+  the plate there may stand more than 1.5 mm proud: countersink it, or leave
+  that bolt out.
 
 **Watch for one thing on the DFM review:** the M3 holes are Ø3.4, which is
 0.79 x material thickness. The usual laser rule is minimum hole diameter >= 1 x
@@ -77,7 +89,7 @@ Holes, all in the SVG and on the 1:1 template:
 |---|---|
 | S0 | dia 23 NEMA17 pilot boss + 4 x M3 on a 31 mm square |
 | S1-S3 | dia 4.9, light press for 20d nails driven up from underneath |
-| S4 | dia 22.4 tower spigot + 3 x M3 on dia 28 |
+| S4 | dia 22.4 tower clearance + 3 x M3 on dia 35 |
 | S4 | **4 x M5 on dia 50 — the wedge/tripod interface** |
 
 The wedge bolts are centred on the **output axis**, not the plate centroid. The
@@ -99,52 +111,87 @@ axis and turn with the wheel, and the camera load wants real bearings anyway.
 
 | File | Qty | What |
 |---|---|---|
-| `output_tower_LOWER.stl` | 1 | tube + taper, lower 625ZZ pocket, spigot the sensor bracket registers on |
-| `output_tower_UPPER.stl` | 1 | flange onto the baseplate, upper 625ZZ pocket |
-| `output_tower_DOWELS.stl` | 1 | three Ø2.9 x 7.6 alignment dowels |
+| `output_tower_LOWER.stl` | 1 | clamp disc under the plate, spigot tube, lower 625ZZ pocket |
+| `output_tower_UPPER.stl` | 1 | flange on the plate top, upper 625ZZ pocket |
+| `output_tower_DOWELS.stl` | 1 | three Ø2.9 x 11.9 alignment dowels (they cross the plate) |
 | `output_hub_lower.stl` | 1 | clamps the shaft, Ø22 register the wheel locates on |
-| `output_hub_upper.stl` | 1 | camera platform, 1/4"-20 with a captive nut pocket |
+| `hub_washer.stl` | 1 | Ø7.2 x 1.0, sits on the upper bearing's inner race |
+| `output_hub_upper.stl` | 1 | camera platform, 10 mm thick, pocket for a full 1/4"-20 nut |
 | `magnet_cap.stl` | 1 | presses on the shaft end, 1.5 mm floor under the magnet |
-| `as5600_bracket.stl` | 1 | slides up over the tower spigot, PCB screws to its underside |
+| `as5600_bracket.stl` | 1 | slides up the tower spigot until it stops on the clamp disc; PCB screws to its underside |
 
-Also needed: a **5 x 65 mm ground shaft** (not a nail — this one runs in
-bearings and carries the encoder), 2 x 625ZZ, a **diametrically** magnetised
-6 x 2.5 magnet, and an AS5600 breakout.
+Also needed: a **5 mm ground shaft cut to 55 mm** (not a nail — this one runs
+in bearings and carries the encoder), 2 x 625ZZ, a **diametrically** magnetised
+6 x 2.5 magnet, a standard 1/4"-20 hex nut (7/16" AF x 7/32"), and an AS5600
+breakout.
 
-**Verified geometry:** tower Ø38 x 35 mm, hubs Ø44, cap Ø9 x 9, bracket
-Ø30 x 27. Bearing centres 30 mm apart. **Magnet face to sensor die = 2.0 mm**,
-inside the AS5600's 0.5-3.0 mm window.
+**The shaft is 55 mm, not the 65 you buy.** Its bottom end bottoms in the
+magnet cap at z -33; its top end at z 22 is above the hub grub screw (z 17.5)
+and below the camera nut (z 26.5). Rev A drew it to z 34, straight through
+the nut.
 
-### The tower is split, because one piece will not print
+**Verified geometry:** hubs Ø44, cap Ø9 x 9, bracket Ø30 x 29.2. Bearing
+centres 30 mm apart. **Magnet face to sensor die = 2.0 mm**, inside the
+AS5600's 0.5-3.0 mm window, and now set by the parts: the bracket stops on the
+disc.
 
-It fails in **both** orientations, for different reasons:
+### The tower is two halves that clamp the plate
 
-- **Bottom-up:** the first layer is a 2.75 mm wide ring — only **166 mm2** of
-  bed contact under a 35 mm tall part. It lifts.
-- **Top-down:** the flange's top face becomes an 8 mm wide 90 degree ledge.
+One piece will not print: bottom-up its first layer is a 166 mm2 ring under a
+35 mm part, and top-down the flange becomes an 8 mm 90 degree ledge.
 
-Split at the taper/flange junction (z = 0, where the taper meets the max
-radius). **Both halves then print flange-face-down on ~1080 mm2** — 6.5x the
-bed contact — and neither has an overhang: the lower half's cone shrinks going
-up, the upper half steps inward going up. No supports on either.
+Rev A split it at z = 0 with a 45 degree cone under the flange. **That cone sat
+inside the plate:** 32-44 mm across where it passed through a 22.4 mm hole, so
+the flange could never seat, and a tower sitting high lifts the 96T wheel off
+its pinion.
 
-Three Ø3.2 sockets straddle the joint, 4 mm into each half, on a 16 mm circle
-clear of the bore and the M3s. **Both mating faces want to be on the bed** —
-that is the whole point of the split — so an integral male pin would have to
-print as an overhang on whichever half carried it. Hence separate dowels.
-`output_tower_DOWELS.stl` gives three; a 3 mm rod or filament offcut works
-just as well. Glue with the dowels dry-fitted first, then bolt down.
+Rev B puts the plate between the halves:
 
-The three M3 flange holes pass through **both** halves, so the mounting screws
-also key the joint.
+- **Upper half**, z 0 to 14: Ø44 flange on the plate's top face, tube up to the
+  upper bearing.
+- **Lower half**, z -21 to -4.3: Ø41 x 6.5 clamp disc against the plate's
+  underside, tube down to the lower bearing and the bracket spigot.
+- **Nothing is inside the plate hole.** Three Ø3.2 sockets, 4 mm into each
+  half, carry dowels that span both sockets and the plate (11.9 mm).
+- **3 x M3x14 from the top:** clearance through the flange and plate, then
+  thread-forming 5.7 mm into the disc. The plate is clamped, and it becomes
+  part of the tower.
 
-### Print orientation matters on three of these
-- **Tower halves — flange face down**, both of them.
+The disc is Ø41 rather than Ø44 for the wedge adapter: its M5s are at r 25 and
+need adapter material between them and the disc. **The adapter needs a Ø42 x 7
+relief** for the disc, and a through-hole of at least 32 mm for the bracket.
+
+No glue: the halves never touch each other. Dry-fit the dowels, sandwich the
+plate, screw down.
+
+### Print orientation matters on four of these
+- **Tower halves — the plate-facing face down**, both of them. Flange face for
+  the upper half, disc top face for the lower. Each half then only gets
+  narrower going up the print, so neither needs supports.
 - **Magnet cap — magnet pocket down.** Small part: print three or four at once
   or the layers never cool.
 - **Bracket — floor down.** Everything above it is open upward.
+- **Hub washer** — batch it with the magnet caps for the same reason.
 
 Both hubs print flat-face-down with no overhangs.
+
+### Hub washer
+
+The upper bearing's top face is flush with the tower top, and so was the lower
+hub's underside, so the turning hub dragged on the fixed tower rim and the
+bearing's outer race. The washer bears on the **inner race only**. Ø7.2 is
+meant to stay inside the shield; hold it against a bearing and check that it
+does before relying on it. Inner race, washer, hub and shaft all turn together, so a
+printed washer never wears. The lower hub is 1 mm shorter to match, which keeps
+the 96T wheel at z 21.5 inside its 24T pinion. A steel 5 x 7 x 1 shim works
+too; a Ø10 washer does not, it rubs the shield.
+
+### Stage gears have no grub-screw holes
+
+Rev A cut a grub hole in `stage.stl` and `final_stage_gear.stl`. Those gears
+turn on nails pressed into the plate, so a grub screw there locks the train.
+Only the motor pinion and the lower hub take grub screws. If you printed Rev A
+gears, leave the holes empty.
 
 ### Concentricity comes from the parts, not from you
 

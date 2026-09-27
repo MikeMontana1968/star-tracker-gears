@@ -93,6 +93,22 @@ GPIO 2 must be low to enter download mode, which would break USB flashing):
 
 25 GPIOs available against 17 needed, so it fits either way the scan lands.
 
+## Mechanical Rev B -- done 2026-09-27
+
+Writing the assembly guide turned up eight conflicts in the Rev A CAD. All are
+fixed in the `.scad` and the docs:
+
+| # | Rev A problem | Rev B |
+|---|---|---|
+| 1 | Tower cone sat inside the plate; the flange could not seat | Halves clamp the plate: flange above, Ø41 disc below, dowels across |
+| 2 | Output shaft ran through the 1/4"-20 nut | Shaft cut to 55 mm, z -33 to 22 |
+| 3 | M3x10 motor screws bottom out | M3x8 flat head |
+| 4 | Motor screw heads and one M5 sit under the S1 wheel (2 mm) | Countersink them by hand; the plate is already cut |
+| 5 | Lower hub rubbed the tower rim and the bearing's outer race | Printed washer on the inner race, hub 1 mm shorter |
+| 6 | AS5600 bracket had no axial stop | Bracket stops on the disc; gap set by the parts |
+| 7 | Grub holes in gears that turn on fixed nails | Removed from `stage` and `final_stage_gear` |
+| 8 | 1/4"-20 nut pocket 2.2 mm deep | Upper hub 10 mm thick, 5.9 mm pocket; wheel screws are M3x20 |
+
 ## Still open, unrelated to the blocker
 
 - **Is the OLED on the rotating camera platform or the fixed enclosure?** The

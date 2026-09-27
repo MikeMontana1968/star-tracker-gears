@@ -132,16 +132,29 @@ os_brg_fit = 0.5;    // bearing pocket allowance -- SET THIS FROM THE BEARING GA
 os_cut     = false;  // cut the assembly in half for a section view (needs --render)
 
 /* [Split bearing tower] */
-// The one-piece tower will not print. Bottom-up its first layer is a 2.75 mm
-// ring (166 mm2) under a 35 mm tall part; top-down the flange top face becomes
-// an 8 mm 90 deg ledge. Split at the taper/flange junction and BOTH halves
-// print flange-face-down on ~1080 mm2 of bed, with nothing overhanging.
-os_split_z  = 0;     // split plane -- where the taper meets the max radius
+// The one-piece tower will not print, so it is two halves that CLAMP THE
+// BASEPLATE between them. Rev A split at z = 0 with a 45 deg cone under the
+// flange, but that cone sat inside the 4.3 mm plate (32-44 mm across where the
+// plate hole is 22.4) and the flange could never seat.
+//   upper half: flange on the plate top + tube, z 0 .. 14
+//   lower half: clamp disc against the plate underside + tube, z -21 .. -bp_t
+// Nothing of either half is inside the plate hole; the dowels bridge that gap.
+// Both halves print with their plate-facing face on the bed, and each one only
+// gets narrower going up the print, so neither has an overhang. The lower
+// disc's underside is also the AS5600 bracket's axial stop.
+os_disc_d   = 41;    // lower clamp disc. Max ~41: the wedge adapter's M5s sit
+                     // at r 25 and need adapter material between them and it
+os_disc_t   = 6.5;   // thick enough for M3x14 to thread-form 5.7 mm into it
 os_pin_n    = 3;     // alignment dowels
 os_pin_r    = 8;     // dowel circle radius (clear of the bore and the M3s)
 os_pin_d    = 3.2;   // socket dia
-os_pin_len  = 4.0;   // socket depth into EACH half
+os_pin_len  = 4.0;   // socket depth into EACH half; the dowel also spans bp_t
 os_exp     = 0;      // exploded view: axial separation between parts, mm
+os_shaft_len = 55;   // ground shaft cut to this. Bottom bottoms in the magnet
+                     // cap at z -33; top at z 22 clears the hub grub (z 17.5)
+                     // and stays under the camera nut (z 26.5)
+os_washer_t = 1.0;   // printed washer on the upper bearing's INNER race, so the
+os_washer_od = 7.2;  // turning hub never touches the tower rim or outer race
 
 /* [Baseplate] */
 // A real part, not a render stub. It only has to carry the five shafts and
@@ -347,7 +360,8 @@ module stage_gear(zw_=zw, zp_=zp) {
         center_mount(H);
         bolt_circle(fw_wheel, bc_on == "all");
         lightening(zw_, fw_wheel);
-        setscrew(fw_wheel*0.5, hd/2);
+        // no setscrew: stages 1-3 TURN on nails that are pressed into the
+        // plate, so a grub screw here would lock the train
     }
 }
 
@@ -399,7 +413,7 @@ module final_stage_gear() {
         }
         center_mount(H);
         lightening(zw, fw_wheel);
-        setscrew(fw_wheel*0.5, g_rf(zpf, mod_f));
+        // no setscrew: this gear turns on a fixed nail (see stage_gear)
     }
 }
 
@@ -684,19 +698,21 @@ function os_ztop() = os_zw() + fw_wheel;           // wheel top face, 26.5
 // wrapper: children() nested inside union() inside difference() inside if()
 // does not resolve, and the cut silently does nothing.
 
-// Printed: two bearing pockets, a flange onto the baseplate, and a spigot
-// below that the sensor bracket registers on.
+// Printed: two bearing pockets, a flange on the plate top, a clamp disc under
+// the plate, and a spigot below that the sensor bracket registers on.
+// The two halves are separate solids with a bp_t gap where the plate is.
+function os_zdisc() = -bp_t - os_disc_t;            // disc underside, -10.8
 module output_bearing_tower() {
     zb = -21; zt = 14;
     bd = os_brg_od + os_brg_fit;
     difference() {
         union() {
-            translate([0,0,zb]) cylinder(d = os_tower_od, h = zt - zb, $fn = 72);
-            // 45 deg cone under the flange: a flat ledge here is an
-            // unsupported overhang when the part prints bottom-up
-            translate([0,0,-8])
-                cylinder(d1 = os_tower_od, d2 = os_flange_d, h = 8, $fn = 72);
+            // lower half: spigot tube + clamp disc against the plate underside
+            translate([0,0,zb]) cylinder(d = os_tower_od, h = -bp_t - zb, $fn = 72);
+            translate([0,0,os_zdisc()]) cylinder(d = os_disc_d, h = os_disc_t, $fn = 72);
+            // upper half: flange on the plate top + tube up to the bearing
             cylinder(d = os_flange_d, h = 4, $fn = 72);
+            cylinder(d = os_tower_od, h = zt, $fn = 72);
         }
         // lower pocket opens at the BOTTOM face so the bearing can go in
         translate([0,0,zb-0.01]) cylinder(d = bd, h = os_brg_w, $fn = 72);
@@ -708,75 +724,93 @@ module output_bearing_tower() {
         // upper pocket opens at the TOP face; its floor is supported
         translate([0,0, zt - os_brg_w]) cylinder(d = bd, h = os_brg_w + 1, $fn = 72);
         translate([0,0,zb-1]) cylinder(d = os_shaft_d + 0.8, h = zt-zb+2, $fn = 48);
-        // material exists at r=14 only between z=-5 and z=+4, so the hole has
-        // to span that whole band -- at h=8 from z=-1 it was blind and the
-        // tower could not actually be bolted down
-        for (i=[0:2]) rotate([0,0, i*120 + 60])
-            translate([os_flange_bc/2, 0, -7]) cylinder(d = 3.4, h = 13, $fn = 24);
+        // 3 x M3x14 from the top: clearance through the flange, then
+        // thread-forming 5.7 mm into the clamp disc. No nuts -- a nut under
+        // the disc would sit where the AS5600 bracket stops.
+        for (i=[0:2]) rotate([0,0, i*120 + 60]) translate([os_flange_bc/2, 0, 0]) {
+            translate([0,0,-1]) cylinder(d = 3.4, h = 6, $fn = 24);
+            translate([0,0,os_zdisc()-1]) cylinder(d = 2.7, h = os_disc_t + 1.01, $fn = 24);
+        }
     }
 }
 
-// Sockets straddle the split plane, so one call cuts both halves.
+// Each half gets its own socket; the dowel spans both sockets AND the plate.
 module tower_pin_sockets() {
-    for (i=[0:os_pin_n-1]) rotate([0,0, i*360/os_pin_n])
-        translate([os_pin_r, 0, os_split_z - os_pin_len])
-            cylinder(d = os_pin_d, h = os_pin_len*2, $fn = 32);
+    for (i=[0:os_pin_n-1]) rotate([0,0, i*360/os_pin_n]) translate([os_pin_r, 0, 0]) {
+        translate([0,0,-0.01]) cylinder(d = os_pin_d, h = os_pin_len, $fn = 32);
+        translate([0,0,-bp_t - os_pin_len]) cylinder(d = os_pin_d, h = os_pin_len + 0.01, $fn = 32);
+    }
 }
+function os_dowel_len() = 2*os_pin_len + bp_t - 0.4;   // 11.9
 
 module output_tower_lower() {
     intersection() {
         difference() { output_bearing_tower(); tower_pin_sockets(); }
-        translate([-100,-100,-200]) cube([200, 200, 200 + os_split_z]);
+        translate([-100,-100,-200]) cube([200, 200, 200 - bp_t/2]);
     }
 }
 
 module output_tower_upper() {
     intersection() {
         difference() { output_bearing_tower(); tower_pin_sockets(); }
-        translate([-100,-100,os_split_z]) cube([200, 200, 200]);
+        translate([-100,-100,-bp_t/2]) cube([200, 200, 200]);
     }
 }
 
-// Both mating faces want to be on the bed -- that is the whole point of the
-// split -- so an integral male pin would have to print as an overhang on
-// whichever half carried it. Separate dowels instead. A 3 mm rod or filament
-// offcut works just as well.
+// Both plate-facing faces want to be on the bed, so an integral male pin would
+// print as an overhang on whichever half carried it. Separate dowels instead;
+// 3 mm rod works as well.
 module tower_split_view() {
     color("#7fb2e5") output_tower_lower();
     color("#2f6fa8") translate([0,0,26]) output_tower_upper();
     for (i=[0:os_pin_n-1]) rotate([0,0, i*360/os_pin_n])
-        color("#d97b3f") translate([os_pin_r, 0, 11])
-            cylinder(d = os_pin_d - 0.3, h = os_pin_len*2 - 0.4, $fn = 32);
+        color("#d97b3f") translate([os_pin_r, 0, 6])
+            cylinder(d = os_pin_d - 0.3, h = os_dowel_len(), $fn = 32);
 }
 
 module tower_dowels() {
     for (i=[0:os_pin_n-1]) translate([i*8, 0, 0])
-        cylinder(d = os_pin_d - 0.3, h = os_pin_len*2 - 0.4, $fn = 32);
+        cylinder(d = os_pin_d - 0.3, h = os_dowel_len(), $fn = 32);
+}
+
+// Printed washer on the upper bearing's inner race. Inner race, washer, hub
+// and shaft all turn together, so it never rubs; it just holds the hub off the
+// stationary tower rim and outer race.
+module hub_washer() {
+    difference() {
+        cylinder(d = os_washer_od, h = os_washer_t, $fn = 48);
+        translate([0,0,-1]) cylinder(d = os_shaft_d + 0.2, h = os_washer_t + 2, $fn = 48);
+    }
 }
 
 // Printed: clamps the shaft, carries the register the wheel locates on.
+// Its body is shortened by the washer so the wheel stays at os_zw().
+function os_hub_h() = os_zw() - 14 - os_washer_t;   // 6.5
 module output_hub_lower() {
     difference() {
         union() {
-            translate([0,0, os_zw()-7.5]) cylinder(d = os_hub_od, h = 7.5, $fn = 72);
+            translate([0,0, os_zw()-os_hub_h()]) cylinder(d = os_hub_od, h = os_hub_h(), $fn = 72);
             translate([0,0, os_zw()])     cylinder(d = os_reg_d,  h = fw_wheel-0.5, $fn = 72);
         }
-        translate([0,0, os_zw()-8.5]) cylinder(d = os_shaft_d+0.15, h = 20, $fn = 48);
+        translate([0,0, os_zw()-os_hub_h()-1]) cylinder(d = os_shaft_d+0.15, h = 20, $fn = 48);
         for (i=[0:bc_holes-1]) rotate([0,0, i*360/bc_holes])
-            translate([bc_r, 0, os_zw()-8.5]) cylinder(d = 2.7, h = 9.5, $fn = 24);
+            translate([bc_r, 0, os_zw()-os_hub_h()-1]) cylinder(d = 2.7, h = os_hub_h() + 2, $fn = 24);
         translate([0,0, os_zw()-4]) rotate([0,-90,0])
             cylinder(d = 2.7, h = os_hub_od/2 + 2, $fn = 24);
     }
 }
 
 // Printed: the other half of the clamp, and the camera platform.
+// The nut pocket takes a full 1/4"-20 hex nut (7/16" AF x 5.56); Rev A's
+// 2.2 mm pocket could not hold any 1/4"-20 nut.
+os_uhub_h = 10;
 module output_hub_upper() {
     difference() {
-        translate([0,0, os_ztop()]) cylinder(d = os_hub_od, h = 7.5, $fn = 72);
-        translate([0,0, os_ztop()-1]) cylinder(d = 6.6,  h = 10, $fn = 48);  // 1/4-20
-        translate([0,0, os_ztop()-1]) cylinder(d = 12.8, h = 3.2, $fn = 6);  // captive nut
+        translate([0,0, os_ztop()]) cylinder(d = os_hub_od, h = os_uhub_h, $fn = 72);
+        translate([0,0, os_ztop()-1]) cylinder(d = 6.6,  h = os_uhub_h + 2, $fn = 48);  // 1/4-20
+        translate([0,0, os_ztop()-1]) cylinder(d = 13.2, h = 6.9, $fn = 6);  // captive nut, 5.9 deep
         for (i=[0:bc_holes-1]) rotate([0,0, i*360/bc_holes])
-            translate([bc_r, 0, os_ztop()-1]) cylinder(d = 3.4, h = 10, $fn = 24);
+            translate([bc_r, 0, os_ztop()-1]) cylinder(d = 3.4, h = os_uhub_h + 2, $fn = 24);
     }
 }
 
@@ -791,11 +825,13 @@ module magnet_cap() {
 }
 
 // Printed: slides up over the tower spigot, so the sensor is concentric by
-// construction rather than by eye.
+// construction rather than by eye, and stops against the underside of the
+// tower's clamp disc, so the magnet gap is set by the parts too. Rev A had no
+// stop and could slide up far enough to close the gap.
 module as5600_bracket() {
     difference() {
-        translate([0,0,-40]) cylinder(d = 30, h = 27, $fn = 72);
-        translate([0,0,-20])   cylinder(d = os_tower_od + 0.3, h = 9, $fn = 72);
+        translate([0,0,-40]) cylinder(d = 30, h = 40 + os_zdisc(), $fn = 72);
+        translate([0,0,-20])   cylinder(d = os_tower_od + 0.3, h = 20 + os_zdisc() + 1, $fn = 72);
         translate([0,0,-38.4]) cylinder(d = 24, h = 18.6, $fn = 72);
         translate([0,0,-40.1]) cylinder(d = 14, h = 1.9, $fn = 48);
         for (i=[-1,1]) translate([i*8.5, 0, -40.1]) cylinder(d = 2.7, h = 3, $fn = 24);
@@ -816,12 +852,13 @@ module os_stack() {
             circle(d = 105, $fn = 96);
             circle(d = bp_tower_d, $fn = 72);
         }
-    color("#9aa0a6") translate([0,0,-28]) cylinder(d = os_shaft_d, h = 62, $fn = 48);
+    color("#9aa0a6") translate([0,0,-33]) cylinder(d = os_shaft_d, h = os_shaft_len, $fn = 48);
     for (z = [-21, 9]) color("#5a5f66") translate([0,0,z]) difference() {
         cylinder(d = os_brg_od, h = os_brg_w, $fn = 64);
         translate([0,0,-1]) cylinder(d = os_shaft_d, h = os_brg_w + 2, $fn = 48);
     }
     color("#7fb2e5")               output_bearing_tower();
+    color("#e0c060") translate([0,0,14 + 0.5*e]) hub_washer();
     color("#3d85c6") translate([0,0, e])     output_hub_lower();
     color("#d97b3f") translate([0,0, os_zw() + 2*e]) output_wheel(zwf, mod_f);
     color("#2f6fa8") translate([0,0, 3*e])   output_hub_upper();
@@ -872,6 +909,7 @@ else if (part == "baseplatecut")   baseplate_2d();
 else if (part == "towerlower")     output_tower_lower();
 else if (part == "towerupper")     output_tower_upper();
 else if (part == "towerdowels")    tower_dowels();
+else if (part == "hubwasher")      hub_washer();
 else if (part == "towersplit")     tower_split_view();
 // all-printed module-2 final wheel -- 196 mm OD, fits a 220x220 bed
 else if (part == "finalwheel")     output_wheel(zwf, mod_f);
