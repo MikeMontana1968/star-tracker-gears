@@ -1,6 +1,6 @@
 # star_tracker_ctrl — controller PCB
 
-A 127 × 84 mm (5.0 × 3.3 in) two-layer carrier board for the sidereal
+A 150 × 100 mm (5.9 × 3.9 in) two-layer carrier board for the sidereal
 tracker: 12 V in, protected and fused, a 5 V 3 A switching rail, a
 firmware-switched camera output, and sockets for the ESP32, the TMC2209 and
 the DS3231.
@@ -26,6 +26,9 @@ Three of these will cost you a board if you skip them.
       GPIO 16/17, which this board uses for the TMC2209 UART.
 - [ ] Check the DS3231 module's pin order is `32K SQW SCL SDA VCC GND`
       (ZS-042). Other orders exist; the socket is labelled.
+- [ ] Look at your GPS module for a **PPS pad**. The common GY-NEO6MV2 brings
+      out only `VCC RX TX GND` and drives an on-board PPS LED instead, so
+      you will be soldering a flying lead. See §6.
 
 Everything is through-hole, and every module is socketed. There are no SMD
 parts and no DIP ICs — the only IC is the LM2596 in a TO-220.
@@ -44,7 +47,8 @@ parts and no DIP ICs — the only IC is the LM2596 in a TO-220.
 | Motor | J4 | 4-pos screw terminal |
 | RTC | J6 | DS3231 module socket |
 | Sensors | J7, J8, J10 | AS5600 (remote), opto home, I²C expansion |
-| v2 | J9, J11 | GPS (with PPS), spare IO |
+| GPS | J9, Q4, Q5 | GY-NEO6MV2 on a switched 5 V feed, plus PPS |
+| v2 | J11 | spare IO |
 | Jumpers | JP3, JP4, JP5, J5 | PDN alt, MS1, MS2, DIAG |
 
 ---
@@ -123,7 +127,89 @@ at 1.5 A.
 J2's D+ and D− are shorted together — the "dedicated charging port"
 convention, which is what tells a GoPro it may draw full current.
 
-## 5. Grounding and the two routing constraints
+## 5. GPS
+
+```
+        GPIO2 ──R18 10k──┬── Q5 base          +5V ──┬── R16 10k ──┬── Q4 base
+                     R19 100k                       │             │
+                         │                          └── Q4 emitter│
+                        GND     Q5 collector ──R17 1k─────────────┘
+                                Q5 emitter ── GND
+                                Q4 collector ── GPS_VCC ── C17 ── J9.2
+```
+
+GPIO high turns Q5 on, which pulls Q4's base down through R17 and switches
+5 V onto the module. R16 holds Q4 off by default and R19 does the same for
+Q5, so **the GPS is off while GPIO 2 floats at boot**. Q4 is a 2N3906: at
+45 mA it drops about 0.2 V, and the module's own LDO makes 3.3 V from what
+is left. Its TX output is 3.3 V logic, safe straight into the ESP32.
+
+**Why switch it at all:** the 3.3 V and 5 V rails both stay up through deep
+sleep, so an unswitched GPS would pull 30–45 mA around the clock — roughly
+5 Wh a day, for a part that has a job for about ninety seconds each evening.
+
+### J9 pinout
+
+| Pin | Signal | Note |
+|---|---|---|
+| 1 | **PPS** | flying lead — see below |
+| 2 | VCC | switched 5 V |
+| 3 | RXD | module RX ← ESP32 TX (GPIO 5) |
+| 4 | TXD | module TX → ESP32 RX (GPIO 18) |
+| 5 | GND | |
+
+Pins 2–5 are deliberately in the module's own `VCC RX TX GND` order, so its
+4-wire cable plugs straight in. **Pin 1 is separate because the GY-NEO6MV2
+does not break PPS out** — the NEO-6M's TIMEPULSE drives the on-board PPS LED,
+so tap it there. Check your board first; some revisions do have a PPS pad.
+
+PPS is worth wiring, but keep its value in proportion: it sets the RTC to
+sub-second accuracy and *measures* your crystal's real ppm error. It does not
+meaningfully improve tracking — 20 ppm over a 12 h night is 3.6 arcsec at the
+output, and polar alignment beats that by a thousand.
+
+## 6. Module orientation — read this before fitting anything
+
+**Every module on this board sits in a socket.** The ESP32 (J20/J21), the
+TMC2209 (J30/J31) and the DS3231 (J6) are all female headers — nothing is
+soldered down, and any of them can be pulled and replaced.
+
+That makes orientation the thing that bites, because a socket will happily
+accept a module fitted the wrong way round.
+
+### The rule
+
+A DevKitC viewed from the top with its USB at the bottom has the left column
+(`3V3 … 5V`) down the left edge and the right column (`GND … IO6`) down the
+right. Laid on its side there are exactly **two** legal placements:
+
+| Rotation | Left column | Pin 1 | USB |
+|---|---|---|---|
+| 90° CW | **TOP row** | RIGHT | LEFT |
+| 90° CCW | BOTTOM row | LEFT | RIGHT |
+
+**Anything else is a reflection and cannot be built.** Revision A of this board
+had the left column on top with pin 1 at the *left*, which is neither — the
+transform from module coordinates to board coordinates had determinant −1. The
+module would have had to be flipped over to fit, and every single pin was on
+the wrong signal.
+
+This board uses the first form: both sockets at rotation 270, pin 1 at the
+right-hand end, **USB pointing left**.
+
+### What is printed on the board
+
+- a dashed **body outline** for the ESP32 and the TMC2209, so you can see the
+  module's extent and which way it lies before fitting it
+- a large **`USB <<<`** at the left-hand end of the ESP32 outline
+- a bold **`1`** beside pin 1 of all four sockets
+- the **signal name beside every pin** of both modules
+- the orientation stated in words inside the outline, where it is covered once
+  the module is in and visible exactly when you need it
+
+If your module's pin 1 does not land next to the `1`, stop — do not force it.
+
+## 7. Grounding and the two routing constraints
 
 GND is a **pour on both layers**, so return paths are short and the sensitive
 things (AS5600 I²C, the step pulse) sit over solid copper.
@@ -145,14 +231,14 @@ GPIO 23 rather than 36 — see the revision note in FIRMWARE.md §4. Corridors a
 x ≈ 35–42 mm and x ≈ 91–99 mm carry what is left, mostly the power rails, and
 a horizontal channel below the lower row fans the bottom-strip signals out.
 
-This is also why the board is 84 mm tall rather than the 76.2 mm that "3 × 5
-inches" would give. At 76.2 the placement fitted comfortably but five nets
-could not be routed — there was no room to fan out between the lower header
-row and the bottom connector strip. 8 mm of extra height fixed it. If you need
-exactly 3 × 5, the way to get there is to move parts off the bottom strip, not
-to squeeze the channel.
+This is also why the board grew from the 127 × 76.2 mm that "3 × 5 inches"
+would give, first to 127 × 84 and then to **150 × 100**. Each time the limit
+was the same: nets with nowhere to fan out between the lower header row and
+the bottom connector strip, and corridors too narrow at the module's ends.
+The current size gives ~12 mm corridors and a 32 mm deep fan-out channel,
+which is what finally made routing comfortable rather than marginal.
 
-## 6. Jumpers
+## 8. Jumpers
 
 | Ref | Default | What it does |
 |---|---|---|
@@ -165,7 +251,7 @@ Both address jumpers to GND gives UART address 0, which is what the firmware
 assumes. **The TMC2209's V<sub>REF</sub> pot is unused** — run current is set
 over UART with IRUN/IHOLD.
 
-## 7. Building it
+## 9. Building it
 
 ```powershell
 cd hardware
@@ -195,7 +281,7 @@ Checks that run every time:
 - `kicad-cli sch erc` — currently clean
 - `kicad-cli pcb drc` — see §8
 
-## 8. Known state
+## 10. Known state
 
 Generated, fully routed, and checked with KiCad 10.0.6's own tools:
 
@@ -205,22 +291,41 @@ Generated, fully routed, and checked with KiCad 10.0.6's own tools:
 | DRC — unconnected | **0** |
 | DRC — clearance / shorts / hole | **0** |
 | DRC — thermal relief | **0** |
-| DRC — silkscreen overlap | 19 + 6 over-copper, cosmetic |
-| Parts | 61 placed + 4 mounting holes |
-| Nets | 42 |
-| Routing | ~215 track runs, ~76 vias, GND poured both sides |
+| DRC — silkscreen overlap | 56 + 6 over-copper, cosmetic |
+| Parts | 71 placed + 4 mounting holes |
+| Nets | 47 |
+| Routing | 227 track runs, 77 vias, GND poured both sides |
 
 The silkscreen warnings are reference designators colliding with each other
 and with the module pin legends on a dense board. Nothing about fabrication
 or assembly depends on them.
 
 **The router is a greedy maze router with randomised restarts**, not a
-commercial autorouter. It reached a complete route on pass 5 of 30 with a
+commercial autorouter. It reached a complete route on pass 16 of 30 with a
 fixed seed, so `gen_board.py` reproduces the same board every time. If you
 change the floorplan and a net comes out unrouted, the message names it —
 raise `passes` in `route.py`, or open the board and route that one by hand.
 
-## 9. Fabrication
+### Getting the ground pour to reach every pad
+
+Worth knowing if you move things. A pad can be fenced in by signal tracks on
+both layers — and through-hole pads block both — leaving the pour unable to
+reach it. Three things fixed that here, in order of how much they mattered:
+
+1. **Tight thermals.** `thermal_gap` 0.3 mm and `thermal_bridge_width` 0.4 mm,
+   with `min_resolved_spokes` set to 1. Going from the 0.5 mm defaults took
+   isolated pads from 8 to 1. Thermal relief is kept rather than using a solid
+   pour connection, because soldering a through-hole ground pin into solid
+   1 oz copper is genuinely unpleasant.
+2. **An explicit GND stitch**, routed last at signal width, that reaches pads
+   the pour misses. It runs twice: the second pass lets a straggler connect to
+   track laid after its own first attempt.
+3. **Ground on both end pins** of J8. Interior pins on a 2.54 mm connector are
+   unreachable by the pour — the gap between adjacent pads is 0.84 mm and the
+   pour needs about 1.25 mm — so ground belongs on an end pin. J8 has it on
+   both, because one end still got fenced in.
+
+## 11. Fabrication
 
 2 layers, 1.6 mm, 1 oz copper, HASL — no controlled impedance, no fine pitch,
 no blind vias. Minimum track 0.4 mm signal / 1.0 mm power, minimum clearance
@@ -233,7 +338,7 @@ $cli = 'C:\Program Files\KiCad\10.0\bin\kicad-cli.exe'
 & $cli pcb export drill   --output gerbers star_tracker_ctrl\star_tracker_ctrl.kicad_pcb
 ```
 
-## 10. Assembly order
+## 12. Assembly order
 
 Lowest parts first, and test each rail before fitting the next stage.
 
@@ -243,8 +348,10 @@ Lowest parts first, and test each rail before fitting the next stage.
 3. U2 (with its heatsink), L1, D3, C3, C5 — **check 5 V** before going on.
 4. Q2, Q3, C7, the USB socket — pull GPIO 32's pad high by hand and confirm
    the camera rail switches.
-5. Electrolytics, LEDs, connectors, sockets last.
-6. **Fit the modules only after all three rails read correctly.**
+5. Q4, Q5 and their four resistors — drive GPIO 2's pad high by hand and
+   confirm ~4.8 V appears on J9 pin 2, and 0 V when it is low.
+6. Electrolytics, LEDs, connectors, sockets last.
+7. **Fit the modules only after all rails read correctly.**
 
 The 5 V rail feeds the ESP32's on-board regulator through the module's `5V`
 pin, and everything at 3.3 V comes back out of the module's `3V3` pin. Added

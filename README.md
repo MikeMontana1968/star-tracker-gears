@@ -18,7 +18,7 @@ rewinds ready for the next night.
 | Backlash | **Validated** on a test pair at 0.25 mm. One drag spot traced to the pinion — reprint with Z Seam = Random |
 | Baseplate | **Ordered** from SendCutSend, 4.3 mm 6061 |
 | Output shaft + encoder | **Designed**, needs the bearing gauge printed before the tower |
-| Electronics | **PCB designed** ([hardware/PCB.md](hardware/PCB.md)) — 127 x 84 mm, all through-hole, generated from source. Not yet fabricated |
+| Electronics | **PCB designed** ([hardware/PCB.md](hardware/PCB.md)) — 150 x 100 mm, all through-hole, every module socketed, generated from source. Not yet fabricated |
 | Firmware | **Architecture settled** ([FIRMWARE.md](FIRMWARE.md)); nothing written beyond the timing core |
 | Under the sky | Not yet |
 

@@ -31,6 +31,7 @@ class Router:
         self.next_id = 1
         self.pad_cells = {}          # net -> list of (layer, cell) groups per pad
         self.tracks = []
+        self.laid = {}   # net -> cells carrying track (not pads)
         self.vias = []
         self._load(parts)
 
@@ -167,9 +168,25 @@ class Router:
         groups = [p["cells"] for p in self.pads if p["net"] == net]
         if len(groups) < 2:
             return True
-        connected = set((F, x, y) for x, y in groups[0]) | \
-                    set((B, x, y) for x, y in groups[0])
-        remaining = groups[1:]
+        # Seed from track already laid for this net, so a second stitching
+        # pass lets a straggler reach copper placed after its first attempt.
+        laid = self.laid.get(net, set())
+        connected = set(laid)
+        remaining = []
+        for g in groups:
+            if any((F, x, y) in laid or (B, x, y) in laid for x, y in g):
+                for x, y in g:
+                    connected.add((F, x, y))
+                    connected.add((B, x, y))
+            else:
+                remaining.append(g)
+        if not connected:
+            g0 = remaining.pop(0)
+            for x, y in g0:
+                connected.add((F, x, y))
+                connected.add((B, x, y))
+        if not remaining:
+            return True
         ok = True
         while remaining:
             # nearest remaining pad to the connected set
@@ -256,8 +273,10 @@ class Router:
         # a track is as wide as it is: stamp its whole body, plus grid slop,
         # so later nets keep a true edge-to-edge clearance
         rad = self.half(net) + 0.18
+        cells = self.laid.setdefault(net, set())
         for lay, x, y in path:
             self._stamp_disc(lay, x * GRID, y * GRID, rad, net)
+            cells.add((lay, x, y))
         # split into straight runs per layer, emit segments and vias
         run = [path[0]]
         for cur in path[1:]:
@@ -319,11 +338,12 @@ def route_all(parts, board_w, board_h, power_nets, skip=("GND",), passes=30,
         for n in p["pins"].values():
             if n != "-":
                 counts[n] = counts.get(n, 0) + 1
-    nets = [n for n in counts if n not in skip and counts[n] > 1]
     # GND is poured on both layers, but a pad can still end up fenced in by
-    # signal tracks on both sides.  Stitch the GND pads together explicitly,
-    # last and at signal width -- the pour still carries the current.
+    # signal tracks on both sides.  Route it explicitly too -- EARLY, so it
+    # gets clean paths, and at signal width, since the pour carries the
+    # current and these tracks are only there for connectivity.
     stitch = [n for n in skip if counts.get(n, 0) > 1]
+    nets = [n for n in counts if n not in skip and counts[n] > 1]
     spans = {n: _span(parts, n) for n in nets}
     rng = random.Random(seed)
 
@@ -337,12 +357,15 @@ def route_all(parts, board_w, board_h, power_nets, skip=("GND",), passes=30,
             rng.shuffle(rest)
         order = priority + rest
         # power rails always go first: they are wide and want direct paths
+        # power rails first: wide tracks that want direct paths
         order.sort(key=lambda n: n not in power_nets)
 
         r = Router(parts, board_w, board_h,
                    [n for n in power_nets if n not in stitch])
         failed = [n for n in order if not r.route_net(n)]
-        for n in stitch:                      # best effort, never fatal
+        # GND last, at signal width: the pour carries the current, these
+        # tracks only rescue pads the pour cannot reach. Never fatal.
+        for n in stitch:
             r.route_net(n)
         if best is None or len(failed) < len(best[2]):
             best = (r.tracks, r.vias, failed)

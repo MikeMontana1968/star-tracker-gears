@@ -297,8 +297,9 @@ def gen_board(routes, vias=()):
     def legend(x0, y0, rot, rows, side):
         """side = -1 puts the names before pin 1's row, +1 after it."""
         for i, (nm, _net) in enumerate(rows):
-            if rot == 90:                       # pins run along +X
-                x, y = x0 + i * 2.54, y0 + side * 2.3
+            if rot in (90, 270):                # pins run along X
+                step = 2.54 if rot == 90 else -2.54
+                x, y = x0 + i * step, y0 + side * 2.3
                 ang, just = 90, ("right" if side > 0 else "left")
             else:                               # pins run along +Y
                 x, y = x0 + side * 2.3, y0 + i * 2.54
@@ -339,8 +340,34 @@ def gen_board(routes, vias=()):
                         [Atom("thickness"), A(0.12)]],
                        [Atom("justify"), Atom(just)]]])
 
-    legend(PL.ESP_X, PL.ESP_Y, PL.ESP_ROT, D.ESP32_LEFT, -1)
-    legend(PL.ESP_X, PL.ESP_Y + D.ESP32_ROW_SPACING, PL.ESP_ROT, D.ESP32_RIGHT, +1)
+    for x0, y0, x1, y1 in getattr(PL, "MODULE_OUTLINES", []):
+        b.append([Atom("gr_rect"),
+                  [Atom("start"), A(x0), A(y0)],
+                  [Atom("end"), A(x1), A(y1)],
+                  [Atom("stroke"), [Atom("width"), A(0.15)],
+                   [Atom("type"), Atom("dash")]],
+                  [Atom("fill"), Atom("no")],
+                  [Atom("layer"), "F.SilkS"],
+                  [Atom("uuid"), uid()]])
+
+    # a "1" beside pin 1 of each socket -- the unambiguous orientation mark
+    for ref, dx, dy in (("J20", 3.4, 0), ("J21", 3.4, 0),
+                        ("J30", 0, -3.4), ("J31", 0, -3.4)):
+        p = next((q for q in D.PARTS if q["ref"] == ref), None)
+        if p is None:
+            continue
+        px, py = pad_abs(p)["1"][0]
+        b.append([Atom("gr_text"), "1",
+                  [Atom("at"), A(px + dx), A(py + dy), A(0)],
+                  [Atom("layer"), "F.SilkS"],
+                  [Atom("uuid"), uid()],
+                  [Atom("effects"),
+                   [Atom("font"), [Atom("size"), A(1.4), A(1.4)],
+                    [Atom("thickness"), A(0.25)]]]])
+
+    legend(PL.ESP_PIN1_X, PL.ESP_Y, PL.ESP_ROT, D.ESP32_LEFT, -1)
+    legend(PL.ESP_PIN1_X, PL.ESP_Y + D.ESP32_ROW_SPACING, PL.ESP_ROT,
+           D.ESP32_RIGHT, +1)
     legend(PL.TMC_X, PL.TMC_Y, PL.TMC_ROT, D.TMC_LEFT, -1)
     legend(PL.TMC_X + D.TMC_ROW_SPACING, PL.TMC_Y, PL.TMC_ROT, D.TMC_RIGHT, +1)
 
@@ -381,11 +408,11 @@ def gen_board(routes, vias=()):
               [Atom("name"), "GND"],
               [Atom("hatch"), Atom("edge"), A(0.508)],
               [Atom("priority"), A(0)],
-              [Atom("connect_pads"), [Atom("clearance"), A(0.5)]],
-              [Atom("min_thickness"), A(0.25)],
+              [Atom("connect_pads"), [Atom("clearance"), A(0.3)]],
+              [Atom("min_thickness"), A(0.2)],
               [Atom("filled_areas_thickness"), Atom("no")],
-              [Atom("fill"), [Atom("thermal_gap"), A(0.5)],
-               [Atom("thermal_bridge_width"), A(0.5)]],
+              [Atom("fill"), [Atom("thermal_gap"), A(0.3)],
+               [Atom("thermal_bridge_width"), A(0.4)]],
               [Atom("polygon"), poly]])
 
     b.append([Atom("embedded_fonts"), Atom("no")])

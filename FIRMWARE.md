@@ -44,22 +44,31 @@ build target.
 | D8 | **AP up during TRACK**, config flag, default on while debugging | ~100 mW, ~1.2 Wh of a 43 Wh night. The GoPro does not need the radio once the shutter is running. |
 | D9 | **PlatformIO, not the Arduino IDE** | Host-side unit tests (`platform = native`) are the only way to validate a 3-night schedule without waiting 3 nights. §8 |
 
-### Deferred to v2 — GPS + compass
+| D10 | **GPS is the time and position authority; the DS3231 stays** | A GPS cannot wake a sleeping ESP32 at a time, needs sky view and ~45 mA just to know the time, and has nothing to say under cloud. The RTC is the bootstrap; the GPS disciplines it. §5 |
+
+### GPS — now in v1 (was deferred)
 
 A GPS module solves time authority and site coordinates in one part, and a
 magnetometer helps the polar alignment that the README says dominates everything.
 
-> ### REMINDER, as requested: wire the GPS PPS output
+Module: **GY-NEO6MV2** (u-blox NEO-6M). PPS on **GPIO 23**, UART on
+**GPIO 5 / 18**, power switch on **GPIO 2**. A compass (QMC5883L `0x0D` or
+HMC5883L `0x1E`) still drops onto the existing I²C bus, and stays v2.
+
+> ### Wiring note: the GY-NEO6MV2 does not break out PPS
 >
-> The 1 pulse-per-second edge is what turns a GPS from "knows the time to a
-> second" into a disciplined reference. **Reserve GPIO 36 (VP)** for it — input
-> only, interrupt-capable, ADC1, and nothing else here wants it. Reserve
-> **GPIO 13 / 14** for the GPS UART. A compass (QMC5883L `0x0D` or HMC5883L
-> `0x1E`) drops onto the existing I²C bus with no address conflict.
+> Its header is four pins, `VCC RX TX GND`. The NEO-6M's TIMEPULSE output
+> drives the on-board PPS **LED** rather than a pin. J9 on the controller
+> board is laid out so the module's 4-wire cable plugs into pins 2–5 and
+> **PPS is a fifth pin you solder a flying lead to**, tapped at that LED.
+> Check your own board first — some revisions do bring a PPS pad out.
 >
-> Note what PPS is and is not for: it disciplines the **wall clock**, and it may
-> legitimately discipline the step accumulator's *rate* between nights. It must
-> never correct step *phase* mid-track — see the rule in §5.
+> Be honest about what PPS buys here. It sets the RTC to sub-second accuracy
+> and it *measures* the crystal's true ppm error. It does **not** meaningfully
+> improve tracking: 20 ppm over a 12 h night is 3.6 arcsec at the output, and
+> polar alignment error is three orders of magnitude larger. PPS is an
+> instrument here, not a control input, and it must never correct step
+> *phase* mid-track — see the rule in §5.
 
 ---
 
@@ -177,6 +186,10 @@ The camera path is a **best-effort side branch**, not a gate (D2).
            ^     PREFLIGHT   battery, encoder, schedule, envelope check
            |         |       radio: OFF            deadline 10 s
            |         v
+           |     TIME_SYNC   GPS on, wait for fix, set DS3231, GPS off
+           |         |       radio: OFF            deadline 120 s
+           |         |       no fix -> log it, keep the RTC, carry on
+           |         v
            |      ORIENT     moveToForward(start_angle)
            |         |       radio: OFF            deadline 6 min
            |         v
@@ -244,6 +257,28 @@ them is waste; it is not the default now.
 | **Warn** (log, keep tracking) | 0.5° |
 | **Fault** (SAFE_STOP) | 2.0° |
 
+### TIME_SYNC — and why it is not allowed to fail
+
+On entry it powers the GPS (GPIO 2), reads NMEA until it has a 3-D fix with a
+sane HDOP, then:
+
+1. **Sets the DS3231** from GPS UTC and records `rtc_drift_s` — how far the
+   RTC had wandered since the last sync. That residual is a free nightly
+   measurement of your crystal, and it is what turns "±2 ppm nominal" into a
+   number you actually know.
+2. **Takes latitude and longitude** from the fix and uses them for tonight's
+   twilight calculation, overriding `site` in the schedule. The tracker
+   becomes location-aware — move it and the times follow.
+3. **Optionally measures PPS**: count `esp_timer` microseconds across N pulse
+   edges to get the crystal's real ppm error.
+4. **Powers the GPS down.** It draws 30–45 mA and has nothing to do until
+   tomorrow.
+
+`gps_policy` mirrors `camera_policy` and defaults to **`best_effort`**: no fix
+in 120 s means log it, keep the DS3231's time and the last known position, and
+track anyway. A GPS that cannot see sky must never cost you a night — which is
+exactly why the RTC is still on the board.
+
 ### Bench commands that serve D2
 
 - `POST /api/command {test_track, duration_min}` — enter TRACK immediately with
@@ -303,11 +338,12 @@ transitions `radio_mode`; the state table declares what each state requires.
 | **4** | **DS3231 INT + config button** | lower row; wired-OR, 4.7 kΩ pull-up. RTC-capable |
 | 19 | opto home flag | lower row; 10 kΩ pull-up |
 | 15 | status LED | lower row; strapping pin, but the LED is high-Z at boot |
-| **23** | *GPS PPS (v2)* | lower row |
-| **5** | *GPS TX, ESP -> GPS RX (v2)* | lower row; strapping, idles high as UART TX |
-| **18** | *GPS RX (v2)* | lower row |
+| **23** | **GPS PPS** | lower row |
+| **5** | **GPS TX**, ESP -> GPS RX | lower row; strapping, idles high as UART TX |
+| **18** | **GPS RX** | lower row |
+| **2** | **GPS power enable** | lower row; drives Q5 -> Q4, GPS off while it floats at boot. Doubles as the module LED |
 | 33, 14, 13, 36 | spare header J11 | upper row; 36 is input-only |
-| 35, 12, 0, 2, 1, 3 | unused | 12/0/2 strapping, 1/3 = USB serial |
+| 35, 12, 0, 1, 3 | unused | 12/0 strapping, 1/3 = USB serial |
 | — | *compass (v2)* | I²C, `0x0D` / `0x1E` — no conflict |
 
 > ### Why these moved (D4 revised, 2026-09-27)
@@ -361,9 +397,20 @@ two sources apart from the alarm flag. One pin, one pull-up, zero extra parts.
 An asset — it means you can see what the machine is doing without a phone. Two
 rules:
 
-- **Display OFF during TRACK.** It is a blue-white light source next to a lens
-  doing wide-field astrophotography. This is not a power optimisation, it is an
-  image-quality requirement. Wake it on button press for 30 s.
+- **Display during TRACK is a config flag, `oled_on_while_tracking`.** It is a
+  blue-white light source near a lens doing wide-field astrophotography, so the
+  default was off. With the panel mounted on the **underside of the faceplate,
+  facing away from the lens**, leaving it on is a reasonable call and the flag
+  defaults to on for this build.
+
+  > One geometric caveat before you rely on it. The camera rotates through
+  > ~180° over a night and the enclosure does not. If the display is fixed to
+  > the baseplate, "opposite the lens" holds at **one point in the sweep** —
+  > by dawn the lens has swung 180° round and may be looking back toward it.
+  > If the display rides on the rotating camera platform, the geometry holds
+  > all night. Worth checking which one you have; if it is the fixed case,
+  > dimming the panel or blanking it after 30 s of no button press keeps the
+  > diagnostic value without the risk.
 - **Issue the SSD1306 display-off command before deep sleep.** The panel draws
   even when the content is static.
 
@@ -549,7 +596,8 @@ ESP32 attached.
 state, state_entered_s, deadline_remaining_s, fault_code, fault_text,
 pos_usteps, pos_deg, encoder_deg, encoder_err_deg, encoder_agc, encoder_magnitude,
 tracking_elapsed_s, tracking_remaining_s, target_minus_actual_usteps,
-rtc_utc, rtc_temp_c, rtc_lost_power,
+rtc_utc, rtc_temp_c, rtc_lost_power, rtc_drift_s,
+gps: { policy, powered, fix, sats, hdop, lat, lon, utc, pps_ppm, last_error },
 battery_v, battery_pct,
 camera: { policy, powered, awake, recording, battery_pct, sd_free_mb, last_error },
 schedule: { valid, nights_loaded, next_start_utc, next_stop_utc, source },
@@ -567,6 +615,9 @@ Three fields earn their place specifically:
   there is no other way to see it.
 - **`camera.policy`** — so a bench run that is deliberately camera-less is never
   mistaken for a camera that failed.
+- **`rtc_drift_s` and `gps.pps_ppm`** — the two numbers that tell you what your
+  timebase is actually doing, rather than what the datasheet claims. Watch them
+  across a few nights before deciding the clock needs any correction at all.
 
 ### The night report is the real product
 
@@ -667,8 +718,17 @@ watching. Cases that belong in it from day one:
 - [ ] Cable routing for 180.5° of sweep — slack loop (v1) vs slip ring
 - [ ] Battery vs battery + solar
 
+**GPS (now v1)**
+
+- [x] ~~GPS module~~ — GY-NEO6MV2 on the board: PPS on GPIO 23, UART on 5/18,
+      switched 5 V feed on GPIO 2
+- [ ] **Solder the PPS flying lead** at the module's PPS LED — its 4-pin header
+      does not bring TIMEPULSE out (§1)
+- [ ] Mount the antenna where it can see sky; the IP54 box will not pass it
+- [ ] Implement `TIME_SYNC` and watch `rtc_drift_s` for a few nights before
+      deciding the clock needs any correction at all
+
 **v2**
 
-- [ ] GPS module — **wire PPS to GPIO 36**, UART to 13/14 (§1)
 - [ ] Compass on the existing I²C bus for polar alignment assist
 - [ ] Slip ring → forward-only operation, no direction reversal ever (D3)

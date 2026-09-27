@@ -357,6 +357,10 @@
       },
       {
         "netclass": "Power",
+        "pattern": "GPS_VCC"
+      },
+      {
+        "netclass": "Power",
         "pattern": "MOT_A1"
       },
       {
@@ -402,7 +406,7 @@
   },
   "sheets": [
     [
-      "6403df49-cff8-43a4-870f-f3056391d378",
+      "939a45f7-171b-41b9-a3ef-a4a84153173c",
       ""
     ]
   ],

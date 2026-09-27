@@ -133,6 +133,7 @@ Measured against a 12-hour night:
 | Stepper + TMC2209 tracking | 0.75 W | 9.0 Wh |
 | ESP32 awake, radio off | 0.3 W | 3.6 Wh |
 | RTC + encoder | 0.05 W | 0.6 Wh |
+| GPS, powered only for the nightly fix | 0.22 W | **<0.1 Wh** |
 | Rewind slew | 3 W for ~4 min | 0.2 Wh |
 | **Total** | | **~43 Wh** |
 
@@ -168,6 +169,7 @@ soldered down.
 | 1 | J6 | 1x06 female header | 1 | RTC socket |
 | 1 | — | AS5600 encoder module | 4 | remote, on the encoder bracket |
 | 1 | — | Diametric magnet 6 x 2.5 mm | 2 | must be **diametric** |
+| 1 | — | **GY-NEO6MV2 GPS module** (NEO-6M) + antenna | 8 | time, date and position. **PPS is not on its 4-pin header** — solder a lead at the PPS LED |
 
 ### Power stage (on the PCB)
 
@@ -186,6 +188,8 @@ camera output.
 | 1 | C11 | 100 µF 25 V low-ESR | 1 | **VMOT, at the driver socket** |
 | 2 | Q1 Q2 | IRF4905 P-MOSFET, TO-220 | 2 | reverse-polarity + camera switch |
 | 1 | Q3 | 2N3904 NPN, TO-92 | 0.2 | gate driver for Q2 |
+| 1 | Q4 | 2N3906 PNP, TO-92 | 0.2 | GPS 5 V high-side switch |
+| 1 | Q5 | 2N3904 NPN, TO-92 | 0.2 | drives Q4 from GPIO 2 |
 | 1 | D1 | 1N4744A 15 V zener, DO-41 | 0.2 | Q1 gate clamp |
 | 1 | D2 | P6KE20CA TVS, DO-15 | 0.5 | input transient clamp; bidirectional |
 | 1 | F1 | 5x20 mm fuse holder + 3 A fuse | 2 | PCB clips |
@@ -203,7 +207,7 @@ camera output.
 | 5 | — | 2.54 mm jumper shunts | 0.5 | MS1, MS2, PDN_ALT |
 | 9 | C2.. | 100 nF ceramic, 2.5 mm pitch | 1 | decoupling |
 | 2 | C7 C9 | 100 µF 16 V / 10 V | 1 | camera rail, 3V3 |
-| 15 | R1.. | 1/4 W resistors, see PCB.md | 1 | 2x 1% for the battery divider |
+| 19 | R1.. | 1/4 W resistors, see PCB.md | 1.5 | 2x 1% for the battery divider |
 | 4 | H1-H4 | M3 standoff + screw | 2 | |
 
 ### Motion
@@ -244,7 +248,11 @@ camera output.
 | 1 | IP54 project box | 15 | |
 | 3 | Cable glands | 4 | |
 
-**Roughly $195 without solar, $245 with** (the PCB and its discrete
+The transistor switch on the GPS 5 V feed is there for a reason: left
+powered the NEO-6M draws 30-45 mA around the clock, roughly 5 Wh a day doing
+nothing at all. Switched on only for the nightly fix, it costs under 0.1 Wh.
+
+**Roughly $205 without solar, $255 with** (the PCB and its discrete
 power stage replace the perfboard, the buck module and the load-switch module).
 
 ---

@@ -9,8 +9,8 @@ the ESP32 pin map, the module row spacings, and the board size.
 # --------------------------------------------------------------------------
 # Board
 # --------------------------------------------------------------------------
-BOARD_W = 127.0          # 5.00 in
-BOARD_H = 84.0           # 3.31 in
+BOARD_W = 150.0          # 5.91 in
+BOARD_H = 100.0          # 3.94 in
 EDGE_CLEAR = 0.5
 MOUNT_INSET = 4.0
 
@@ -69,7 +69,7 @@ ESP32_RIGHT = [
     ("IO16",   "TMC_UART"),   # RX straight onto PDN_UART
     ("IO4",    "WAKE"),       # DS3231 INT + button, wired-OR; RTC-capable
     ("IO0",    "-"),          # strapping
-    ("IO2",    "-"),          # module LED
+    ("IO2",    "GPS_EN"),     # module LED doubles as a GPS-power tell-tale
     ("IO15",   "LED_ST"),     # strapping; LED is high-Z at boot
     ("IO8",    "-"),          # flash
     ("IO7",    "-"),          # flash
@@ -219,6 +219,25 @@ part("J3", "CAM 5V", "Connector_Generic:Conn_01x02", FP_TB2,
      {"1": "+5V_CAM", "2": "GND"}, (63, 38, 0), (420, 140),
      labels=["+5V", "GND"])
 
+# ---- GPS power switch (5 V high side, off by default) -------------------
+part("Q4", "2N3906", "Transistor_BJT:2N3906", FP_TO92,
+     {"1": "+5V", "2": "GPS_B", "3": "GPS_VCC"}, (0, 0, 0), (330, 300),
+     note="PNP high-side switch; the module's own LDO makes 3.3V from this")
+part("R16", "10k", "Device:R", FP_R,
+     {"1": "+5V", "2": "GPS_B"}, (0, 0, 0), (375, 300),
+     note="holds Q4 off by default")
+part("R17", "1k", "Device:R", FP_R,
+     {"1": "GPS_B", "2": "GPS_C"}, (0, 0, 0), (420, 300))
+part("Q5", "2N3904", "Transistor_BJT:2N3904", FP_TO92,
+     {"1": "GND", "2": "GPS_EN_B", "3": "GPS_C"}, (0, 0, 0), (330, 340))
+part("R18", "10k", "Device:R", FP_R,
+     {"1": "GPS_EN", "2": "GPS_EN_B"}, (0, 0, 0), (375, 340))
+part("R19", "100k", "Device:R", FP_R,
+     {"1": "GPS_EN_B", "2": "GND"}, (0, 0, 0), (420, 340),
+     note="GPS stays off while GPIO2 floats at boot")
+part("C17", "100nF", "Device:C", FP_C,
+     {"1": "GPS_VCC", "2": "GND"}, (0, 0, 0), (465, 300))
+
 # ---- ESP32 devkit socket -------------------------------------------------
 ESP_X = 70.0
 ESP_Y = 13.0
@@ -303,12 +322,18 @@ part("J6", "DS3231", "Connector_Generic:Conn_01x06", sock(6),
 part("J7", "AS5600", "Connector_Generic:Conn_01x05", hdr(5),
      {"1": "GND", "2": "+3V3", "3": "SDA", "4": "SCL", "5": "GND"},     (60, 71, 90), (190, 260), note="remote on the encoder bracket; pin5 = DIR->GND",
      labels=["GND", "3V3", "SDA", "SCL", "DIR"])
-part("J8", "HOME", "Connector_Generic:Conn_01x03", hdr(3),
-     {"1": "GND", "2": "HOME", "3": "+3V3"},     (74, 71, 90), (270, 260), note="optional opto flag",
-     labels=["GND", "SIG", "3V3"])
-part("J9", "GPS v2", "Connector_Generic:Conn_01x05", hdr(5),
-     {"1": "GND", "2": "+3V3", "3": "GPS_TX", "4": "GPS_RX", "5": "PPS"},     (82, 71, 90), (350, 260), note="PPS on GPIO23 - the v2 time reference",
-     labels=["GND", "3V3", "TXD", "RXD", "PPS"])
+part("J8", "HOME", "Connector_Generic:Conn_01x04", hdr(4),
+     {"1": "GND", "2": "HOME", "3": "+3V3", "4": "GND"},
+     (74, 71, 90), (270, 260),
+     note="optional opto flag; GND on BOTH end pins so the pour can always "
+          "reach one of them",
+     labels=["GND", "SIG", "3V3", "GND"])
+part("J9", "GPS", "Connector_Generic:Conn_01x05", hdr(5),
+     {"1": "PPS", "2": "GPS_VCC", "3": "GPS_RX", "4": "GPS_TX", "5": "GND"},
+     (82, 71, 90), (350, 260),
+     note="GY-NEO6MV2: pins 2-5 match its VCC/RX/TX/GND cable; PPS is a "
+          "flying lead from the module's PPS LED pad",
+     labels=["PPS", "VCC", "RXD", "TXD", "GND"])
 part("J10", "I2C EXP", "Connector_Generic:Conn_01x04", hdr(4),
      {"1": "GND", "2": "+3V3", "3": "SDA", "4": "SCL"},     (96, 71, 90), (430, 260), note="v2 compass",
      labels=["GND", "3V3", "SDA", "SCL"])
@@ -339,6 +364,7 @@ PARTS = P
 # Net classes
 # --------------------------------------------------------------------------
 POWER_NETS = ["GND", "+12V", "+12V_IN", "+12V_F", "+5V", "+5V_CAM", "SW_NODE",
+              "GPS_VCC",
               "MOT_A1", "MOT_A2", "MOT_B1", "MOT_B2", "+3V3"]
 TRACK_POWER = 1.0
 TRACK_SIG = 0.4
