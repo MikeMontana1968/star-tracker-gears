@@ -18,8 +18,8 @@ rewinds ready for the next night.
 | Backlash | **Validated** on a test pair at 0.25 mm. One drag spot traced to the pinion — reprint with Z Seam = Random |
 | Baseplate | **Ordered** from SendCutSend, 4.3 mm 6061 |
 | Output shaft + encoder | **Designed**, needs the bearing gauge printed before the tower |
-| Electronics | **Architecture decided**, BOM written, nothing built |
-| Firmware | **Not started** beyond the timing core |
+| Electronics | **PCB designed** ([hardware/PCB.md](hardware/PCB.md)) — 127 x 84 mm, all through-hole, generated from source. Not yet fabricated |
+| Firmware | **Architecture settled** ([FIRMWARE.md](FIRMWARE.md)); nothing written beyond the timing core |
 | Under the sky | Not yet |
 
 **Next three things**, in order:
@@ -236,7 +236,13 @@ build.ps1                   regenerates every artifact
 firmware/sidereal_drive/    ESP32 sketch
 PRINTING.md                 what to print, in what order, with what settings
 DESIGN_NOTES.md             why the gearbox is what it is
-HARDWARE.md                 electronics architecture, BOM, pin map
+HARDWARE.md                 electronics architecture, BOM
+FIRMWARE.md                 firmware architecture, pin map, build order — START HERE for code
+hardware/                   the controller PCB, generated from Python
+  PCB.md                    board design notes, jumpers, assembly order
+  design.py                 netlist + values + the ESP32/TMC pin maps
+  place.py                  floorplan; layout.py packer; route.py maze router
+  star_tracker_ctrl/        the generated KiCad project
 out/                        generated — meshes gitignored
   docs/                     renders, laser SVG, baseplate SVG, template
   _scratch/                 calibration gauges, test jig, superseded exports

@@ -12,6 +12,10 @@
 *.ino  text eol=lf
 *.md   text eol=lf
 *.svg  text eol=lf
+*.kicad_sch text eol=lf
+*.kicad_pcb text eol=lf
+*.kicad_pro text eol=lf
+*.csv  text eol=lf
 
 # PowerShell is conventionally CRLF on Windows
 *.ps1  text eol=crlf

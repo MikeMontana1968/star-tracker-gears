@@ -151,19 +151,60 @@ doing nothing, solar is the obvious fit.
 
 Prices are rough and vary; treat as sizing, not quotes.
 
-### Control
+### Control board (see [hardware/PCB.md](hardware/PCB.md))
 
-| Qty | Item | ~USD | Notes |
-|---|---|---|---|
-| 1 | ESP32-WROOM-32 devkit | 8 | 30-pin, USB-serial onboard |
-| 1 | DS3231 RTC module + CR2032 | 4 | ±2 ppm. Do **not** use DS1307 |
-| 1 | AS5600 encoder module | 4 | I²C 0x36 |
-| 1 | Diametric magnet 6 × 2.5 mm | 2 | must be **diametric**, not axial |
-| 1 | TMC2209 StepStick (BTT / Fysetc) | 7 | UART mode |
-| 1 | 100 µF 25 V low-ESR electrolytic | 1 | **across VMOT at the driver** |
-| 1 | High-side load switch or P-MOSFET module, 5 V 3 A | 3 | lets firmware cut camera power |
-| 1 | Perfboard + headers | 6 | or a StepStick carrier |
-| 1 | Momentary button + 10 k | 1 | enter config AP mode |
+Everything in this table lives on the `star_tracker_ctrl` PCB. It is
+**entirely through-hole**, and every module sits in a socket rather than being
+soldered down.
+
+| Qty | Ref | Item | ~USD | Notes |
+|---|---|---|---|---|
+| 1 | — | PCB, 127 x 76.2 mm, 2-layer, 1.6 mm | 12 | qty 5 from a cheap fab |
+| 1 | — | ESP32 devkit, 38-pin, 0.96" OLED, CH340 | 10 | **have** — verify row spacing |
+| 1 | J20/J21 | 1x19 female header, 2.54 mm | 2 | the ESP32 socket |
+| 1 | — | TMC2209 StepStick, UART mode | 7 | BTT / Fysetc / Watterott |
+| 1 | J30/J31 | 1x08 female header, 2.54 mm | 1 | the driver socket |
+| 1 | — | DS3231 RTC module (ZS-042) + CR2032 | 4 | ±2 ppm. **Not** DS1307 |
+| 1 | J6 | 1x06 female header | 1 | RTC socket |
+| 1 | — | AS5600 encoder module | 4 | remote, on the encoder bracket |
+| 1 | — | Diametric magnet 6 x 2.5 mm | 2 | must be **diametric** |
+
+### Power stage (on the PCB)
+
+12 V in, protected, to a 5 V 3 A switching rail with a firmware-switched
+camera output.
+
+| Qty | Ref | Item | ~USD | Notes |
+|---|---|---|---|---|
+| 1 | U2 | **LM2596T-5.0**, TO-220-5 | 2 | 150 kHz, 3 A, fixed 5 V |
+| 1 | — | TO-220 clip-on heatsink | 1 | **fit it** — see PCB.md §5 |
+| 1 | L1 | 33 µH radial power inductor, >=3 A | 2 | 12 mm body, 5 mm pitch |
+| 1 | D3 | 1N5822, 3 A 40 V Schottky, DO-201AD | 0.5 | catch diode |
+| 1 | C3 | 470 µF 25 V low-ESR | 1 | buck input |
+| 1 | C5 | 220 µF 25 V low-ESR | 1 | buck output |
+| 1 | C1 | 470 µF 25 V | 1 | 12 V bulk |
+| 1 | C11 | 100 µF 25 V low-ESR | 1 | **VMOT, at the driver socket** |
+| 2 | Q1 Q2 | IRF4905 P-MOSFET, TO-220 | 2 | reverse-polarity + camera switch |
+| 1 | Q3 | 2N3904 NPN, TO-92 | 0.2 | gate driver for Q2 |
+| 1 | D1 | 1N4744A 15 V zener, DO-41 | 0.2 | Q1 gate clamp |
+| 1 | D2 | P6KE20CA TVS, DO-15 | 0.5 | input transient clamp; bidirectional |
+| 1 | F1 | 5x20 mm fuse holder + 3 A fuse | 2 | PCB clips |
+| 3 | LED1-3 | 3 mm LED (grn, grn, **red**) | 0.5 | 5 V / camera / status. LED3 runs off a 3.3 V GPIO, so red + 330 R — blue would barely light |
+| 1 | SW1 | 6 mm tactile switch | 0.3 | config + wake |
+
+### Connectors and passives (on the PCB)
+
+| Qty | Ref | Item | ~USD | Notes |
+|---|---|---|---|---|
+| 2 | J1 J3 | 2-pos screw terminal, 5 mm | 1 | 12 V in, camera 5 V out |
+| 1 | J4 | 4-pos screw terminal, 5 mm | 1 | motor |
+| 1 | J2 | USB-A receptacle, THT horizontal | 1.5 | camera; D+/D- shorted |
+| 1 | — | 1x40 male header strip, 2.54 mm | 1 | cut for J5/J7-J11/JP3-JP5 |
+| 5 | — | 2.54 mm jumper shunts | 0.5 | MS1, MS2, PDN_ALT |
+| 9 | C2.. | 100 nF ceramic, 2.5 mm pitch | 1 | decoupling |
+| 2 | C7 C9 | 100 µF 16 V / 10 V | 1 | camera rail, 3V3 |
+| 15 | R1.. | 1/4 W resistors, see PCB.md | 1 | 2x 1% for the battery divider |
+| 4 | H1-H4 | M3 standoff + screw | 2 | |
 
 ### Motion
 
@@ -203,11 +244,17 @@ Prices are rough and vary; treat as sizing, not quotes.
 | 1 | IP54 project box | 15 | |
 | 3 | Cable glands | 4 | |
 
-**Roughly $180 without solar, $230 with.**
+**Roughly $195 without solar, $245 with** (the PCB and its discrete
+power stage replace the perfboard, the buck module and the load-switch module).
 
 ---
 
 ## 5. Pin map
+
+> **Superseded — see [FIRMWARE.md §4](FIRMWARE.md#4-pin-map--as-built).**
+> The table below predates the OLED devkit and is missing the DS3231 interrupt
+> line, without which the RTC alarm cannot wake the ESP32 from deep sleep.
+> FIRMWARE.md §4 is the authoritative map. Kept here for the wiring rules only.
 
 | ESP32 | To | Note |
 |---|---|---|
@@ -240,5 +287,11 @@ with power applied; TMC2209 VDD from **3.3 V**, not 5 V.
 - [ ] Confirm WoL wakes your camera reliably from cold-ish standby
 - [ ] Redesign the output shaft: two 625ZZ bearings, rotating shaft, encoder
       magnet at the lower end, camera platform above
+- [ ] Confirm the HERO6 keeps its AP rejoinable after the ESP32 disconnects
+      mid-record — if not, the dawn stop has to become a load-switch cut, which
+      loses the last file
 - [ ] Cable routing for 180° of sweep — slack loop vs slip ring
 - [ ] Decide battery vs battery+solar
+
+Firmware architecture, state machine, schedule format and build order:
+**[FIRMWARE.md](FIRMWARE.md)**.

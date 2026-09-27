@@ -16,3 +16,12 @@ __pycache__/
 Thumbs.db
 desktop.ini
 *~
+
+# Controller PCB — generated outputs. The KiCad project itself IS tracked
+# (it is what you open and what you send to a fab), but these are rebuilt by
+#   python hardware\gen_board.py   +   fill_zones.py
+hardware/gerbers/
+hardware/nl.net
+hardware/*.rpt
+hardware/star_tracker_ctrl/*.kicad_prl
+hardware/star_tracker_ctrl/*-backups/
