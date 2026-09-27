@@ -40,6 +40,7 @@ $PostD     = 4.70   # test-plate posts, from FITGAUGE
 $BrgFit    = 0.50   # 625ZZ pocket allowance -- SET FROM THE BEARING GAUGE
 $OutBolts  = 6      # output wheel clamp bolts
 $OutBoltR  = 18     # ...on this radius, clear of the 22 mm register
+$OutBore   = 22     # output wheel centre bore = os_reg_d, the register it sits on
 $PlateT    = 4.3    # baseplate thickness, mm (as ordered)
 
 # ---------------------------------------------------------------------------
@@ -56,7 +57,7 @@ $targets = @(
   @{ g='gears'; f='stage.stl';                      p='stage';      d=@("bore=$Bore") }
   @{ g='gears'; f='final_stage_gear.stl';           p='finalstage'; d=@("bore=$Bore") }
   @{ g='gears'; f='final_wheel_96T_m2_PRINTED.stl'; p='finalwheel';
-     d=@('bore=22', "bc_holes=$OutBolts", "bc_r=$OutBoltR") }
+     d=@("bore=$OutBore", "bc_holes=$OutBolts", "bc_r=$OutBoltR") }
 
   # --- output shaft + AS5600 encoder ------------------------------------
   # The one-piece tower does not print -- see PRINTING.md. Kept as a target
@@ -105,6 +106,7 @@ if ($List) {
     "{0,-12} {1}" -f 'docs', 'docs/baseplate_template.pdf  (make_baseplate_pdf.py)'
     "{0,-12} {1}" -f 'docs', 'docs/baseplate_cut.dxf       (make_baseplate_dxf.py)'
     "{0,-12} {1}" -f 'docs', 'docs/baseplate_assembly_guide.pdf (make_baseplate_guide.py)'
+    "{0,-12} {1}" -f 'docs', 'docs/final_wheel_24h_dial.pdf (make_dial_pdf.py)'
     return
 }
 
@@ -116,7 +118,17 @@ $selected = $targets | Where-Object {
     ($Group -eq 'all' -or $_.g -eq $Group) -and
     (-not $Only -or $_.f -like "*$Only*")
 }
-if (-not $selected) { throw "No targets matched Group='$Group' Only='$Only'." }
+
+# The PDF/DXF docs are built by python further down, not by OpenSCAD, so they
+# are not in $targets. Count them here or -Only on one of them throws.
+$pyDocs = @('baseplate_template.pdf', 'baseplate_cut.dxf',
+            'baseplate_assembly_guide.pdf', 'final_wheel_24h_dial.pdf')
+$pyMatched = ($Group -eq 'all' -or $Group -eq 'docs') -and
+             ((-not $Only) -or @($pyDocs | Where-Object { $_ -like "*$Only*" }).Count -gt 0)
+
+if (-not $selected -and -not $pyMatched) {
+    throw "No targets matched Group='$Group' Only='$Only'."
+}
 
 $fail = 0
 foreach ($t in $selected) {
@@ -166,6 +178,27 @@ if ($Group -eq 'all' -or $Group -eq 'docs') {
             python (Join-Path $root 'make_baseplate_pdf.py') | Out-Null
             python (Join-Path $root 'make_baseplate_dxf.py') | Out-Null
             python (Join-Path $root 'make_baseplate_guide.py') | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host '   ok' -ForegroundColor Green
+            } else {
+                Write-Host '   FAILED' -ForegroundColor Red; $fail++
+            }
+        } finally { Pop-Location }
+    }
+}
+
+# ---- 24 h sidereal dial for the final gear ---------------------------------
+# One output revolution = one sidereal day, so the face is graduated in
+# sidereal hours, not civil ones. The bore and bolt circle are passed in
+# rather than duplicated in the script: the dial has to match the wheel this
+# build actually cuts, and the lightening holes are derived from them.
+if ($Group -eq 'all' -or $Group -eq 'docs') {
+    if (-not $Only -or 'final_wheel_24h_dial.pdf' -like "*$Only*") {
+        Write-Host '-> 24 h sidereal dial (final gear)' -ForegroundColor Cyan
+        Push-Location $root
+        try {
+            $dialArgs = @('--bore', $OutBore, '--bolts', $OutBolts, '--bolt-r', $OutBoltR)
+            python (Join-Path $root 'make_dial_pdf.py') @dialArgs | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 Write-Host '   ok' -ForegroundColor Green
             } else {
