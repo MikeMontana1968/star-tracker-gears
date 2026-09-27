@@ -19,8 +19,9 @@ This board uses the first form: both sockets at rotation 270, origin at pin 1,
 which is the RIGHT-hand end.
 """
 
-ESP_X = 52.0                      # left end of the pin rows (pin 19)
-ESP_PIN1_X = ESP_X + 18 * 2.54    # pin 1 sits at the RIGHT-hand end
+ESP_PINS_PER_SIDE = 15            # must match design.ESP32_PINS_PER_SIDE
+ESP_X = 52.0                      # left end of the pin rows (last pin)
+ESP_PIN1_X = ESP_X + (ESP_PINS_PER_SIDE - 1) * 2.54   # pin 1 at the RIGHT
 ESP_Y = 30.0                      # upper row = the module's LEFT column
 ESP_ROT = 270                     # pads run in -X from pin 1
 TMC_X = 114.0
@@ -36,7 +37,7 @@ FIXED = {
     "J11": (26, 7, 90),         # spare IO, top edge
     "J2":  (60, 8, 0),          # USB-A, camera
     "J20": (ESP_PIN1_X, ESP_Y, ESP_ROT),
-    "J21": (ESP_PIN1_X, ESP_Y + 25.4, ESP_ROT),
+    "J21": (ESP_PIN1_X, ESP_Y + 27.94, ESP_ROT),
     "J30": (TMC_X, TMC_Y, TMC_ROT),
     "J31": (TMC_X + 15.24, TMC_Y, TMC_ROT),
     "J4":  (118, 48, 0),        # motor screw terminal

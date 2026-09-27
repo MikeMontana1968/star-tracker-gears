@@ -9,6 +9,10 @@ rewinds ready for the next night.
 
 ---
 
+> **Picking this up again?** Read **[RESUME.md](RESUME.md)** first — the
+> controller PCB is blocked on one measurement and the generator refuses to
+> build until it lands.
+
 ## Where this stands
 
 | Area | State |

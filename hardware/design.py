@@ -24,8 +24,11 @@ COMPANY = "star-tracker-gears"
 # Row spacing between the two ESP32 header rows, centre to centre.
 # 25.4 = the usual 38-pin ESP32-DevKitC / DevKit-V1 clone.
 # Some "wide" 38-pin boards are 27.94 (1.1 in).  One number to change.
-ESP32_ROW_SPACING = 25.4
-ESP32_PINS_PER_SIDE = 19
+# ideaspark ESP32 + 0.96" OLED, 30-pin.  Measured on the actual module:
+#   pitch        2.54 mm  (14 gaps measured as 35.56 mm end to end)
+#   row spacing  27.94 mm (1.1 in); inside 27.27 + outside 28.90 -> 28.09
+ESP32_ROW_SPACING = 27.94
+ESP32_PINS_PER_SIDE = 15
 
 # Pololu / StepStick standard.  Not vendor-dependent.
 TMC_ROW_SPACING = 15.24
@@ -241,10 +244,12 @@ part("C17", "100nF", "Device:C", FP_C,
 # ---- ESP32 devkit socket -------------------------------------------------
 ESP_X = 70.0
 ESP_Y = 13.0
-part("J20", "ESP32 L", "Connector_Generic:Conn_01x19", sock(19),
+part("J20", "ESP32 L", "Connector_Generic:Conn_01x%02d" % ESP32_PINS_PER_SIDE,
+     sock(ESP32_PINS_PER_SIDE),
      {str(i + 1): n for i, (_, n) in enumerate(ESP32_LEFT)},
      (ESP_X, ESP_Y, 0), (520, 30))
-part("J21", "ESP32 R", "Connector_Generic:Conn_01x19", sock(19),
+part("J21", "ESP32 R", "Connector_Generic:Conn_01x%02d" % ESP32_PINS_PER_SIDE,
+     sock(ESP32_PINS_PER_SIDE),
      {str(i + 1): n for i, (_, n) in enumerate(ESP32_RIGHT)},
      (ESP_X + ESP32_ROW_SPACING, ESP_Y, 0), (600, 30))
 part("C9", "100uF/10V", "Device:C_Polarized", FP_CP8,
@@ -357,6 +362,28 @@ for i, (mx, my) in enumerate([
         (BOARD_W - MOUNT_INSET, BOARD_H - MOUNT_INSET)]):
     part("H%d" % (i + 1), "M3", "Mechanical:MountingHole", FP_MOUNT,
          {}, (mx, my, 0), (620, 260 + i * 10))
+
+def _check():
+    """Fail loudly rather than emit a board that cannot take the module."""
+    for name, row in (("ESP32_LEFT", ESP32_LEFT), ("ESP32_RIGHT", ESP32_RIGHT)):
+        if len(row) != ESP32_PINS_PER_SIDE:
+            raise SystemExit(
+                "%s has %d entries but ESP32_PINS_PER_SIDE is %d. The pin "
+                "map has not been updated for this module -- fill it in "
+                "from the board's silkscreen before generating."
+                % (name, len(row), ESP32_PINS_PER_SIDE))
+    seen = {}
+    for side, row in (("L", ESP32_LEFT), ("R", ESP32_RIGHT)):
+        for i, (label, net) in enumerate(row):
+            if net in ("-", "GND", "+3V3", "+5V"):
+                continue
+            if net in seen:
+                raise SystemExit("net %s is on two ESP32 pins: %s and %s%d"
+                                 % (net, seen[net], side, i + 1))
+            seen[net] = "%s%d" % (side, i + 1)
+
+
+_check()
 
 PARTS = P
 

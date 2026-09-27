@@ -494,6 +494,9 @@ def gen_bom():
 
 
 def main():
+    if PL.ESP_PINS_PER_SIDE != D.ESP32_PINS_PER_SIDE:
+        raise SystemExit("place.ESP_PINS_PER_SIDE=%d != design.ESP32_PINS_PER_SIDE=%d"
+                         % (PL.ESP_PINS_PER_SIDE, D.ESP32_PINS_PER_SIDE))
     warn = LAY.autoplace(D.PARTS)
     bad = LAY.check(D.PARTS, D.BOARD_W, D.BOARD_H)
     for m in warn + bad:
