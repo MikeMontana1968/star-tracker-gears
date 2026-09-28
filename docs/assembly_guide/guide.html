@@ -211,7 +211,7 @@ p{margin:0}
 <!--ASSETS-->
 
 <div class="bar">
-  <span class="code">ST-2048:1 · mechanics rev B · board rev B, 38-pin (redraw pending) · 2026-09-27</span>
+  <span class="code">ST-2048:1 · mechanics rev B · board rev C, 30-pin · 2026-09-27</span>
   <nav aria-label="Sections">
     <a href="#before">Before</a><a href="#A">A Gearbox</a><a href="#B">B Board</a><a href="#C">C Smoke</a><a href="#D">D Wiring</a><a href="#E">E First power</a><a href="#F">F Use</a><a href="#G">G Appendix</a>
   </nav>
@@ -577,7 +577,7 @@ p{margin:0}
 <section class="sheet wide" id="b0">
   <div class="head"><h3>The finished board</h3></div>
   <figure class="fig" data-fig="pcb_iso" data-alt="Isometric view of the assembled controller board with its main parts called out"></figure>
-  <p class="lead-in">Drawn from the KiCad layout, so every part is where the board puts it. Modules shown seated in their sockets. This is the Rev B layout; the ESP32 socket changes in the 30-pin redraw, and this drawing follows it on the next build.</p>
+  <p class="lead-in">Drawn from the KiCad layout, so every part is where the board puts it. Modules shown seated in their sockets. This is board Rev C, laid out for the 30-pin ideaspark ESP32 + OLED; the drawing follows the layout on every build.</p>
   <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 
@@ -603,7 +603,7 @@ p{margin:0}
       <div class="part"><figure class="fig" data-fig="ec_term"></figure><span class="code">J1 J3 J4</span><span class="q">3x</span><span class="d"><b>Screw terminals,</b> 5 mm pitch. 2-way ×2, 4-way ×1.</span></div>
       <div class="part"><figure class="fig" data-fig="ec_usb"></figure><span class="code">J2</span><span class="q">1x</span><span class="d"><b>USB-A receptacle,</b> through-hole, horizontal. Camera power.</span></div>
       <div class="part"><figure class="fig" data-fig="ec_hdr"></figure><span class="code">J5 J7–J11 JP3–JP5</span><span class="q">1x</span><span class="d"><b>Male header strip,</b> 1×40, 2.54 mm. Cut to length.</span></div>
-      <div class="part"><figure class="fig" data-fig="ec_sock"></figure><span class="code">J20 J21 J30 J31 J6</span><span class="q">5x</span><span class="d"><b>Female sockets,</b> 2.54 mm: 1×15 ×2 for the 30-pin ESP32 (Rev B: 1×19), 1×8 ×2, 1×6.</span></div>
+      <div class="part"><figure class="fig" data-fig="ec_sock"></figure><span class="code">J20 J21 J30 J31 J6</span><span class="q">5x</span><span class="d"><b>Female sockets,</b> 2.54 mm: 1×15 ×2 for the 30-pin ESP32, 1×8 ×2, 1×6.</span></div>
       <div class="part"><figure class="fig" data-fig="ec_shunt"></figure><span class="code">JP4 JP5</span><span class="q">2x</span><span class="d"><b>Jumper shunts,</b> 2.54 mm. MS1 and MS2 to GND.</span></div>
     </div>
     <p class="lead-in" style="margin-top:14px">Modules go in the sockets last, after section C: ESP32 + OLED, TMC2209, DS3231 with a CR2032. Plus four M3 standoffs for the corners.</p>
@@ -613,7 +613,7 @@ p{margin:0}
 
 <section class="sheet" id="s21">
   <div class="head"><span class="no-">21</span><h3>Which board?</h3></div>
-  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><div><p><b>Do not yet build the board as shown in the Git repo.</b> Rev B is drawn for a 38-pin DevKitC on 25.4 mm rows. The module in hand is the 30-pin ideaspark ESP32 + OLED on 27.94 mm rows. <span class="hw">gen_board.py</span> refuses to run until its pin map is filled in.</p><p>That needs the <b>pin check</b> (<a href="#s44">step 44</a>) you still owe: whether the OLED answers on GPIO 21/22 or 4/15 decides where WAKE lives.</p></div></div>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><div><p><b>Build board Rev C.</b> It is laid out for the module in hand: the 30-pin ideaspark ESP32 + 0.96" OLED, rows 27.94 mm apart. Rev B was drawn for a 38-pin DevKitC and does not fit it.</p><p>The pin map was settled by the pin check (<a href="#s44">step 44</a>): the OLED shares the sensor I²C bus on GPIO 21/22, so WAKE stays on GPIO 4, and the module has no PSRAM. Using a different ESP32 board? Run the pin check on it first.</p></div></div>
   <p class="lead-in">Everything in this section is about part orientation, which does not change between revisions. Where a step names a pin, it uses the signal name printed beside the socket (<b>CAM_EN</b>, <b>GPS_EN</b>, <b>VBAT_SENSE</b>), not a GPIO number.</p>
   <footer><span>ST-2048:1</span><span>28</span></footer>
 </section>
@@ -905,7 +905,7 @@ p{margin:0}
     <tr><td>PSRAM: none</td><td>WROOM, as expected.</td></tr>
     <tr><td>PSRAM: present</td><td>WROVER. GPIO 16/17 are taken and the driver UART moves.</td></tr>
   </table></div>
-  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>This is the one measurement the PCB is waiting on. Paste the serial output into a session and the board regenerates from it.</p></div>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p><b>Result for this build (2026-09-27):</b> ESP32-D0WD-V3, 4 MB flash, PSRAM none; <span class="hw">0x3C</span> on GPIO 21/22, nothing on 4/15. Board Rev C is laid out from it. Run it again only if you change ESP32 boards.</p></div>
   <footer><span>ST-2048:1</span><span>51</span></footer>
 </section>
 
@@ -1126,20 +1126,20 @@ p{margin:0}
     <li><b>Three rails.</b> 12 V from the battery through F1 and Q1; 5 V from the LM2596 buck; 3.3 V from the ESP32 module's own regulator, about 20 mA of extra load.</li>
     <li><b>Two loads are switched and off by default:</b> the camera's 5 V (CAM_EN) and the GPS's 5 V (GPS_EN). Pull-downs hold both off while the ESP32 boots.</li>
     <li><b>One wake line</b> takes both the RTC alarm and the CONFIG button, wired-OR on a single 4.7k pull-up. Firmware tells them apart from the RTC's alarm flag.</li>
-    <li>Signal names, not GPIO numbers: the ESP32 pin map is redrawn for the 30-pin module after the pin check.</li>
+    <li>Signal names, not GPIO numbers: FIRMWARE.md §4 maps each to its GPIO for board Rev C.</li>
   </ul>
-  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p><b>GPS UART, fixed in the source.</b> Rev B named the nets GPS_TX / GPS_RX and wired the ESP32's transmit to the module's TXD. <span class="hw">design.py</span> now names them by direction, <span class="hw">ESP_TX_GPS_RX</span> and <span class="hw">GPS_TX_ESP_RX</span>, and sends the ESP32's TX (GPIO 5) to J9 pin 3, the module's RXD. The schematic below updates with the 30-pin redraw.</p></div>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p><b>GPS UART, fixed.</b> Rev B named the nets GPS_TX / GPS_RX and wired the ESP32's transmit to the module's TXD. <span class="hw">design.py</span> now names them by direction, <span class="hw">ESP_TX_GPS_RX</span> and <span class="hw">GPS_TX_ESP_RX</span>, and sends the ESP32's TX (GPIO 5) to J9 pin 3, the module's RXD. Board Rev C carries the fix.</p></div>
   <footer><span>ST-2048:1</span><span>69</span></footer>
 </section>
 
 <section class="sheet wide" id="g3">
-  <div class="head"><h3>G3 · Controller board, full schematic</h3><span class="tag pill">Rev B · 38-pin sockets</span></div>
+  <div class="head"><h3>G3 · Controller board, full schematic</h3><span class="tag pill">Rev C · 30-pin module</span></div>
   <div class="zoomer" id="kizoom" tabindex="0" aria-label="Board schematic. Drag to pan, scroll or use the buttons to zoom.">
     <div class="zb"><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit" aria-label="Fit">⤢</button></div>
     <!--FZ:kicad|The controller board's full KiCad schematic-->
   </div>
   <p class="fzcap">From <span class="hw">hardware/star_tracker_ctrl/star_tracker_ctrl.kicad_sch</span> via <span class="hw">kicad-cli</span>. <span class="screen-only">Drag to pan, scroll or pinch to zoom. The text is real text, so the browser's find works on it.</span><span class="print-only">The drawing is vector: zoom in on it as far as you like, and search its text.</span></p>
-  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>This is the committed Rev B board, drawn for a 38-pin DevKitC. Everything off the ESP32 socket stands; the socket and its pin assignments change in the 30-pin redraw. Rebuild the guide after regenerating the board and this page follows.</p></div>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>Board Rev C, as generated from <span class="hw">hardware/design.py</span>. Regenerate the board and rebuild the guide, and this page follows.</p></div>
   <footer><span>ST-2048:1</span><span>70</span></footer>
 </section>
 </div>

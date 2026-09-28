@@ -311,8 +311,8 @@ def controller():
                      % (f(q['x']), f(q['y'] - 1.2), f(q['x'] - 1.2), f(q['y'] - 1.2), f(q['x'] + 1.2), f(q['y'] - 1.2)))
             a.append('<rect x="%s" y="%s" width="2.6" height="1.6" fill="#0f2c4d"/>' % (f(q['x'] - 1.3), f(q['y'] + 1.4)))
     # pin headers the harnesses plug onto (black shroud, gold pins)
-    for ref, n in (('J7', 5), ('J8', 4), ('J9', 5), ('J10', 4), ('J11', 6), ('J5', 2)):
-        ps = [P(ref, str(i)) for i in range(1, n + 1)]
+    for ref in ('J7', 'J8', 'J9', 'J10', 'J11', 'J5'):     # pin counts come from the layout
+        ps = pads[ref]
         xs = [q['x'] for q in ps]; ys = [q['y'] for q in ps]
         a.append('<rect x="%s" y="%s" width="%s" height="%s" fill="#1a1a1a"/>'
                  % (f(min(xs) - 1.27), f(min(ys) - 1.27), f(max(xs) - min(xs) + 2.54), f(max(ys) - min(ys) + 2.54)))
@@ -350,7 +350,7 @@ def controller():
                  % (f(q['x'] + dx - len(s) * 0.9), f(q['y'] + dy - 2.6), f(len(s) * 1.8)))
         a.append(text(q['x'] + dx, q['y'] + dy, s, 2.2, '#123a1c'))
 
-    p = Part('controller', 'Star tracker controller (Rev B)', 'U', W, H, ''.join(a),
+    p = Part('controller', 'Star tracker controller (Rev C)', 'U', W, H, ''.join(a),
              'star_tracker_ctrl, 150 x 100 mm, drawn from the KiCad layout. Modules shown fitted.')
     names = {'J1': ['+12V', 'GND'], 'J4': ['A1', 'A2', 'B1', 'B2'], 'J7': ['GND', '3V3', 'SDA', 'SCL', 'DIR'],
              'J9': ['PPS', 'VCC', 'RXD', 'TXD', 'GND']}

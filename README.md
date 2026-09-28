@@ -9,9 +9,9 @@ rewinds ready for the next night.
 
 ---
 
-> **Picking this up again?** Read **[RESUME.md](RESUME.md)** first — the
-> controller PCB is blocked on one measurement and the generator refuses to
-> build until it lands.
+> **Picking this up again?** Read **[RESUME.md](RESUME.md)** first. The
+> controller PCB (Rev C, for the 30-pin ESP32 in hand) is generated, clean
+> in ERC and DRC, and ready to order.
 >
 > **Building it?** The illustrated assembly guide is
 > [docs/assembly_guide/stjarnspar.html](docs/assembly_guide/stjarnspar.html):
@@ -30,7 +30,7 @@ rewinds ready for the next night.
 | Backlash | **Validated** on a test pair at 0.25 mm. One drag spot traced to the pinion — reprint with Z Seam = Random |
 | Baseplate | **Ordered** from SendCutSend, 4.3 mm 6061 |
 | Output shaft + encoder | **Designed**, needs the bearing gauge printed before the tower |
-| Electronics | **PCB designed** ([hardware/PCB.md](hardware/PCB.md)) — 150 x 100 mm, all through-hole, every module socketed, generated from source. Not yet fabricated |
+| Electronics | **PCB Rev C** ([hardware/PCB.md](hardware/PCB.md)) — 150 x 100 mm, all through-hole, every module socketed, generated from source; laid out for the 30-pin ESP32 after the pin check. ERC/DRC clean, not yet fabricated |
 | Firmware | **Architecture settled** ([FIRMWARE.md](FIRMWARE.md)); nothing written beyond the timing core |
 | Under the sky | Not yet |
 

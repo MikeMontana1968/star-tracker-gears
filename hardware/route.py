@@ -16,6 +16,12 @@ VIA_COST = 12
 MAX_EXPANSIONS = 200000          # in grid steps
 VIA_R = 0.4            # 0.8 mm via
 VIA_KEEP = 0.4 + 0.3 + 0.2   # via radius + clearance + hole slop
+# Drill-to-drill: the fab's minimum hole spacing applies whatever the nets,
+# but the copper checks pass a via against its OWN net's pads. A GND via once
+# landed 0.19 mm from a GND pad's hole (min 0.25). VIA_HOLE is the via drill
+# radius; a pad's hole is taken as its copper radius, conservatively.
+VIA_HOLE = 0.2
+HOLE_GAP = 0.25 + 0.1         # fab minimum + grid slop
 TURN_COST = 2
 
 
@@ -33,6 +39,8 @@ class Router:
         self.tracks = []
         self.laid = {}   # net -> cells carrying track (not pads)
         self.vias = []
+        self.holes = bytearray(self.w * self.h)   # 1 = no via centre here
+        self.stranded = {}   # net -> pad cell groups route_net could not reach
         self._load(parts)
 
     # ---------------- grid helpers ----------------
@@ -96,6 +104,15 @@ class Router:
         # pads occupy both layers (through-hole)
         for pad in self.pads:
             self._stamp_pad(pad)
+            self._stamp_hole(pad["x"], pad["y"], pad["r"])
+
+    def _stamp_hole(self, cx, cy, hole_r):
+        """mark where a via centre may not go: hole_r + via hole + gap"""
+        r = hole_r + VIA_HOLE + HOLE_GAP
+        for y in range(self.to_grid(cy - r), self.to_grid(cy + r) + 1):
+            for x in range(self.to_grid(cx - r), self.to_grid(cx + r) + 1):
+                if self.in_bounds(x, y) and (x * GRID - cx) ** 2 + (y * GRID - cy) ** 2 <= r * r:
+                    self.holes[self.idx(x, y)] = 1
 
     def _stamp_disc(self, lay, cx, cy, r, name, both=False):
         layers = (F, B) if both else (lay,)
@@ -199,6 +216,7 @@ class Router:
             path = self._astar(connected, target, net)
             if path is None:
                 ok = False
+                self.stranded.setdefault(net, []).append(target)
                 continue
             self._commit(path, net)
             for lay, x, y in path:
@@ -207,6 +225,20 @@ class Router:
                 connected.add((F, x, y))
                 connected.add((B, x, y))
         return ok
+
+    def rescue(self, net, group):
+        """Connect one pad to the nearest other pad of its net, now, before
+        anything else is laid -- a short escape reserved ahead of the signals."""
+        others = [p["cells"] for p in self.pads if p["net"] == net and p["cells"] is not group
+                  and set(p["cells"]) != set(group)]
+        gx = sum(c[0] for c in group) / len(group); gy = sum(c[1] for c in group) / len(group)
+        for o in sorted(others, key=lambda o: abs(o[0][0] - gx) + abs(o[0][1] - gy))[:4]:
+            src = set((L, x, y) for x, y in o for L in (F, B))
+            path = self._astar(src, group, net)
+            if path:
+                self._commit(path, net)
+                return True
+        return False
 
     def _astar(self, sources, target, net):
         tgt = set(target)
@@ -242,6 +274,8 @@ class Router:
                 if dl:
                     nl, nx, ny = 1 - lay, x, y
                     step = VIA_COST
+                    if self.holes[self.idx(nx, ny)]:
+                        continue
                     if not (self._clear_r(F, nx, ny, net, VIA_KEEP) and
                             self._clear_r(B, nx, ny, net, VIA_KEEP)):
                         continue
@@ -284,6 +318,7 @@ class Router:
                 self._emit(run, net)
                 vx, vy = run[-1][1] * GRID, run[-1][2] * GRID
                 self._stamp_disc(None, vx, vy, VIA_R + 0.18, net, both=True)
+                self._stamp_hole(vx, vy, VIA_HOLE)
                 self.vias.append((vx, vy, net))
                 run = [cur]
             else:
@@ -325,23 +360,29 @@ def _span(parts, net):
 
 
 def route_all(parts, board_w, board_h, power_nets, skip=("GND",), passes=30,
-              seed=12345):
+              seed=12345, rescue=()):
     """Greedy route with randomised multi-start.
 
     Which nets fail depends almost entirely on the order they are routed in,
     so rather than hand-tune one order, try several: failures from a pass are
     promoted to the front of the next, and the remainder is shuffled.
     Keeps the best result seen.
+
+    rescue: ("J6", "6") pad ids that get a short escape to their nearest
+    same-net pad BEFORE any signal is routed. For GND pads the pour cannot
+    reach because signal tracks fence them in on both layers -- which only
+    KiCad's DRC can tell (it knows the pour), so they are named in design.py
+    from a DRC run rather than guessed here. Rescuing every pad the router
+    itself cannot stitch (11 on Rev C) fenced six signals; rescuing the two
+    KiCad names does not.
     """
     counts = {}
     for p in parts:
         for n in p["pins"].values():
             if n != "-":
                 counts[n] = counts.get(n, 0) + 1
-    # GND is poured on both layers, but a pad can still end up fenced in by
-    # signal tracks on both sides.  Route it explicitly too -- EARLY, so it
-    # gets clean paths, and at signal width, since the pour carries the
-    # current and these tracks are only there for connectivity.
+    # GND is poured on both layers; the stitch tracks below only rescue pads
+    # the pour misses, at signal width, since the pour carries the current.
     stitch = [n for n in skip if counts.get(n, 0) > 1]
     nets = [n for n in counts if n not in skip and counts[n] > 1]
     spans = {n: _span(parts, n) for n in nets}
@@ -356,21 +397,28 @@ def route_all(parts, board_w, board_h, power_nets, skip=("GND",), passes=30,
         else:
             rng.shuffle(rest)
         order = priority + rest
-        # power rails always go first: they are wide and want direct paths
         # power rails first: wide tracks that want direct paths
         order.sort(key=lambda n: n not in power_nets)
 
         r = Router(parts, board_w, board_h,
                    [n for n in power_nets if n not in stitch])
+        rescued = []
+        for ref, num in rescue:
+            pad = next((p for p in r.pads if p["ref"] == ref and p["num"] == num), None)
+            if pad and r.rescue(pad["net"], pad["cells"]):
+                rescued.append("%s.%s" % (ref, num))
         failed = [n for n in order if not r.route_net(n)]
-        # GND last, at signal width: the pour carries the current, these
-        # tracks only rescue pads the pour cannot reach. Never fatal.
-        for n in stitch:
-            r.route_net(n)
+        # GND last, at signal width. Never fatal. Twice, so a straggler can
+        # reach track laid after its own first attempt (route_net seeds from
+        # copper already laid for the net).
+        for _ in range(2):
+            for n in stitch:
+                r.route_net(n)
         if best is None or len(failed) < len(best[2]):
             best = (r.tracks, r.vias, failed)
-            print("    pass %d: %d unrouted%s" % (it + 1, len(failed),
-                  (" (" + ", ".join(failed) + ")") if failed else ""))
+            print("    pass %d: %d unrouted%s%s" % (it + 1, len(failed),
+                  (" (" + ", ".join(failed) + ")") if failed else "",
+                  ("; rescued first: " + ", ".join(rescued)) if rescue else ""))
         if not failed:
             break
         priority = failed + [n for n in priority if n not in failed]

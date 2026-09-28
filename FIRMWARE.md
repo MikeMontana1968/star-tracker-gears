@@ -52,7 +52,7 @@ A GPS module solves time authority and site coordinates in one part, and a
 magnetometer helps the polar alignment that the README says dominates everything.
 
 Module: **GY-NEO6MV2** (u-blox NEO-6M). PPS on **GPIO 23**, UART on
-**GPIO 5 / 18**, power switch on **GPIO 2**. A compass (QMC5883L `0x0D` or
+**GPIO 5 / 18** (nets named by direction), power switch on **GPIO 17**. A compass (QMC5883L `0x0D` or
 HMC5883L `0x1E`) still drops onto the existing I²C bus, and stays v2.
 
 > ### Wiring note: the GY-NEO6MV2 does not break out PPS
@@ -259,7 +259,7 @@ them is waste; it is not the default now.
 
 ### TIME_SYNC — and why it is not allowed to fail
 
-On entry it powers the GPS (GPIO 2), reads NMEA until it has a 3-D fix with a
+On entry it powers the GPS (GPIO 17), reads NMEA until it has a 3-D fix with a
 sane HDOP, then:
 
 1. **Sets the DS3231** from GPS UTC and records `rtc_drift_s` — how far the
@@ -300,75 +300,70 @@ transitions `radio_mode`; the state table declares what each state requires.
 
 ## 4. Pin map — as built
 
-**Board: ESP32 devkit with integrated 0.96" SSD1306 OLED, CH340, micro-USB.**
+**Board: ideaspark ESP32 + 0.96" SSD1306 OLED, 30-pin (DOIT DevKit V1 layout),
+CH340, micro-USB. Controller PCB Rev C.** This table is generated into the
+board from `hardware/design.py` (`ESP32_LEFT` / `ESP32_RIGHT`); change it there.
 
-> ### Slice 0, step 1: verify this board's actual pinout before wiring anything
+> ### Pin check result (2026-09-27, `firmware/pincheck`)
 >
-> These OLED boards come in two families and the difference is destructive here:
->
-> | Family | OLED pins | Collides with |
-> |---|---|---|
-> | **Generic 38-pin clone** (assumed below) | SDA 21 / SCL 22 | nothing — `0x3C`, `0x68`, `0x36` coexist |
-> | **Heltec-style** | SDA 4 / SCL 15 / RST 16 | config button (4), TMC UART RX (16), strapping (15) |
->
-> Also check: some of these boards put the onboard **LED on GPIO 25**, which is
-> our STEP line, and some carry a WROVER module whose **PSRAM occupies GPIO
-> 16/17**, which is our TMC2209 UART.
->
-> **Procedure:** flash a bare I²C scanner on SDA 21 / SCL 22 and see whether
-> `0x3C` answers. Then blink GPIO 25 and GPIO 2 and watch which onboard LED
-> responds. Then check for PSRAM. Ten minutes, and it decides the whole loom.
->
-> **If it is Heltec-style:** move the config button to GPIO 13, move the TMC UART
-> off 16 (use 18/19), and accept GPIO 15 as an I²C line — idle-high with pull-ups
-> satisfies the strapping requirement, so it is safe, but the boot log is lost.
+> Chip ESP32-D0WD-V3 rev 3, dual core, 4 MB flash, **no PSRAM** (WROOM-class,
+> so GPIO 16/17 are free). The on-board **OLED answers at `0x3C` on GPIO 21/22**
+> and nothing answers on 4/15 or 5/4 -- the OLED shares the sensor I²C bus
+> (`0x3C`, `0x68`, `0x36` coexist) and GPIO 4 stays free for `WAKE`.
 
-| GPIO | To | Notes |
-|---|---|---|
-| 25 | TMC2209 **STEP** | upper row |
-| 26 | TMC2209 **DIR** | upper row; written only by `moveToForward()` |
-| 27 | TMC2209 **EN** | upper row; active low |
-| 39 | TMC2209 **DIAG** | upper row; StallGuard. Input-only, 10k pull-down |
-| 32 | camera 5 V load switch | upper row; drives Q3 -> Q2 gate |
-| 34 | battery sense | upper row; input only, divider, **no internal pull-up** |
-| 17 | TMC2209 **PDN_UART** | lower row, via 1 kΩ (ESP TX) |
-| 16 | TMC2209 UART RX | lower row, straight onto PDN_UART |
-| 21 | **I²C SDA** | lower row. DS3231 `0x68`, AS5600 `0x36`, OLED `0x3C` |
-| 22 | **I²C SCL** | lower row; run the bus at 400 kHz |
-| **4** | **DS3231 INT + config button** | lower row; wired-OR, 4.7 kΩ pull-up. RTC-capable |
-| 19 | opto home flag | lower row; 10 kΩ pull-up |
-| 15 | status LED | lower row; strapping pin, but the LED is high-Z at boot |
-| **23** | **GPS PPS** | lower row |
-| **5** | **ESP_TX_GPS_RX** (ESP32 transmits) | lower row; to J9 pin 3, the module's RXD. Strapping pin, idles high as TX |
-| **18** | **GPS_TX_ESP_RX** (ESP32 receives) | lower row; from J9 pin 4, the module's TXD |
-| **2** | **GPS power enable** | lower row; drives Q5 -> Q4, GPS off while it floats at boot. Doubles as the module LED |
-| 33, 14, 13, 36 | spare header J11 | upper row; 36 is input-only |
-| 35, 12, 0, 1, 3 | unused | 12/0 strapping, 1/3 = USB serial |
-| — | *compass (v2)* | I²C, `0x0D` / `0x1E` — no conflict |
+The module's **left column is the board's upper row** (driver, camera, divider,
+status LED) and its **right column the lower row** (everything bound for the
+bottom connector strip). Through-hole pin rows cannot be crossed, so this split
+is structural, not cosmetic -- see *Why the rows matter* below.
 
-> ### Why these moved (D4 revised, 2026-09-27)
+| GPIO | Net | To | Notes |
+|---|---|---|---|
+| 25 | `STEP` | TMC2209 STEP | upper row |
+| 26 | `MOT_DIR` | TMC2209 DIR | upper row; written only by `moveToForward()` |
+| 27 | `TMC_EN` | TMC2209 EN | upper row; active low |
+| 33 | `ESP_TX` | TMC2209 PDN_UART via R7 1 kΩ | upper row; single-wire UART, ESP32 transmits |
+| 14 | `TMC_UART` | TMC2209 PDN_UART, direct | upper row; ESP32 receives |
+| 36 | `TMC_DIAG` | TMC2209 DIAG (J5 flying lead) | upper row; StallGuard. Input-only, R9 10k pull-down |
+| 32 | `CAM_EN` | camera 5 V switch, Q3 -> Q2 | upper row |
+| 34 | `VBAT_SENSE` | R14/R15 divider | upper row; input-only, **no internal pull-up** |
+| 13 | `LED_ST` | status LED3 via R8 | upper row |
+| 39, 35 | `SPARE39`, `SPARE35` | spare header J11 | upper row; both input-only |
+| 21 | `SDA` | I²C: DS3231 `0x68`, AS5600 `0x36`, OLED `0x3C`, J10 | lower row |
+| 22 | `SCL` | I²C | lower row; run the bus at 400 kHz |
+| **4** | `WAKE` | DS3231 INT + config button SW1 | lower row; wired-OR, R12 4.7 kΩ pull-up. RTC-capable (`ext0`) |
+| 19 | `HOME` | opto home flag J8 | lower row; R13 10 kΩ pull-up |
+| 23 | `PPS` | GPS PPS (J9 pin 1) | lower row |
+| **5** | `ESP_TX_GPS_RX` | J9 pin 3, the module's RXD | lower row; ESP32 transmits. Strapping pin, idles high as TX |
+| **18** | `GPS_TX_ESP_RX` | J9 pin 4, the module's TXD | lower row; ESP32 receives |
+| **17** | `GPS_EN` | GPS 5 V switch, Q5 -> Q4 | lower row; GPS off while it floats at boot |
+| 16, 15 | -- | free | lower row; 15 is a strapping pin |
+| 2 | -- | **avoided** | must be low to enter download mode; a pull-up breaks USB flashing |
+| 12, 0, 1, 3 | -- | unused | 12/0 strapping, 1/3 = USB serial |
+| -- | *compass (v2)* | I²C, `0x0D` / `0x1E` | no conflict |
+
+> ### What changed from Rev B (the 38-pin board)
 >
-> Laying out the board changed the map. On a through-hole board the ESP32's
-> two header rows are **walls**: 2.54 mm pitch with ~1.7 mm pads leaves a
-> 0.84 mm gap, and a 0.3 mm track needs 0.9 mm to pass legally — so no signal
-> can cross a pin row *on either layer*, because through-hole pads block both.
-> Everything crossing has to go the long way round the module's ends.
->
-> The fix is to make nothing need to cross: every signal whose destination is
-> the bottom connector strip now lives on the **lower** row, and everything
-> serving the driver, the camera and the power input lives on the **upper**
-> row. Four assignments changed as a result:
->
-> | Signal | Was | Now | Why |
+> | Signal | Rev B | Rev C | Why |
 > |---|---|---|---|
-> | DS3231 INT + button (`WAKE`) | GPIO 33 | **GPIO 4** | both are RTC-capable, so `ext0` deep-sleep wake is unaffected; GPIO 4 is on the lower row, next to the RTC socket |
-> | GPS PPS | GPIO 36 | **GPIO 23** | GPIO 36 is input-only and now sits on the spare header instead |
-> | GPS UART | 13 / 14 | **5 / 18** | lower row, beside the GPS connector |
-> | Home flag | GPIO 35 | **GPIO 19** | lower row, beside its connector |
+> | TMC UART (`ESP_TX` / `TMC_UART`) | 17 / 16, lower row | **33 / 14, upper row** | the driver is on the upper side; no crossing |
+> | `TMC_DIAG` | 39 | **36** | both input-only; 36 is where the 30-pin row puts it |
+> | `LED_ST` | 15, lower row | **13, upper row** | beside its LED, and off a strapping pin |
+> | `GPS_EN` | 2 | **17** | GPIO 2 must stay free for download mode |
+> | GPS UART nets | `GPS_TX` / `GPS_RX` (TX wired to TX) | **`ESP_TX_GPS_RX` / `GPS_TX_ESP_RX`** | named by direction; ESP32 TX now reaches the module's RXD |
+> | Spare header J11 | 6 pins: 33, 14, 13, 36 | **4 pins: 39, 35** | the upper row's two free pins |
 >
-> Nothing about the firmware changes except the pin constants, and the PPS
-> reservation still stands — it just lives on a different pin.
+> `WAKE` (4), `PPS` (23), `HOME` (19), I²C (21/22), `STEP`/`DIR`/`EN`
+> (25/26/27), `CAM_EN` (32) and `VBAT_SENSE` (34) are unchanged.
 
+> ### Why the rows matter
+>
+> On a through-hole board the ESP32's two header rows are **walls**: 2.54 mm
+> pitch with ~1.7 mm pads leaves a 0.84 mm gap, and a 0.3 mm track needs
+> 0.9 mm to pass legally -- so no signal can cross a pin row *on either
+> layer*, because through-hole pads block both. Everything crossing has to go
+> the long way round the module's ends. So nothing is made to cross: signals
+> bound for the bottom connector strip live on the lower row, and everything
+> serving the driver, the camera and the power input on the upper row.
 Avoid GPIO 6–11 (flash) and 0 / 12 / 15 (strapping).
 
 ### The GPIO 4 wired-OR — why one pin takes both wake sources
@@ -702,8 +697,8 @@ watching. Cases that belong in it from day one:
 
 **Firmware**
 
-- [ ] **Slice 0, step 1: verify the OLED board pinout** (§4) before any wiring
-- [ ] Confirm the module is WROOM-32, not WROVER (GPIO 16/17 = TMC UART)
+- [x] ~~**Slice 0, step 1: verify the OLED board pinout**~~ -- done 2026-09-27: OLED on 21/22, no PSRAM (§4)
+- [x] ~~Confirm the module is WROOM-32, not WROVER~~ -- pin check 2026-09-27: no PSRAM
 - [ ] Measure the real cable arc, set `TRAVEL_MIN_DEG` / `TRAVEL_MAX_DEG`
 - [ ] Set `BACKLASH_USTEPS` from a `repeat_test` run, not from the 0.35 mm estimate
 - [ ] Choose the AS5600 magnet orientation so the working arc clears the 0/4095 wrap
@@ -721,7 +716,7 @@ watching. Cases that belong in it from day one:
 **GPS (now v1)**
 
 - [x] ~~GPS module~~ — GY-NEO6MV2 on the board: PPS on GPIO 23, UART on 5/18,
-      switched 5 V feed on GPIO 2
+      switched 5 V feed on GPIO 17
 - [ ] **Solder the PPS flying lead** at the module's PPS LED — its 4-pin header
       does not bring TIMEPULSE out (§1)
 - [ ] Mount the antenna where it can see sky; the IP54 box will not pass it

@@ -1,12 +1,13 @@
 """Floorplan: fixed positions for the big/edge parts, regions for the rest.
 
 Board is landscape 150 x 100 mm.  The ESP32 module lies HORIZONTALLY across
-the middle (its two header rows run along X, 25.4 mm apart in Y).
+the middle (its two header rows run along X, 27.94 mm apart in Y). Rev C: the
+30-pin ideaspark ESP32 + OLED, 15 pins per side.
 
 ORIENTATION -- this cost a whole board revision, so it is written down here:
 
-A DevKitC viewed from the top with its USB at the bottom has the left column
-(3V3 .. 5V) down the left and the right column (GND .. IO6) down the right.
+The module viewed from the top with its USB at the bottom has the left column
+(EN .. VIN) down the left and the right column (IO23 .. 3V3) down the right.
 Laid on its side there are exactly TWO legal placements, and picking anything
 else mirrors the module:
 
@@ -81,7 +82,7 @@ GAP = 1.4
 # Body outlines on F.SilkS, so a module's extent is visible before it is
 # fitted and you can see at a glance which way round it goes.
 MODULE_OUTLINES = [
-    (49.0, 28.4, 100.8, 57.0),          # ESP32 devkit, ~52 x 28 mm
+    (43.0, 27.6, 91.6, 60.4),           # ESP32 30-pin + OLED; pins 52..87.6, USB end at the left. Approximate: measure yours
     (110.2, 7.0, 131.6, 28.8),          # TMC2209 StepStick, ~20 x 15 mm
 ]
 
@@ -89,11 +90,11 @@ MODULE_OUTLINES = [
 SILK = [
     (40.5, 33, "USB", 2.2),
     (40.5, 37, "<<<", 2.2),
-    (52, 34, "ESP32 DevKit 38-pin -- USB END TO THE LEFT", 1.6),
-    (52, 38, "PIN 1 AT THE RIGHT-HAND END OF BOTH ROWS", 1.4),
-    (52, 42, "VERIFY PINOUT + 25.4mm ROWS BEFORE FITTING", 1.4),
-    (52, 46, "Pin names are printed beside every pin", 1.3),
-    (52, 50, "TMC2209 current set over UART (Vref pot unused)", 1.3),
+    (53, 34, "ESP32 30-pin + OLED -- USB END TO THE LEFT", 1.5),
+    (53, 38, "PIN 1 (EN / IO23) AT THE RIGHT-HAND END", 1.4),
+    (53, 42, "ROWS 27.94 mm APART -- CHECK BEFORE FITTING", 1.4),
+    (53, 46, "Pin names are printed beside every pin", 1.3),
+    (53, 50, "TMC2209 current set over UART", 1.3),
     (112, 4.5, "TMC2209", 1.6),
     (114, 45, "MOTOR", 1.4),
     (96, 88.5, "CAM 5V", 1.3),

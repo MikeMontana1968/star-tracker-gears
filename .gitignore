@@ -25,3 +25,6 @@ hardware/nl.net
 hardware/*.rpt
 hardware/star_tracker_ctrl/*.kicad_prl
 hardware/star_tracker_ctrl/*-backups/
+
+# KiCad lock files
+*.lck

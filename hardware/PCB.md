@@ -1,4 +1,4 @@
-# star_tracker_ctrl — controller PCB
+# star_tracker_ctrl — controller PCB, Rev C
 
 A 150 × 100 mm (5.9 × 3.9 in) two-layer carrier board for the sidereal
 tracker: 12 V in, protected and fused, a 5 V 3 A switching rail, a
@@ -12,18 +12,19 @@ Project-level BOM: **[../HARDWARE.md §4](../HARDWARE.md)**.
 
 ## 0. Read this before you order
 
-Three of these will cost you a board if you skip them.
+Rev C is drawn for the module in hand, the **30-pin ideaspark ESP32 + 0.96"
+OLED** (silkscreen `ESP32 OLED-0.96 V3.0`, DOIT DevKit V1 layout). These were
+measured or checked on that module:
 
-- [ ] **Measure your ESP32 module's header row spacing.** The board is drawn
-      for **25.4 mm (1.0 in)**, the usual 38-pin DevKitC/DevKit-V1 clone. Some
-      "wide" 38-pin boards are 27.94 mm. One number in
-      [`design.py`](design.py) (`ESP32_ROW_SPACING`) and a regenerate fixes it.
-- [ ] **Confirm your module's pin order** against the silkscreen legend beside
-      each row. The board assumes the standard 38-pin map printed in
-      FIRMWARE.md §4. A Heltec-style board with the OLED on GPIO 4/15/16 will
-      *not* work with this layout — see FIRMWARE.md §4 for what changes.
-- [ ] **Confirm it is a WROOM-32, not a WROVER.** WROVER's PSRAM occupies
-      GPIO 16/17, which this board uses for the TMC2209 UART.
+- [x] **Row spacing 27.94 mm (1.1 in), pitch 2.54 mm, 15 pins per side** —
+      measured. [`design.py`](design.py) `ESP32_ROW_SPACING` / `ESP32_PINS_PER_SIDE`.
+- [x] **Pin order** read off the module's silkscreen; the map is FIRMWARE.md §4.
+- [x] **Pin check, 2026-09-27:** the OLED answers at `0x3C` on GPIO 21/22 (it
+      shares the sensor bus, GPIO 4 stays free for WAKE), and there is **no
+      PSRAM** — WROOM-class, GPIO 16/17 free.
+- [ ] Using a different ESP32 board? Redo all three: measure the rows, read
+      the pin order, run `firmware/pincheck`. A Heltec-style board with the
+      OLED on GPIO 4/15 needs a different map.
 - [ ] Check the DS3231 module's pin order is `32K SQW SCL SDA VCC GND`
       (ZS-042). Other orders exist; the socket is labelled.
 - [ ] Look at your GPS module for a **PPS pad**. The common GY-NEO6MV2 brings
@@ -42,13 +43,13 @@ parts and no DIP ICs — the only IC is the LM2596 in a TO-220.
 | Input protection | F1, Q1, D1, D2, C1 | 3 A fuse, P-FET reverse polarity, TVS |
 | 5 V 3 A buck | U2, L1, D3, C3, C5 | LM2596T-5.0, 150 kHz |
 | Camera switch | Q2, Q3, R3–R5, J2, J3 | high-side P-FET, USB-A + screw terminal |
-| ESP32 socket | J20, J21 | 2 × 1×19, 25.4 mm apart |
+| ESP32 socket | J20, J21 | 2 × 1×15, 27.94 mm apart (30-pin module) |
 | TMC2209 socket | J30, J31 | 2 × 1×8, 15.24 mm apart (StepStick standard) |
 | Motor | J4 | 4-pos screw terminal |
 | RTC | J6 | DS3231 module socket |
 | Sensors | J7, J8, J10 | AS5600 (remote), opto home, I²C expansion |
 | GPS | J9, Q4, Q5 | GY-NEO6MV2 on a switched 5 V feed, plus PPS |
-| v2 | J11 | spare IO |
+| v2 | J11 | spare IO: GPIO 39, 35 (input-only) |
 | Jumpers | JP3, JP4, JP5, J5 | PDN alt, MS1, MS2, DIAG |
 
 ---
@@ -130,7 +131,7 @@ convention, which is what tells a GoPro it may draw full current.
 ## 5. GPS
 
 ```
-        GPIO2 ──R18 10k──┬── Q5 base          +5V ──┬── R16 10k ──┬── Q4 base
+       GPIO17 ──R18 10k──┬── Q5 base          +5V ──┬── R16 10k ──┬── Q4 base
                      R19 100k                       │             │
                          │                          └── Q4 emitter│
                         GND     Q5 collector ──R17 1k─────────────┘
@@ -140,7 +141,7 @@ convention, which is what tells a GoPro it may draw full current.
 
 GPIO high turns Q5 on, which pulls Q4's base down through R17 and switches
 5 V onto the module. R16 holds Q4 off by default and R19 does the same for
-Q5, so **the GPS is off while GPIO 2 floats at boot**. Q4 is a 2N3906: at
+Q5, so **the GPS is off while GPIO 17 floats at boot**. Q4 is a 2N3906: at
 45 mA it drops about 0.2 V, and the module's own LDO makes 3.3 V from what
 is left. Its TX output is 3.3 V logic, safe straight into the ESP32.
 
@@ -154,8 +155,8 @@ sleep, so an unswitched GPS would pull 30–45 mA around the clock — roughly
 |---|---|---|
 | 1 | **PPS** | flying lead — see below |
 | 2 | VCC | switched 5 V |
-| 3 | RXD | module RX ← ESP32 TX (GPIO 5) |
-| 4 | TXD | module TX → ESP32 RX (GPIO 18) |
+| 3 | RXD | net `ESP_TX_GPS_RX`: module RX ← ESP32 TX (GPIO 5) |
+| 4 | TXD | net `GPS_TX_ESP_RX`: module TX → ESP32 RX (GPIO 18) |
 | 5 | GND | |
 
 Pins 2–5 are deliberately in the module's own `VCC RX TX GND` order, so its
@@ -179,9 +180,9 @@ accept a module fitted the wrong way round.
 
 ### The rule
 
-A DevKitC viewed from the top with its USB at the bottom has the left column
-(`3V3 … 5V`) down the left edge and the right column (`GND … IO6`) down the
-right. Laid on its side there are exactly **two** legal placements:
+The ESP32 module viewed from the top with its USB at the bottom has the left
+column (`EN … VIN`) down the left edge and the right column (`IO23 … 3V3`)
+down the right. Laid on its side there are exactly **two** legal placements:
 
 | Rotation | Left column | Pin 1 | USB |
 |---|---|---|---|
@@ -194,8 +195,9 @@ transform from module coordinates to board coordinates had determinant −1. The
 module would have had to be flipped over to fit, and every single pin was on
 the wrong signal.
 
-This board uses the first form: both sockets at rotation 270, pin 1 at the
-right-hand end, **USB pointing left**.
+This board uses the first form: both sockets at rotation 270, pin 1 (`EN`
+on the upper row, `IO23` on the lower) at the right-hand end, **USB pointing
+left**.
 
 ### What is printed on the board
 
@@ -283,48 +285,62 @@ Checks that run every time:
 
 ## 10. Known state
 
-Generated, fully routed, and checked with KiCad 10.0.6's own tools:
+**Rev C**, generated 2026-09-27 for the 30-pin ideaspark module, fully routed,
+and checked with KiCad 10's own tools:
 
 | Check | Result |
 |---|---|
 | ERC | **0 violations** |
 | DRC — unconnected | **0** |
-| DRC — clearance / shorts / hole | **0** |
-| DRC — thermal relief | **0** |
-| DRC — silkscreen overlap | 56 + 6 over-copper, cosmetic |
+| DRC — clearance / shorts / hole-to-hole | **0** |
+| DRC — silkscreen overlap | 68 + 6 over-copper, cosmetic |
 | Parts | 71 placed + 4 mounting holes |
-| Nets | 47 |
-| Routing | 227 track runs, 77 vias, GND poured both sides |
+| Nets | 45 |
+| Routing | 234 track runs, 82 vias, GND poured both sides; complete on pass 12 of 30 |
 
 The silkscreen warnings are reference designators colliding with each other
 and with the module pin legends on a dense board. Nothing about fabrication
 or assembly depends on them.
 
 **The router is a greedy maze router with randomised restarts**, not a
-commercial autorouter. It reached a complete route on pass 16 of 30 with a
-fixed seed, so `gen_board.py` reproduces the same board every time. If you
-change the floorplan and a net comes out unrouted, the message names it —
-raise `passes` in `route.py`, or open the board and route that one by hand.
+commercial autorouter. With a fixed seed, `gen_board.py` reproduces the same
+board every time. If you change the floorplan and a net comes out unrouted,
+the message names it — raise `passes` in `route.py`, or open the board and
+route that one by hand.
+
+**Always run the DRC after regenerating**, and read the unconnected items: a
+GND pad the pour cannot reach passes the router and ERC and only shows there.
 
 ### Getting the ground pour to reach every pad
 
 Worth knowing if you move things. A pad can be fenced in by signal tracks on
 both layers — and through-hole pads block both — leaving the pour unable to
-reach it. Three things fixed that here, in order of how much they mattered:
+reach it. What fixed that here, in order of how much it mattered:
 
 1. **Tight thermals.** `thermal_gap` 0.3 mm and `thermal_bridge_width` 0.4 mm,
    with `min_resolved_spokes` set to 1. Going from the 0.5 mm defaults took
    isolated pads from 8 to 1. Thermal relief is kept rather than using a solid
    pour connection, because soldering a through-hole ground pin into solid
    1 oz copper is genuinely unpleasant.
-2. **An explicit GND stitch**, routed last at signal width, that reaches pads
-   the pour misses. It runs twice: the second pass lets a straggler connect to
-   track laid after its own first attempt.
-3. **Ground on both end pins** of J8. Interior pins on a 2.54 mm connector are
+2. **`GND_RESCUE` in `design.py`**: pads the router connects to their nearest
+   GND pad *before* any signal is routed. Rev C names the four GND end pins of
+   the bottom connector strip (J6.6, J7.5, J8.1, J8.4) — the lower-row signals
+   fan out between them and fenced a different two in on every attempt until
+   all four were reserved. The list comes from the DRC, which knows the pour;
+   the router does not (reserving every pad the router *itself* could not
+   stitch, eleven of them, left six signals unroutable).
+3. **An explicit GND stitch**, routed last at signal width, twice, so a
+   straggler can connect to track laid after its own first attempt.
+4. **Ground on end pins.** Interior pins on a 2.54 mm connector are
    unreachable by the pour — the gap between adjacent pads is 0.84 mm and the
-   pour needs about 1.25 mm — so ground belongs on an end pin. J8 has it on
-   both, because one end still got fenced in.
+   pour needs about 1.25 mm — so ground belongs on an end pin.
 
+### Drill spacing
+
+The router keeps every via centre clear of every pad and via hole by the
+fab's 0.25 mm hole-to-hole minimum, whatever the nets. Its copper checks alone
+let a GND via land 0.19 mm from a GND pad's hole, which is legal copper and an
+illegal drill.
 ## 11. Fabrication
 
 2 layers, 1.6 mm, 1 oz copper, HASL — no controlled impedance, no fine pitch,
@@ -348,7 +364,7 @@ Lowest parts first, and test each rail before fitting the next stage.
 3. U2 (with its heatsink), L1, D3, C3, C5 — **check 5 V** before going on.
 4. Q2, Q3, C7, the USB socket — pull GPIO 32's pad high by hand and confirm
    the camera rail switches.
-5. Q4, Q5 and their four resistors — drive GPIO 2's pad high by hand and
+5. Q4, Q5 and their four resistors — drive the socket's GPS_EN pin (GPIO 17) high by hand and
    confirm ~4.8 V appears on J9 pin 2, and 0 V when it is low.
 6. Electrolytics, LEDs, connectors, sockets last.
 7. **Fit the modules only after all rails read correctly.**

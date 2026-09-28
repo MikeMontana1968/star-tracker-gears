@@ -15,15 +15,13 @@ EDGE_CLEAR = 0.5
 MOUNT_INSET = 4.0
 
 TITLE = "Star Tracker Controller"
-REV = "A"
+REV = "C"               # A: mirrored socket; B: 38-pin DevKitC; C: 30-pin ideaspark
 COMPANY = "star-tracker-gears"
 
 # --------------------------------------------------------------------------
 # Module geometry  -- VERIFY THESE AGAINST YOUR ACTUAL BOARDS BEFORE ORDERING
 # --------------------------------------------------------------------------
 # Row spacing between the two ESP32 header rows, centre to centre.
-# 25.4 = the usual 38-pin ESP32-DevKitC / DevKit-V1 clone.
-# Some "wide" 38-pin boards are 27.94 (1.1 in).  One number to change.
 # ideaspark ESP32 + 0.96" OLED, 30-pin.  Measured on the actual module:
 #   pitch        2.54 mm  (14 gaps measured as 35.56 mm end to end)
 #   row spacing  27.94 mm (1.1 in); inside 27.27 + outside 28.90 -> 28.09
@@ -33,53 +31,64 @@ ESP32_PINS_PER_SIDE = 15
 # Pololu / StepStick standard.  Not vendor-dependent.
 TMC_ROW_SPACING = 15.24
 
-# ESP32-DevKitC 38-pin map, left header top->bottom then right header
-# top->bottom, with the USB connector at the BOTTOM of the module.
-# "-" means leave unconnected (flash pins, strapping pins, USB serial).
+# GND pads that signal tracks fence in on both layers, so neither the pour nor
+# the late GND stitch reaches them. Named from a KiCad DRC run (it knows the
+# pour; the router does not). Each gets a short escape to its nearest GND pad
+# before any signal is routed. Re-check after any change: run DRC and add what
+# it reports as 'unconnected ... [GND] ... Zone GND'.
+GND_RESCUE = [("J6", "6"), ("J7", "5"), ("J8", "1"), ("J8", "4")]   # the bottom connector strip's end-pin GNDs
+
+# ideaspark ESP32 + 0.96" OLED (silkscreen "ESP32 OLED-0.96 V3.0"), 30-pin,
+# the DOIT DevKit V1 layout. Left column top->bottom, then right column
+# top->bottom, USB at the BOTTOM of the module. "-" = leave unconnected.
+#
+# Pin check, 2026-09-27 (firmware/pincheck): chip ESP32-D0WD-V3 rev 3, 4 MB
+# flash, NO PSRAM (so GPIO 16/17 are free); the on-board OLED answers at 0x3C
+# on GPIO 21/22 -- it shares the sensor I2C bus, and GPIO 4 stays free for
+# WAKE.
+#
+# On the board the module's LEFT column is the UPPER row and its RIGHT
+# column the LOWER row (see place.py). Through-hole pin rows cannot be
+# crossed, so: everything serving the driver, camera, divider and status LED
+# sits on the upper row; everything bound for the bottom connector strip
+# (I2C, RTC, encoder, GPS, home, wake) on the lower row. GPIO 2 is avoided --
+# it must be low to enter download mode, and a pull-up there breaks flashing.
 ESP32_LEFT = [
-    ("3V3",    "+3V3"),
     ("EN",     "-"),
-    ("IO36",   "SPARE36"),    # input-only
-    ("IO39",   "TMC_DIAG"),   # StallGuard -> driver side
-    ("IO34",   "VBAT_SENSE"), # divider sits directly above this pin
-    ("IO35",   "-"),          # input-only, free
+    ("IO36",   "TMC_DIAG"),   # VP; input-only, StallGuard in
+    ("IO39",   "SPARE39"),    # VN; input-only
+    ("IO34",   "VBAT_SENSE"), # input-only, divider above this row
+    ("IO35",   "SPARE35"),    # input-only
     ("IO32",   "CAM_EN"),     # camera switch is above this row
-    ("IO33",   "SPARE33"),
-    ("IO25",   "STEP"),       # driver side
-    ("IO26",   "MOT_DIR"),    # driver side
-    ("IO27",   "TMC_EN"),     # driver side
-    ("IO14",   "SPARE14"),
+    ("IO33",   "ESP_TX"),     # -> R7 1k -> TMC PDN_UART
+    ("IO25",   "STEP"),
+    ("IO26",   "MOT_DIR"),
+    ("IO27",   "TMC_EN"),
+    ("IO14",   "TMC_UART"),   # RX straight onto PDN_UART
     ("IO12",   "-"),          # strapping, must be low at boot
+    ("IO13",   "LED_ST"),
     ("GND",    "GND"),
-    ("IO13",   "SPARE13"),
-    ("IO9",    "-"),          # flash
-    ("IO10",   "-"),          # flash
-    ("IO11",   "-"),          # flash
-    ("5V",     "+5V"),
+    ("VIN",    "+5V"),
 ]
 ESP32_RIGHT = [
-    ("GND",    "GND"),
-    ("IO23",   "PPS"),        # v2 GPS pulse-per-second
-    ("IO22",   "SCL"),
-    ("IO1/TX", "-"),          # USB serial, keep free
-    ("IO3/RX", "-"),          # USB serial, keep free
-    ("IO21",   "SDA"),
-    ("GND",    "GND"),
+    ("IO23",   "PPS"),        # GPS pulse-per-second
+    ("IO22",   "SCL"),        # shared with the on-board OLED (0x3C)
+    ("TX0",    "-"),          # USB serial, keep free
+    ("RX0",    "-"),          # USB serial, keep free
+    ("IO21",   "SDA"),        # shared with the on-board OLED (0x3C)
     ("IO19",   "HOME"),
     # GPS UART nets are named by direction, driver first, so they cannot be
     # read from the wrong end. Rev B named them GPS_TX / GPS_RX and wired the
     # ESP32's TX to the module's TXD -- TX to TX.
     ("IO18",   "GPS_TX_ESP_RX"),  # ESP32 receives
     ("IO5",    "ESP_TX_GPS_RX"),  # ESP32 transmits; strapping pin, idles high as TX
-    ("IO17",   "ESP_TX"),     # -> 1k -> TMC PDN_UART
-    ("IO16",   "TMC_UART"),   # RX straight onto PDN_UART
+    ("IO17",   "GPS_EN"),     # drives Q5 -> Q4; GPS off while it floats at boot
+    ("IO16",   "-"),          # free
     ("IO4",    "WAKE"),       # DS3231 INT + button, wired-OR; RTC-capable
-    ("IO0",    "-"),          # strapping
-    ("IO2",    "GPS_EN"),     # module LED doubles as a GPS-power tell-tale
-    ("IO15",   "LED_ST"),     # strapping; LED is high-Z at boot
-    ("IO8",    "-"),          # flash
-    ("IO7",    "-"),          # flash
-    ("IO6",    "-"),          # flash
+    ("IO2",    "-"),          # avoided: must be low for download mode
+    ("IO15",   "-"),          # strapping; free
+    ("GND",    "GND"),
+    ("3V3",    "+3V3"),
 ]
 
 # TMC2209 SilentStepStick / BTT, 2x8 StepStick footprint.
@@ -345,10 +354,10 @@ part("J9", "GPS", "Connector_Generic:Conn_01x05", hdr(5),
 part("J10", "I2C EXP", "Connector_Generic:Conn_01x04", hdr(4),
      {"1": "GND", "2": "+3V3", "3": "SDA", "4": "SCL"},     (96, 71, 90), (430, 260), note="v2 compass",
      labels=["GND", "3V3", "SDA", "SCL"])
-part("J11", "SPARE IO", "Connector_Generic:Conn_01x06", hdr(6),
-     {"1": "GND", "2": "+3V3", "3": "SPARE33", "4": "SPARE14",
-      "5": "SPARE13", "6": "SPARE36"},     (6, 71, 90), (510, 260),
-     labels=["GND", "3V3", "IO33", "IO14", "IO13", "IO36"])
+part("J11", "SPARE IO", "Connector_Generic:Conn_01x04", hdr(4),
+     {"1": "GND", "2": "+3V3", "3": "SPARE39", "4": "SPARE35"},     (6, 71, 90), (510, 260),
+     labels=["GND", "3V3", "IO39", "IO35"],
+     note="the upper row's two free pins; both input-only")
 
 # ---- ERC power flags (schematic only, no footprint) ---------------------
 for i, (flag_net, fx_, fy_) in enumerate([("+12V", 115, 110),
@@ -406,7 +415,7 @@ VIA_DRILL = 0.4
 # Silkscreen notes placed on the board
 # --------------------------------------------------------------------------
 SILK = [
-    (ESP_X + ESP32_ROW_SPACING / 2, 9.5, "ESP32 DevKit 38p  USB->", 1.0),
+    (ESP_X + ESP32_ROW_SPACING / 2, 9.5, "ESP32 30p + OLED  USB->", 1.0),
     (TMC_X + TMC_ROW_SPACING / 2, 10.5, "TMC2209", 1.2),
     (22, 5, "12V IN  2.5-3A", 1.2),
     (22, 67, "LM2596 5V 3A", 1.0),

@@ -161,8 +161,8 @@ soldered down.
 | Qty | Ref | Item | ~USD | Notes |
 |---|---|---|---|---|
 | 1 | — | PCB, 127 x 76.2 mm, 2-layer, 1.6 mm | 12 | qty 5 from a cheap fab |
-| 1 | — | ESP32 devkit, 38-pin, 0.96" OLED, CH340 | 10 | **have** — verify row spacing |
-| 1 | J20/J21 | 1x19 female header, 2.54 mm | 2 | the ESP32 socket |
+| 1 | — | ideaspark ESP32 + 0.96" OLED, 30-pin, CH340 | 10 | **have**; rows 27.94 mm, pin check done (no PSRAM, OLED on 21/22) |
+| 2 | J20/J21 | 1x15 female header, 2.54 mm | 2 | the ESP32 socket |
 | 1 | — | TMC2209 StepStick, UART mode | 7 | BTT / Fysetc / Watterott |
 | 1 | J30/J31 | 1x08 female header, 2.54 mm | 1 | the driver socket |
 | 1 | — | DS3231 RTC module (ZS-042) + CR2032 | 4 | ±2 ppm. **Not** DS1307 |
@@ -189,7 +189,7 @@ camera output.
 | 2 | Q1 Q2 | IRF4905 P-MOSFET, TO-220 | 2 | reverse-polarity + camera switch |
 | 1 | Q3 | 2N3904 NPN, TO-92 | 0.2 | gate driver for Q2 |
 | 1 | Q4 | 2N3906 PNP, TO-92 | 0.2 | GPS 5 V high-side switch |
-| 1 | Q5 | 2N3904 NPN, TO-92 | 0.2 | drives Q4 from GPIO 2 |
+| 1 | Q5 | 2N3904 NPN, TO-92 | 0.2 | drives Q4 from GPIO 17 (GPS_EN) |
 | 1 | D1 | 1N4744A 15 V zener, DO-41 | 0.2 | Q1 gate clamp |
 | 1 | D2 | P6KE20CA TVS, DO-15 | 0.5 | input transient clamp; bidirectional |
 | 1 | F1 | 5x20 mm fuse holder + 3 A fuse | 2 | PCB clips |

@@ -505,7 +505,7 @@ def main():
         raise SystemExit("placement has collisions - fix place.py")
     import route as RT
     routes, vias, failed = RT.route_all(D.PARTS, D.BOARD_W, D.BOARD_H,
-                                        D.POWER_NETS)
+                                        D.POWER_NETS, rescue=getattr(D, 'GND_RESCUE', ()))
     if failed:
         print("  ! router could not finish:", ", ".join(failed))
     os.makedirs(OUT, exist_ok=True)
