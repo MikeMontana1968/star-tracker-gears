@@ -66,8 +66,11 @@ ESP32_RIGHT = [
     ("IO21",   "SDA"),
     ("GND",    "GND"),
     ("IO19",   "HOME"),
-    ("IO18",   "GPS_RX"),     # v2
-    ("IO5",    "GPS_TX"),     # v2; strapping, idles high as UART TX
+    # GPS UART nets are named by direction, driver first, so they cannot be
+    # read from the wrong end. Rev B named them GPS_TX / GPS_RX and wired the
+    # ESP32's TX to the module's TXD -- TX to TX.
+    ("IO18",   "GPS_TX_ESP_RX"),  # ESP32 receives
+    ("IO5",    "ESP_TX_GPS_RX"),  # ESP32 transmits; strapping pin, idles high as TX
     ("IO17",   "ESP_TX"),     # -> 1k -> TMC PDN_UART
     ("IO16",   "TMC_UART"),   # RX straight onto PDN_UART
     ("IO4",    "WAKE"),       # DS3231 INT + button, wired-OR; RTC-capable
@@ -334,7 +337,7 @@ part("J8", "HOME", "Connector_Generic:Conn_01x04", hdr(4),
           "reach one of them",
      labels=["GND", "SIG", "3V3", "GND"])
 part("J9", "GPS", "Connector_Generic:Conn_01x05", hdr(5),
-     {"1": "PPS", "2": "GPS_VCC", "3": "GPS_RX", "4": "GPS_TX", "5": "GND"},
+     {"1": "PPS", "2": "GPS_VCC", "3": "ESP_TX_GPS_RX", "4": "GPS_TX_ESP_RX", "5": "GND"},
      (82, 71, 90), (350, 260),
      note="GY-NEO6MV2: pins 2-5 match its VCC/RX/TX/GND cable; PPS is a "
           "flying lead from the module's PPS LED pad",

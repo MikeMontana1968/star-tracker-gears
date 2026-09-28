@@ -118,6 +118,33 @@ p{margin:0}
 }
 @media (prefers-reduced-motion:no-preference){ html{scroll-behavior:smooth} }
 
+/* print / PDF: one sheet per page, paper palette, no chrome */
+@page{size:letter;margin:11mm}
+@page wide{size:letter landscape;margin:9mm}
+.print-only{display:none}
+@media print{
+  :root,:root.night,:root.day,:root[data-theme]{color-scheme:light;
+    --desk:#fff;--paper:#fff;--ink:#131416;--ink2:#5a6066;--rule:#cfd3d6;--shade:rgba(19,20,22,.14);--metal:#e6e8ea;
+    --warn:#ffd21f;--warnink:#131416;--board:#eef2ec;--padc:#d5d8da;--clash:#ffd21f;--hl:#fff1a8;--artfilter:none;--schfilter:none}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff;padding-inline:0}
+  .bar,.zb{display:none!important}
+  .wrap{max-width:none;margin:0;gap:0;display:block}
+  .grid{display:block}
+  .sheet{border:0;padding:0 0 30px;break-before:page;break-inside:auto}
+  .sheet>footer{position:static;margin-top:10px;left:auto;right:auto}
+  .wrap>.sheet:first-child{break-before:auto}
+  .divider{break-before:page;margin-bottom:14px}
+  .divider+.grid>.sheet:first-child{break-before:avoid}
+  .fig svg,.fzimg,.row,.cmp,.note,table,.part{break-inside:avoid}
+  .zoomer{height:auto;border:0;overflow:visible}
+  .zoomer svg{height:auto}
+  a{text-decoration:none}
+  .print-only{display:inline}.screen-only{display:none}
+  #g3{page:wide}
+  #g3 .zoomer svg{max-height:165mm}
+}
+
 /* figure line work */
 .fig .f{fill:var(--paper);stroke:var(--ink);stroke-width:1.3;stroke-linejoin:round}
 .fig .l{fill:none;stroke:var(--ink);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
@@ -4185,7 +4212,7 @@ p{margin:0}
     <li><b>One wake line</b> takes both the RTC alarm and the CONFIG button, wired-OR on a single 4.7k pull-up. Firmware tells them apart from the RTC's alarm flag.</li>
     <li>Signal names, not GPIO numbers: the ESP32 pin map is redrawn for the 30-pin module after the pin check.</li>
   </ul>
-  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p><b>GPS UART naming, open.</b> On the Rev B netlist the ESP32 pin named <span class="hw">GPS_TX</span> (the one FIRMWARE.md transmits on) meets J9 pin 4, the module's <b>TXD</b>, and <span class="hw">GPS_RX</span> meets its <b>RXD</b>. As drawn that is TX to TX. The ESP32 can put its UART on any pin, so firmware can swap the two with no board change. Settle which in <span class="hw">design.py</span> before the 30-pin redraw.</p></div>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p><b>GPS UART, fixed in the source.</b> Rev B named the nets GPS_TX / GPS_RX and wired the ESP32's transmit to the module's TXD. <span class="hw">design.py</span> now names them by direction, <span class="hw">ESP_TX_GPS_RX</span> and <span class="hw">GPS_TX_ESP_RX</span>, and sends the ESP32's TX (GPIO 5) to J9 pin 3, the module's RXD. The schematic below updates with the 30-pin redraw.</p></div>
   <footer><span>ST-2048:1</span><span>69</span></footer>
 </section>
 
@@ -4195,7 +4222,7 @@ p{margin:0}
     <div class="zb"><button type="button" data-z="in" aria-label="Zoom in">+</button><button type="button" data-z="out" aria-label="Zoom out">−</button><button type="button" data-z="fit" aria-label="Fit">⤢</button></div>
     <svg class="kiimg" viewBox="14.9 -0.4 751.3 356.4" role="img" aria-label="The controller board's full KiCad schematic"><use href="#ki-sch" x="0" y="0" width="840.99" height="594.00"/></svg>
   </div>
-  <p class="fzcap">From <span class="hw">hardware/star_tracker_ctrl/star_tracker_ctrl.kicad_sch</span> via <span class="hw">kicad-cli</span>. Drag to pan, scroll or pinch to zoom. The text is real text, so the browser's find works on it.</p>
+  <p class="fzcap">From <span class="hw">hardware/star_tracker_ctrl/star_tracker_ctrl.kicad_sch</span> via <span class="hw">kicad-cli</span>. <span class="screen-only">Drag to pan, scroll or pinch to zoom. The text is real text, so the browser's find works on it.</span><span class="print-only">The drawing is vector: zoom in on it as far as you like, and search its text.</span></p>
   <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>This is the committed Rev B board, drawn for a 38-pin DevKitC. Everything off the ESP32 socket stands; the socket and its pin assignments change in the 30-pin redraw. Rebuild the guide after regenerating the board and this page follows.</p></div>
   <footer><span>ST-2048:1</span><span>70</span></footer>
 </section>

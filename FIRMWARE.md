@@ -339,8 +339,8 @@ transitions `radio_mode`; the state table declares what each state requires.
 | 19 | opto home flag | lower row; 10 kΩ pull-up |
 | 15 | status LED | lower row; strapping pin, but the LED is high-Z at boot |
 | **23** | **GPS PPS** | lower row |
-| **5** | **GPS TX**, ESP -> GPS RX | lower row; strapping, idles high as UART TX |
-| **18** | **GPS RX** | lower row |
+| **5** | **ESP_TX_GPS_RX** (ESP32 transmits) | lower row; to J9 pin 3, the module's RXD. Strapping pin, idles high as TX |
+| **18** | **GPS_TX_ESP_RX** (ESP32 receives) | lower row; from J9 pin 4, the module's TXD |
 | **2** | **GPS power enable** | lower row; drives Q5 -> Q4, GPS off while it floats at boot. Doubles as the module LED |
 | 33, 14, 13, 36 | spare header J11 | upper row; 36 is input-only |
 | 35, 12, 0, 1, 3 | unused | 12/0 strapping, 1/3 = USB serial |

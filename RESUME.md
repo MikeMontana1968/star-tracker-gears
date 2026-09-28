@@ -88,7 +88,7 @@ GPIO 2 must be low to enter download mode, which would break USB flashing):
 
 - **Upper row:** TMC_DIAG=36, VBAT_SENSE=34, CAM_EN=32, ESP_TX=33, STEP=25,
   MOT_DIR=26, TMC_EN=27, TMC_UART=14, LED_ST=13, spares 39/35, VIN=+5V
-- **Lower row:** PPS=23, SCL=22, SDA=21, HOME=19, GPS_RX=18, GPS_TX=5,
+- **Lower row:** PPS=23, SCL=22, SDA=21, HOME=19, GPS_TX_ESP_RX=18, ESP_TX_GPS_RX=5,
   GPS_EN=17, WAKE=4, 3V3=+3V3; leave 16/15 free, TX0/RX0 free
 
 25 GPIOs available against 17 needed, so it fits either way the scan lands.

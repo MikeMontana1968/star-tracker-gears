@@ -175,6 +175,27 @@ def main():
     with open(OUT, 'w', encoding='utf8', newline='\n') as fh:
         fh.write(html)
     print('wrote %s  (%d KB, %d Fritzing/KiCad figures)' % (OUT, os.path.getsize(OUT) // 1024, n))
+    if '--no-pdf' not in sys.argv:
+        pdf()
+
+
+EDGE = [r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
+        r'C:\Program Files\Google\Chrome\Application\chrome.exe']
+
+
+def pdf():
+    """Print the page with headless Edge (or Chrome). The page's @media print
+    rules give one sheet per Letter page on a white ground. The virtual time
+    budget lets the web fonts and the figure scripts finish first."""
+    exe = next((e for e in EDGE if os.path.exists(e)), None)
+    if not exe:
+        print('no Edge or Chrome found; skipping the PDF')
+        return
+    out = os.path.splitext(OUT)[0] + '.pdf'
+    profile = os.path.join(BUILD, 'pdf-profile')      # throwaway, so a running Edge is not disturbed
+    run([exe, '--headless=new', '--disable-gpu', '--no-pdf-header-footer', '--user-data-dir=' + profile,
+         '--virtual-time-budget=20000', '--print-to-pdf=' + out, 'file:///' + OUT.replace('\\', '/')], timeout=300)
+    print('wrote %s  (%d KB)' % (out, os.path.getsize(out) // 1024))
 
 
 if __name__ == '__main__':
