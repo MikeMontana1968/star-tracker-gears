@@ -10,10 +10,14 @@ Last touched 2026-10-01.
 > name is cosmetic. Any real board change means a new revision (Rev D).
 > Mouser order files: `hardware/mouser_passives.csv`, `mouser_semiconductors.csv`.
 > Backorder substitution: Panasonic EEU-FR1E221 (C5) and EEU-FR1E101 (C11) were
-> backordered and replaced by 2x Nichicon `UHE1E221MPD` (220 uF / 25 V, 8 mm,
-> 3.5 mm pitch) in `hardware/mouser_backorder_replacements.csv`. **C11 is now
-> 220 uF, not 100 uF** (more VMOT bulk, fine); bend the leads out to the 5 mm
-> pads. `mouser_passives.csv` still lists the original Panasonic parts.
+> backordered at Mouser, and so was the proposed Nichicon `UHE1E221MPD`
+> (`hardware/mouser_backorder_replacements.csv` is NOT ordered). Bought on
+> **Amazon** instead (2026-10-01): Innfeeltech 220 uF / 25 V / 105 C aluminum
+> radial electrolytic, 50-pack, general-purpose (ESR not stated). Use for C5
+> and C11. **C11 is therefore 220 uF, not 100 uF** (a fine upsize, more VMOT
+> bulk). If the driver resets or steps noisily, swap C11 for a low-ESR part
+> first. Bend leads out to the 5 mm pads. `mouser_passives.csv` still lists the
+> original Panasonic parts.
 
 ## Controller board Rev C — sent to fab
 
