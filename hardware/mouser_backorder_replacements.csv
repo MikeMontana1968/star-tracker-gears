@@ -1,0 +1,2 @@
+Mouser Part Number,Manufacturer Part Number,Manufacturer,Quantity,Description,Customer Part Number,Notes
+647-UHE1E221MPD,UHE1E221MPD,Nichicon,2,"Electrolytic 220 uF 25 V low impedance 105 C, 8 x 11.5 mm, 3.5 mm pitch",C5 C11,"Replaces backordered Panasonic EEU-FR1E221 (C5) and EEU-FR1E101 (C11). C11 goes from 100 uF to 220 uF: more VMOT bulk, fine. 3.5 mm leads into 5.0 mm pads: bend out. C11 must sit at the driver socket"

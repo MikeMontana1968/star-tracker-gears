@@ -1,8 +1,21 @@
 # RESUME — where this stands and what is next
 
-Last touched 2026-09-27.
+Last touched 2026-10-01.
 
-## Controller board Rev C — ready to order
+> **PCB FROZEN — Rev C Gerbers were sent to the fab house (2026-10-01).**
+> Do NOT modify `hardware/star_tracker_ctrl/`, `design.py`, `gen_board.py`,
+> `place.py`, `route.py` or re-export Gerbers. Work around it in the build
+> instead. Known workaround: L1 is a Murata `19R333C` (6.0 mm lead pitch) on
+> the 5.0 mm `Fastron_11P` footprint; squeeze the leads 1 mm. The footprint
+> name is cosmetic. Any real board change means a new revision (Rev D).
+> Mouser order files: `hardware/mouser_passives.csv`, `mouser_semiconductors.csv`.
+> Backorder substitution: Panasonic EEU-FR1E221 (C5) and EEU-FR1E101 (C11) were
+> backordered and replaced by 2x Nichicon `UHE1E221MPD` (220 uF / 25 V, 8 mm,
+> 3.5 mm pitch) in `hardware/mouser_backorder_replacements.csv`. **C11 is now
+> 220 uF, not 100 uF** (more VMOT bulk, fine); bend the leads out to the 5 mm
+> pads. `mouser_passives.csv` still lists the original Panasonic parts.
+
+## Controller board Rev C — sent to fab
 
 The blocker is gone. The pin check ran on the module in hand and the board
 was redrawn for it:

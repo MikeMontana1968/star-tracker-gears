@@ -1,0 +1,14 @@
+Mouser Part Number,Manufacturer Part Number,Manufacturer,Quantity,Description,Customer Part Number,Notes
+,C320C104K5R5TA,KEMET,15,"Ceramic 100 nF 50 V X7R radial, 2.5 mm lead pitch",C2 C4 C6 C8 C10 C12 C13 C15 C16 C17,"10 needed, 5 spare"
+,EEU-FR1E471,Panasonic,2,"Electrolytic 470 uF 25 V low ESR, 10 mm dia, 5 mm pitch",C1 C3,10 mm / 5 mm pitch: matches footprint
+,EEU-FR1E221,Panasonic,1,"Electrolytic 220 uF 25 V low ESR, 8 mm dia",C5,Leads are 3.5 mm pitch; footprint is 5.0 mm - bend leads out
+,EEU-FR1E101,Panasonic,1,"Electrolytic 100 uF 25 V low ESR, 6.3 mm dia",C11,"Leads are 2.5 mm pitch; footprint is 5.0 mm - bend out. VMOT bulk, must sit at driver socket"
+,EEU-FR1C101,Panasonic,1,"Electrolytic 100 uF 16 V low ESR, 6.3 mm dia",C7,Leads 2.5 mm; footprint 3.5 mm - bend out
+,EEU-FR1A101,Panasonic,1,"Electrolytic 100 uF 10 V low ESR, 6.3 mm dia",C9,Leads 2.5 mm; footprint 3.5 mm - bend out
+,MFR-25FBF52-10K,YAGEO,10,Resistor 10 k 1/4 W 1% metal film,R1 R3 R4 R9 R13 R16 R18,7 needed
+,MFR-25FBF52-4K7,YAGEO,5,Resistor 4.7 k 1/4 W 1% metal film,R12 (R10 R11 optional),R12 required; R10/R11 only if the DS3231 module has no pull-ups
+,MFR-25FBF52-1K,YAGEO,10,Resistor 1 k 1/4 W 1% metal film,R2 R6 R7 R17,4 needed
+,MFR-25FBF52-100K,YAGEO,10,Resistor 100 k 1/4 W 1% metal film,R5 R19 R14,3 needed (R14 is spec'd 1%; 1% parts used for all)
+,MFR-25FBF52-18K,YAGEO,5,Resistor 18 k 1/4 W 1% metal film,R15,1 needed
+,MFR-25FBF52-330R,YAGEO,5,Resistor 330 ohm 1/4 W 1% metal film,R8,1 needed
+,19R333C,Murata Power Solutions,1,"Radial inductor 33 uH 10% 3.7 A 32 mOhm, 12 mm dia x 23 mm, 6 mm lead pitch",L1,Datasheet-verified (KMP_1900RC_C01). Leads 6.0 mm pitch vs 5.0 mm footprint: squeeze 1 mm. Body 12 mm matches

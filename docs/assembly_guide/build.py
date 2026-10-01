@@ -135,6 +135,11 @@ def main():
     bb_vb, bb_in = svg_parts(bb)
     sc_vb, sc_in = svg_parts(sc)
     ki_vb, ki_in = svg_parts(ki)
+    # the schematic is label-connected (pin stub + net name, no drawn wires), so
+    # draw each net's connections under the symbols or the page shows islands
+    sys.path.insert(0, os.path.join(os.path.expanduser('~'), '.claude', 'skills', 'flatpack-guide', 'scripts'))
+    import kicad_nets
+    ki_in = kicad_nets.overlay(SCH) + ki_in
     symbols = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true">'
                '<symbol id="fz-bb" viewBox="%s">%s</symbol>'
                '<symbol id="fz-sch" viewBox="%s">%s</symbol>'
