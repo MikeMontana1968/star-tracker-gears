@@ -1,0 +1,18 @@
+Mouser Part Number,Manufacturer Part Number,Manufacturer,Quantity,Description,Ref Des,Notes
+490-TB001-500-02BE,TB001-500-02BE,Same Sky,3,Terminal block 2-pos 5.00 mm pitch horizontal,J1 J3,2 needed + 1 spare
+,TB001-500-04BE,Same Sky,2,Terminal block 4-pos 5.00 mm pitch horizontal,J4,1 needed + 1 spare
+710-614004134726,614004134726,Wurth Elektronik,1,USB-A receptacle THT right angle,J2,exact footprint part
+,SSW-115-01-T-S,Samtec,2,Socket strip 1x15 2.54 mm THT tin,J20 J21,ESP32 socket
+,SSW-108-01-T-S,Samtec,2,Socket strip 1x8 2.54 mm THT tin,J30 J31,TMC2209 socket
+,SSW-106-01-T-S,Samtec,1,Socket strip 1x6 2.54 mm THT tin,J6,DS3231 socket
+,TSW-140-07-T-S,Samtec,2,Pin header 1x40 2.54 mm THT tin,J5 J7-J11 JP3-JP5,32 pins needed; cut to length
+,SNT-100-BK-T,Samtec,5,Jumper shunt 2.54 mm,JP3 JP4 JP5,3 needed + 2 spare
+611-PTS645SM432,PTS645SM43-2 LFS,C&K,3,Tactile switch 6x6 mm THT 4.3 mm,SW1,1 needed + 2 spare
+942-IRF4905PBF,IRF4905PBF,Infineon,2,P-MOSFET 55 V TO-220,Q2,1 needed + 1 spare
+,2N3904BU,onsemi,3,NPN transistor TO-92,Q5,1 needed + 2 spare
+,WP710A10GD,Kingbright,3,LED 3 mm green,LED1,1 needed + 2 spare
+,C320C104K5R5TA,KEMET,12,Ceramic 100 nF 50 V X7R 2.54 mm,C6 C8 C10 C12 C13 C15 C16 C17,8 needed + 4 spare
+,01110501Z,Littelfuse,4,Fuse clip 5x20 mm PCB mount (111 series),F1,2 needed + 2 spare; matches the Littelfuse 111 footprint
+,0218003.HXP,Littelfuse,3,Fuse 3 A 250 V 5x20 mm slow-blow,F1,1 needed + 2 spare; slow-blow rides through the C1/C3 inrush
+,6094BG,Boyd (Aavid),2,Clip-on heatsink TO-220 6.45 mm deep x 20.3 mm wide,U2,DRY-FIT FIRST: only ~6.7 mm behind the tab before C1
+,24393,Keystone,4,Standoff hex M3 female-female 10 mm brass,H1-H4,screws from the M3 assortment (M3x6)

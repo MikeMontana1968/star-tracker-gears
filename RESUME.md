@@ -50,6 +50,82 @@ I2C scan:
    Gerbers (PCB.md §11) and order.
 2. Firmware slice 1 onward (FIRMWARE.md §0). The pin constants are §4.
 3. Build per the assembly guide, `docs/assembly_guide/stjarnspar.pdf`.
+## Rev D layout notes (from building Rev C)
+
+Collected while assembling the first Rev C board; apply together at the next
+regenerate.
+
+1. **F1 fuse clips are turned 90 degrees.** The footprint is
+   `Fuseholder_Clip-5x20mm_Littelfuse_111_Inline`: its two legs per clip run
+   along the fuse axis, but the clips in hand have their legs across it. Swap to
+   a `..._Lateral_...` footprint (legs 5.00 mm apart across the fuse); pick it by
+   the clip-to-clip spacing of the actual clips (Littelfuse 111 Lateral 18.80,
+   Bel FC-203-22 17.80, Littelfuse 521 17.00, Schurter OG 15.00). Rev C build:
+   hand-hacked.
+2. **C11, C12, R7 and R9 crowd J4.** Too close to the motor screw terminal to get
+   the motor leads in around them. Move the TMCX region in `place.py` (x 112-148,
+   y 56-80) away from J4 at (118, 48) -- keep C11 at the driver's VM pin, which is
+   its whole job, and give J4 clear access from the board edge.
+3. **Label J2 on the silkscreen as camera power, not USB data.** It reads like a
+   second USB port for the ESP32; it is the switched camera 5 V (`+5V_CAM`), with
+   D+/D- tied together (charging-port signal) and no data. Something like
+   `CAMERA 5V OUT - power only` beside J2 (and `CAM 5V` already marks J3), plus
+   `PROGRAM VIA THE ESP32'S OWN USB` near the module's USB end. Add to `SILK` in
+   `place.py`.
+4. **Label SW1 on the silkscreen** -- `CONFIG / WAKE`. It reads as a reset
+   button; reset is the ESP32 module's own EN button. SW1 wakes the tracker from
+   deep sleep, raises the setup Wi-Fi, and steps the OLED pages.
+5. **Room for clip-on heatsinks on Q1, Q2 and U2** (all TO-220). Keep the space
+   around each tab clear of other parts, and keep the heatsinks from touching
+   each other: the tabs are live -- Q1's at +12 V (drain), Q2's at +5V_CAM
+   (drain), U2's at GND. By calculation Q1 and Q2 dissipate under 0.2 W and run
+   cool bare, but Q2 sees only -5 V of gate drive (see the Test 4 note), so the
+   space is cheap insurance.
+   **Design target (no heatsinks bought yet):** a generic TO-220 clip-on or
+   push-on heatsink, fins on the tab side. Reserve a keep-out per device of
+   **22 mm wide x 16 mm deep behind the tab x 25 mm tall**, plus **2 mm air**
+   between neighbouring keep-outs and to any tall part (electrolytics, L1). Draw
+   it on F.Fab/F.Courtyard so `layout.check()` enforces it, and print the outline
+   on the silkscreen. Then buy any clip-on TO-220 heatsink that fits inside it
+   (roughly 20 x 13 mm footprint is the common size).
+6. **A jumper table on the silkscreen**, beside JP3-JP5 and J5:
+
+   | Jumper | Fit | What it does |
+   |---|---|---|
+   | JP4 MS1 | to GND | TMC2209 UART address bit 0 |
+   | JP5 MS2 | to GND | address bit 1 -- both to GND = address 0, which the firmware expects |
+   | JP3 PDN ALT | open | bridge only if your TMC2209 module puts UART on pin 5 |
+   | J5 DIAG | wire | flying lead from the module's DIAG pad (StallGuard) |
+
+   Silkscreen is small text: about 1.0 mm, four lines, in the clear area right
+   of the jumpers. Also note there that the V<sub>REF</sub> pot is unused (UART sets
+   current).
+7. **Name the bottom-edge connectors**, above each one (pin names are already
+   printed beside the pins):
+
+   | Ref | Label |
+   |---|---|
+   | J7 | `AS5600 ENCODER` |
+   | J6 | `DS3231 RTC - module plugs in` |
+   | J8 | `HOME SENSOR (optional)` |
+   | J10 | `I2C EXPANSION` |
+   | J9 | `GPS - cable on 2-5, PPS lead on 1` |
+
+   Place them in the fan-out channel above the strip; silk over copper there is
+   cosmetic.
+8. **Print each small transistor's part number beside its reference**:
+   `Q3 2N3904`, `Q4 2N3906`, `Q5 2N3904`. The 2N3904 (NPN) and 2N3906 (PNP) look
+   identical in TO-92 and swapping them fails quietly; the board should say
+   which goes where. (Q1/Q2 IRF4905 too, while at it.)
+9. **Separate the `Q4` reference from the `GPS PWR` group label** -- they print
+   on top of each other. Move `GPS PWR` (a `SILK` entry in `place.py`, at
+   90, 68) clear of the Q4/Q5/R17-R19 group, and check the DRC's silk-overlap
+   list for any others touching a reference designator.
+10. **Label J3 like J2**: `CAMERA 5V OUT - power only`, with `+5V` / `GND` at
+    its pins (pin 1, the square pad, is +5V_CAM). J3 is the screw-terminal twin
+    of the USB-A J2, both switched by Q2; the label keeps anyone from treating it
+    as a supply input.
+
 ## Module facts, measured and confirmed
 
 | | |
