@@ -151,7 +151,7 @@
     ]);
     return { w: 760 };
   };
-  // step 22: the power corner up close, so the legend has somewhere to live
+  // step 23 (read the silkscreen): the power corner up close, so the legend has somewhere to live
   FIG.pcb_iso_power = function (s) {
     if (!window.BOARD) return { scale: 1 };
     drawBoard(s, { region: [0, 20, 58, 100], modules: false });

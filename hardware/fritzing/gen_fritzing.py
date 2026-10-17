@@ -14,13 +14,16 @@ and the wires land on it:
     from the layout, so the illustration follows the board when it changes
   - battery, fuse, NEMA 17, AS5600, GY-NEO6MV2 and the GoPro are drawn here
 
-Breadboard view carries the realistic wiring (bezier wires, Fritzing colours).
+Breadboard view carries the harnesses in Fritzing colours, drawn square (straight
+runs joined at bendpoints) and ordered so wires do not cross; where two pin orders
+force a crossing (the AS5600 lead) it is a 90-degree one, and as few as possible.
 Schematic view carries the same connections as a clean system diagram: each
 external part is placed so its pins sit level with the board pins they meet,
 so every trace is one straight line.
 
 Units: part SVGs are authored in mm. Fritzing's scene is 90 px per inch.
 """
+import itertools
 import math
 import os
 import sys
@@ -397,15 +400,18 @@ def motor():
          + ''.join('<circle cx="%s" cy="%s" r="1.6" fill="#111"/>' % (f(x), f(y)) for x, y in ((5.5, 5.5), (36.5, 5.5), (5.5, 36.5), (36.5, 36.5)))
          + text(21, 40.5, 'NEMA 17 pancake', 2.4)
          + '<rect x="-6" y="14" width="6" height="14" fill="#e8e8e8" stroke="#999" stroke-width="0.3"/>')
-    cols = (BLACK, GREEN, RED, BLUE)
+    # leads top to bottom B2 B1 A2 A1: the mirror of J4's left-to-right order,
+    # so the harness can leave J4 downward and fold round without crossing
+    order = ('B2', 'B1', 'A2', 'A1')
+    cols = {'A1': BLACK, 'A2': GREEN, 'B1': RED, 'B2': BLUE}
     tails = ''
-    for i, c in enumerate(cols):
+    for i, n in enumerate(order):
         y = 15.5 + i * 3.6
-        tails += '<line x1="-6" y1="%s" x2="-14" y2="%s" stroke="%s" stroke-width="1.3"/>' % (f(y), f(y), c)
+        tails += '<line x1="-6" y1="%s" x2="-14" y2="%s" stroke="%s" stroke-width="1.3"/>' % (f(y), f(y), cols[n])
     p = Part('motor', 'Stepper, NEMA 17 pancake', 'M', 42 + 14, 42, '<g transform="translate(14 0)">' + a + tails + '</g>',
              'bipolar, 0.7 A. Lead colours vary: find the pairs with a meter.')
-    for i, n in enumerate(('A1', 'A2', 'B1', 'B2')):
-        p.conn(n, 'coil %s' % n[0], 0.6, 15.5 + i * 3.6, 'L', i)
+    for n in ('A1', 'A2', 'B1', 'B2'):          # schematic rows stay A1..B2
+        p.conn(n, 'coil %s' % n[0], 0.6, 15.5 + order.index(n) * 3.6, 'L', ('A1', 'A2', 'B1', 'B2').index(n))
     return p
 
 
@@ -456,6 +462,24 @@ def gopro():
     return p
 
 
+def crossings(paths):
+    """How many times the square-drawn wires cross each other: each path is a
+    list of points joined by horizontal/vertical runs."""
+    segs = []
+    for w, pts in enumerate(paths):
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+            segs.append((w, min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1), abs(y1 - y0) < 1e-6))
+    n = 0
+    for i, a in enumerate(segs):
+        for b in segs[i + 1:]:
+            if a[0] == b[0] or a[5] == b[5]:
+                continue
+            h, v = (a, b) if a[5] else (b, a)
+            if h[1] < v[1] < h[3] and v[2] < h[2] < v[4]:
+                n += 1
+    return n
+
+
 # --------------------------------------------------------------------------
 # the sketch
 # --------------------------------------------------------------------------
@@ -490,6 +514,10 @@ class Sketch:
     def link(self, a, ac, b, bc, view):
         self.links.setdefault((a, ac, view), []).append((b, bc))
 
+    def pin_mm(self, mi, cname):
+        x, y, _ = self.pin_bb(mi, cname)
+        return x / MM, y / MM
+
     def wire(self, a, an, b, bn, color, sag=0.0, mils=22.2222):
         """one breadboard wire (curved) and one schematic trace, same two pins"""
         x0, y0, ac = self.pin_bb(a, an)
@@ -498,12 +526,32 @@ class Sketch:
         dx, dy = x1 - x0, y1 - y0
         self.wires.append(dict(kind='bb', mi=wb, x=x0, y=y0, dx=dx, dy=dy, color=color, mils=mils,
                                cp=((dx * 0.3, dy * 0.3 + sag * MM), (dx * 0.7, dy * 0.7 + sag * MM)),
-                               a=(a, ac), b=(b, bc)))
+                               c0=[(a, ac, 'part')], c1=[(b, bc, 'part')]))
         self.link(a, ac, wb, 'connector0', 'bb'); self.link(b, bc, wb, 'connector1', 'bb')
-        sx0, sy0, _ = self.pin_sch(a, an)
-        sx1, sy1, _ = self.pin_sch(b, bn)
+        self.sch_trace(a, an, b, bn)
+
+    def route(self, a, an, b, bn, color, via, mils=22.2222):
+        """one breadboard wire drawn square: straight segments through the bend
+        points `via` (breadboard mm), chained end to end the way Fritzing
+        stores a wire with bendpoints; plus the schematic trace"""
+        pts = [self.pin_bb(a, an)[:2]] + [(x * MM, y * MM) for x, y in via] + [self.pin_bb(b, bn)[:2]]
+        ac, bc = self.pin_bb(a, an)[2], self.pin_bb(b, bn)[2]
+        ids = [self.nid() for _ in range(len(pts) - 1)]
+        for k, mi in enumerate(ids):
+            (x0, y0), (x1, y1) = pts[k], pts[k + 1]
+            c0 = [(a, ac, 'part')] if k == 0 else [(ids[k - 1], 'connector1', 'wire')]
+            c1 = [(b, bc, 'part')] if k == len(ids) - 1 else [(ids[k + 1], 'connector0', 'wire')]
+            self.wires.append(dict(kind='bb', mi=mi, x=x0, y=y0, dx=x1 - x0, dy=y1 - y0, color=color, mils=mils,
+                                   cp=None, c0=c0, c1=c1))
+        self.link(a, ac, ids[0], 'connector0', 'bb'); self.link(b, bc, ids[-1], 'connector1', 'bb')
+        self.sch_trace(a, an, b, bn)
+
+    def sch_trace(self, a, an, b, bn):
+        sx0, sy0, ac = self.pin_sch(a, an)
+        sx1, sy1, bc = self.pin_sch(b, bn)
         ws = self.nid()
-        self.wires.append(dict(kind='sch', mi=ws, x=sx0, y=sy0, dx=sx1 - sx0, dy=sy1 - sy0, a=(a, ac), b=(b, bc)))
+        self.wires.append(dict(kind='sch', mi=ws, x=sx0, y=sy0, dx=sx1 - sx0, dy=sy1 - sy0,
+                               c0=[(a, ac, 'part')], c1=[(b, bc, 'part')]))
         self.link(a, ac, ws, 'connector0', 'sch'); self.link(b, bc, ws, 'connector1', 'sch')
 
     # ---- XML ---------------------------------------------------------------
@@ -533,16 +581,21 @@ class Sketch:
                    f(1.5 + n * 0.001), f(i['pcb'][0] * MM), f(i['pcb'][1] * MM)))
         wires = []
         for n, w in enumerate(self.wires):
-            (am, ac), (bm, bc) = w['a'], w['b']
             if w['kind'] == 'bb':
                 view, layer, plyr, flags = 'breadboardView', 'breadboardWire', 'breadboardbreadboard', 64
-                extras = ('<wireExtras mils="%s" color="%s" opacity="1" banded="0"><bezier><cp0 x="%s" y="%s"/><cp1 x="%s" y="%s"/></bezier></wireExtras>'
-                          % (f(w['mils']), w['color'], f(w['cp'][0][0]), f(w['cp'][0][1]), f(w['cp'][1][0]), f(w['cp'][1][1])))
+                bez = ('<bezier><cp0 x="%s" y="%s"/><cp1 x="%s" y="%s"/></bezier>'
+                       % (f(w['cp'][0][0]), f(w['cp'][0][1]), f(w['cp'][1][0]), f(w['cp'][1][1]))) if w['cp'] else ''
+                extras = '<wireExtras mils="%s" color="%s" opacity="1" banded="0">%s</wireExtras>' % (f(w['mils']), w['color'], bez)
                 z = 3.5 + n * 0.0001
             else:
                 view, layer, plyr, flags = 'schematicView', 'schematicTrace', 'schematic', 128
                 extras = '<wireExtras mils="9.7222" color="#404040" opacity="1" banded="0"/>'
                 z = 5.5 + n * 0.0001
+
+            def cx(lst):
+                # a part pin sits on the part's layer; a bendpoint joins the next wire on the wire layer
+                return ''.join('<connect connectorId="%s" modelIndex="%d" layer="%s"/>' % (c, m, plyr if kind == 'part' else layer)
+                               for m, c, kind in lst)
             wires.append('''<instance moduleIdRef="WireModuleID" modelIndex="%d" path="wire.fzp">
   <title>Wire%d</title>
   <views>
@@ -550,13 +603,13 @@ class Sketch:
     <geometry z="%s" x="%s" y="%s" x1="0" y1="0" x2="%s" y2="%s" wireFlags="%d"/>
     %s
     <connectors>
-     <connector connectorId="connector0" layer="%s"><geometry x="0" y="0"/><connects><connect connectorId="%s" modelIndex="%d" layer="%s"/></connects></connector>
-     <connector connectorId="connector1" layer="%s"><geometry x="0" y="0"/><connects><connect connectorId="%s" modelIndex="%d" layer="%s"/></connects></connector>
+     <connector connectorId="connector0" layer="%s"><geometry x="0" y="0"/><connects>%s</connects></connector>
+     <connector connectorId="connector1" layer="%s"><geometry x="0" y="0"/><connects>%s</connects></connector>
     </connectors>
    </%s>
   </views>
  </instance>''' % (w['mi'], n + 1, view, layer, f(z), f(w['x']), f(w['y']), f(w['dx']), f(w['dy']), flags, extras,
-                   layer, ac, am, plyr, layer, bc, bm, plyr, view))
+                   layer, cx(w['c0']), layer, cx(w['c1']), view))
         return '''<?xml version="1.0" encoding="UTF-8"?>
 <module fritzingVersion="1.0.8">
  <views>
@@ -604,22 +657,50 @@ def main():
     mi_fu = S.place(fu, (-66, -16), s_fuse, (-40, 0))
     mi_mot = S.place(mot, (178, 22), s_mot, (170, 0))
     mi_enc = S.place(enc, (-18, 128), s_enc, (0, 120))
-    mi_gps = S.place(gp, (66, 128), s_gps, (40, 120))
+    # GPS header pins (VCC RX TX GND) directly under J9 pins 2-5: straight drops
+    j9_2 = next(k for k in ctrl.conns if k['name'] == 'J9.2 VCC')['x']
+    gps_vcc = next(k for k in gp.conns if k['name'] == 'VCC')['x']
+    mi_gps = S.place(gp, (j9_2 - gps_vcc, 128), s_gps, (40, 120))
     mi_cam = S.place(cam, (96, -92), s_cam, (100, -60))
 
-    # ---- the harnesses
-    S.wire(mi_bat, '+', mi_fu, 'in', RED, sag=-14)
-    S.wire(mi_fu, 'out', mi_ctrl, 'J1.1 +12V', RED, sag=10)
-    S.wire(mi_bat, '-', mi_ctrl, 'J1.2 GND', BLACK, sag=6)
-    for n, c in zip(('A1', 'A2', 'B1', 'B2'), (BLACK, GREEN, RED, BLUE)):
-        S.wire(mi_ctrl, 'J4.%d %s' % ('A1 A2 B1 B2'.split().index(n) + 1, n), mi_mot, n, c, sag=6)
-    for bn, pn, c in (('J7.1 GND', 'GND', BLACK), ('J7.2 3V3', 'VCC', RED), ('J7.3 SDA', 'SDA', BLUE),
-                      ('J7.4 SCL', 'SCL', YELLOW), ('J7.5 DIR', 'DIR', GREY)):
-        S.wire(mi_ctrl, bn, mi_enc, pn, c, sag=8)
-    for bn, pn, c in (('J9.1 PPS', 'PPS', ORANGE), ('J9.2 VCC', 'VCC', RED), ('J9.3 RXD', 'RX', GREEN),
-                      ('J9.4 TXD', 'TX', PURPLE), ('J9.5 GND', 'GND', BLACK)):
-        S.wire(mi_ctrl, bn, mi_gps, pn, c, sag=8)
+    # ---- the harnesses, drawn square (straight runs, bendpoints), ordered so
+    # that no two wires cross; where a pin order forces a crossing it is at 90 deg
+    P = S.pin_mm
+    # power: + over the top through the fuse into J1.1; - under it into J1.2
+    bp, fi, fo, j1a, j1b = P(mi_bat, '+'), P(mi_fu, 'in'), P(mi_fu, 'out'), P(mi_ctrl, 'J1.1 +12V'), P(mi_ctrl, 'J1.2 GND')
+    S.route(mi_bat, '+', mi_fu, 'in', RED, [(bp[0], fi[1])])
+    S.route(mi_fu, 'out', mi_ctrl, 'J1.1 +12V', RED, [(j1a[0], fo[1])])
+    bn_ = P(mi_bat, '-')
+    S.route(mi_bat, '-', mi_ctrl, 'J1.2 GND', BLACK, [(bn_[0], j1b[1] + 6), (j1b[0], j1b[1] + 6)])
+    # motor: out of J4's wire side (down), nested folds, into the motor leads
+    # (A1 leftmost at J4 = outermost fold = bottom lead)
+    for i, n in enumerate(('A1', 'A2', 'B1', 'B2')):
+        s, d = P(mi_ctrl, 'J4.%d %s' % (i + 1, n)), P(mi_mot, n)
+        lvl, col = s[1] + 5 + 2.2 * (3 - i), 155 + 3 * (3 - i)
+        S.route(mi_ctrl, 'J4.%d %s' % (i + 1, n), mi_mot, n, (BLACK, GREEN, RED, BLUE)[i],
+                [(s[0], lvl), (col, lvl), (col, d[1])])
+    # encoder: J7's order is not the breakout's, so some wires must cross. Each
+    # wire drops, runs across at its own level, drops into its pin; the levels
+    # are ordered to give the fewest crossings, all of them square
+    enc_w = (('J7.1 GND', 'GND', BLACK), ('J7.2 3V3', 'VCC', RED), ('J7.3 SDA', 'SDA', BLUE),
+           ('J7.4 SCL', 'SCL', YELLOW), ('J7.5 DIR', 'DIR', GREY))
+    ends = [(P(mi_ctrl, bn), P(mi_enc, pn)) for bn, pn, _ in enc_w]
+    top, bot = 100 + 2.5, ends[0][1][1] - 4          # first run clear of the board edge (y 100)
+    levels = [top + (bot - top) * k / (len(enc_w) - 1) for k in range(len(enc_w))]
+    best = min(itertools.permutations(range(len(enc_w))),
+               key=lambda perm: crossings([[s, (s[0], levels[perm[i]]), (d[0], levels[perm[i]]), d] for i, (s, d) in enumerate(ends)]))
+    for i, (bn, pn, c) in enumerate(enc_w):
+        s, d = ends[i]
+        S.route(mi_ctrl, bn, mi_enc, pn, c, [(s[0], levels[best[i]]), (d[0], levels[best[i]])])
+    # GPS: four straight drops; PPS goes round the module's left side and in from below
+    for bn, pn, c in (('J9.2 VCC', 'VCC', RED), ('J9.3 RXD', 'RX', GREEN), ('J9.4 TXD', 'TX', PURPLE), ('J9.5 GND', 'GND', BLACK)):
+        S.route(mi_ctrl, bn, mi_gps, pn, c, [])
+    s, d = P(mi_ctrl, 'J9.1 PPS'), P(mi_gps, 'PPS')
+    gl, gb = S.find(mi_gps)['bb'][0] - 4, S.find(mi_gps)['bb'][1] + gp.h + 4
+    S.route(mi_ctrl, 'J9.1 PPS', mi_gps, 'PPS', ORANGE, [(s[0], s[1] + 9), (gl, s[1] + 9), (gl, gb), (d[0], gb)])
     S.wire(mi_ctrl, 'J2 USB-A', mi_cam, 'USB-C', '#303030', sag=-30, mils=60)
+    print('encoder harness: %d square crossing(s), the fewest its pin orders allow'
+          % crossings([[s, (s[0], levels[best[i]]), (d[0], levels[best[i]]), d] for i, (s, d) in enumerate(ends)]))
 
     parts = [ctrl, bat, fu, mot, enc, gp, cam]
     with zipfile.ZipFile(OUT, 'w', zipfile.ZIP_DEFLATED) as z:

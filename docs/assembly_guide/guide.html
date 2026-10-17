@@ -225,7 +225,7 @@ p{margin:0}
   <h1>STJÄRNSPÅR</h1>
   <p class="sub">Sidereal camera tracker, 2048 : 1. Assembly, wiring, smoke test, first light.</p>
   <figure class="fig" data-fig="cover" data-w="620" data-alt="The finished tracker: baseplate, four-stage gear train, output tower and a GoPro on top"></figure>
-  <div class="badge"><svg class="ico" style="width:26px;height:26px"><use href="#i-star"/></svg><span>Design and Quality<small>the bench of Mike</small></span></div>
+  <div class="badge"><svg class="ico" style="width:26px;height:26px"><use href="#i-star"/></svg><span>Another Amazing DIY Project<small>by Mike Montana</small></span></div>
   <footer><span>ST-2048:1</span><span>1</span></footer>
 </section>
 
@@ -244,11 +244,11 @@ p{margin:0}
   <div class="head"><h3>Contents</h3></div>
   <nav class="toc" aria-label="Contents">
     <a href="#A"><b>A</b><span>Gearbox</span><small>steps 1 to 20</small></a>
-    <a href="#B"><b>B</b><span>Controller board</span><small>steps 21 to 29</small></a>
-    <a href="#C"><b>C</b><span>Smoke test</span><small>steps 30 to 38</small></a>
-    <a href="#D"><b>D</b><span>Wiring</span><small>steps 39 to 43</small></a>
-    <a href="#E"><b>E</b><span>First power-up, calibration</span><small>steps 44 to 53</small></a>
-    <a href="#F"><b>F</b><span>How to use</span><small>steps 54 to 59</small></a>
+    <a href="#B"><b>B</b><span>Controller board</span><small>steps 21 to 40</small></a>
+    <a href="#C"><b>C</b><span>Smoke test</span><small>steps 41 to 49</small></a>
+    <a href="#D"><b>D</b><span>Wiring</span><small>steps 50 to 54</small></a>
+    <a href="#E"><b>E</b><span>First power-up, calibration</span><small>steps 55 to 64</small></a>
+    <a href="#F"><b>F</b><span>How to use</span><small>steps 65 to 70</small></a>
     <a href="#G"><b>G</b><span>Appendix: schematics</span><small>system, logical, full board</small></a>
   </nav>
   <div class="note"><svg class="ico"><use href="#i-info"/></svg><div><p>Print first, assemble second. The calibration gauges set the numbers every later step depends on: <span class="hw">BOREGAUGE</span> picks the motor pinion, <span class="hw">BEARINGGAUGE</span> sets <span class="hw">$BrgFit</span> before the tower is printed, and the fit gauge already gave the 0.50 mm post/hole offset. PRINTING.md has the order and settings.</p></div></div>
@@ -510,7 +510,7 @@ p{margin:0}
   <div class="row"><figure class="fig" data-fig="cap" data-alt="Magnet into its cap, cap pressed up onto the shaft end"></figure><figure class="fig" data-fig="cap_gauge" data-alt="Cap face 16.0 mm below the tower's bottom face"></figure></div>
   <ul class="do">
     <li>Check the magnet is <b>diametric</b>: spin it flat beside a compass and the needle turns a full circle with it.</li>
-    <li>Magnet flush into the pocket in the cap's end face. Press the cap up onto the shaft until the shaft bottoms. Do not glue it yet; <a href="#s48">step 48</a> sets its rotation.</li>
+    <li>Magnet flush into the pocket in the cap's end face. Press the cap up onto the shaft until the shaft bottoms. Do not glue it yet; <a href="#s48">step 59</a> sets its rotation.</li>
     <li>Slide the shaft until the cap's face is <b>16.0 mm below the tower's bottom face</b> (caliper depth rod), then tighten the hub grub.</li>
   </ul>
   <footer><span>ST-2048:1</span><span>22</span></footer>
@@ -534,7 +534,7 @@ p{margin:0}
   <ul class="do">
     <li>Solder a 5-wire lead to the breakout first: GND, VCC, SDA, SCL, DIR.</li>
     <li>Board to the bracket underside, chip <b>up</b> into the window: <span class="hw">2 × M3×6</span>, thread-forming.</li>
-    <li>Push the bracket up the tower spigot until it <b>stops on the clamp disc</b>. That puts the die 2.0 mm from the magnet. <a href="#s47">Step 47</a> confirms it with the AGC reading; then a dab of hot glue holds it there.</li>
+    <li>Push the bracket up the tower spigot until it <b>stops on the clamp disc</b>. That puts the die 2.0 mm from the magnet. <a href="#s47">Step 58</a> confirms it with the AGC reading; then a dab of hot glue holds it there.</li>
   </ul>
   <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>At 3.3 V the AS5600 wants its VDD5V and VDD3V3 pins tied together. Many breakouts have a solder bridge for this; check yours.</p></div>
   <footer><span>ST-2048:1</span><span>24</span></footer>
@@ -571,7 +571,7 @@ p{margin:0}
 </div>
 
 <!-- ===================== B BOARD ===================== -->
-<div class="divider" id="B"><span class="L">B</span><div><h2>Controller board</h2><p>All through-hole, every module in a socket. Solder in rounds, lowest parts first, and test after each round (section C) before the next.</p></div></div>
+<div class="divider" id="B"><span class="L">B</span><div><h2>Controller board</h2><p>All through-hole, every module in a socket. Written for a first board: one kind of part at a time, simplest first, each with a map of where it goes. Then test everything (section C) before any module goes in.</p></div></div>
 <div class="grid">
 
 <section class="sheet wide" id="b0">
@@ -611,112 +611,284 @@ p{margin:0}
   <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 
-<section class="sheet" id="s21">
+<section class="sheet" id="b-board">
   <div class="head"><span class="no-">21</span><h3>Which board?</h3></div>
-  <div class="note"><svg class="ico"><use href="#i-info"/></svg><div><p><b>Build board Rev C.</b> It is laid out for the module in hand: the 30-pin ideaspark ESP32 + 0.96" OLED, rows 27.94 mm apart. Rev B was drawn for a 38-pin DevKitC and does not fit it.</p><p>The pin map was settled by the pin check (<a href="#s44">step 44</a>): the OLED shares the sensor I²C bus on GPIO 21/22, so WAKE stays on GPIO 4, and the module has no PSRAM. Using a different ESP32 board? Run the pin check on it first.</p></div></div>
-  <p class="lead-in">Everything in this section is about part orientation, which does not change between revisions. Where a step names a pin, it uses the signal name printed beside the socket (<b>CAM_EN</b>, <b>GPS_EN</b>, <b>VBAT_SENSE</b>), not a GPIO number.</p>
-  <footer><span>ST-2048:1</span><span>28</span></footer>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><div><p><b>Build board Rev C.</b> It is laid out for the module in hand: the 30-pin ideaspark ESP32 + 0.96" OLED, rows 27.94 mm apart. Rev B was drawn for a 38-pin DevKitC and does not fit it.</p><p>The pin map was settled by the pin check (<a href="#s44">step 55</a>): the OLED shares the sensor I²C bus on GPIO 21/22, so WAKE stays on GPIO 4, and the module has no PSRAM. Using a different ESP32 board? Run the pin check on it first.</p></div></div>
+  <p class="lead-in">This section is written for a first board. Parts go in <b>one kind at a time</b>, simplest first. Each kind gets two pages: <b>how</b> the part goes in, then a <b>map</b> of the board with every place it goes, its value, and a box to tick.</p>
+  <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 
-<section class="sheet" id="s22">
-  <div class="head"><span class="no-">22</span><h3>Read the silkscreen</h3></div>
+<section class="sheet" id="b-solder">
+  <div class="head"><span class="no-">22</span><h3>Soldering, the basics</h3></div>
+  <figure class="fig" data-fig="solder_how" data-alt="Iron touching pad and lead together, solder fed to the joint from the other side"></figure>
+  <div class="cmp">
+    <div class="ok"><figure class="fig" data-fig="joint_ok"></figure>a shiny cone that hugs the lead</div>
+    <div class="no"><figure class="fig" data-fig="joint_blob"></figure>a ball: too much, may not wet the pad</div>
+  </div>
+  <div class="cmp">
+    <div class="no"><figure class="fig" data-fig="joint_cold"></figure>dull, grainy, a gap at the pad: reheat it</div>
+    <div class="no"><figure class="fig" data-fig="joint_bridge"></figure>joins two pads: drag it apart or wick it off</div>
+  </div>
+  <ul class="do">
+    <li>Iron at <b>330 to 350 °C</b>. Wipe the tip on damp sponge or brass wool, then melt a little solder onto it (<b>tinning</b>): a shiny tip moves heat.</li>
+    <li>Use <b>0.8 mm rosin-core solder</b>. 63/37 leaded flows most easily; wash your hands after. Work with a fan or open window.</li>
+    <li>Parts go in from the <b>printed side</b>. Solder from the back. Trim each lead just above the cone with flush cutters, after it is soldered.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>Never soldered before? Practise ten joints on a scrap of perfboard and some resistor offcuts first. It takes about fifteen minutes and it is the best quarter hour of the build.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<section class="sheet" id="b-silk">
+  <div class="head"><span class="no-">23</span><h3>Read the silkscreen</h3></div>
   <figure class="fig" data-fig="pcb_iso_power" data-alt="Isometric close-up of the board's power corner: regulator, electrolytics, standing resistors and diodes, LED, fuse clips"></figure>
   <figure class="fig" data-fig="pcb_legend" data-alt="Silkscreen symbols: square pad, plus sign, flat edge, bold bar, circle, pin 1"></figure>
   <ul class="do">
-    <li>The <b>square pad</b> is the one to find: pin 1 of an IC or socket, <b>+</b> of an electrolytic, <b>K</b> (cathode) of an LED or diode.</li>
-    <li>Nothing on this board is fitted by guessing. If a part does not match its outline, stop.</li>
+    <li>The <b>square pad</b> is the one to find: pin 1 of a socket, <b>+</b> of an electrolytic, <b>K</b> (cathode) of a diode or LED.</li>
+    <li>Hold the board as the maps show it: <b>J1 (12 V IN) at the top left</b>, the row of headers along the bottom.</li>
+    <li>Nothing on this board is fitted by guessing. If a part does not match its outline, stop and check.</li>
   </ul>
-  <footer><span>ST-2048:1</span><span>29</span></footer>
+  <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 
-<section class="sheet" id="s23">
-  <div class="head"><span class="no-">23</span><h3>Round 1: resistors</h3></div>
-  <figure class="fig" data-fig="pcb_res" data-alt="Resistor standing over the circle, top lead bent over into the other pad"></figure>
+<section class="sheet" id="b-order">
+  <div class="head"><span class="no-">24</span><h3>The order of work</h3></div>
   <div class="tblwrap"><table class="tbl">
-    <tr><th>Value</th><th>Refs</th><th></th></tr>
-    <tr><td>10k</td><td>R1 R3 R4 R9 R13 R16 R18</td><td></td></tr>
-    <tr><td>100k</td><td>R5 R19</td><td>hold camera and GPS off</td></tr>
-    <tr><td>4.7k</td><td>R12</td><td>WAKE pull-up, always fit</td></tr>
-    <tr><td>1k</td><td>R2 R6 R7 R17</td><td></td></tr>
-    <tr><td>330R</td><td>R8</td><td>red status LED</td></tr>
-    <tr><td>100k 1%, 18k 1%</td><td>R14, R15</td><td>battery divider</td></tr>
-    <tr><td>leave empty</td><td>R10 R11</td><td>the DS3231 module has its own</td></tr>
+    <tr><th></th><th>Kind</th><th>How many</th><th>New idea</th></tr>
+    <tr><td>1</td><td>Resistors</td><td>17</td><td>bending a lead, reading a value</td></tr>
+    <tr><td>2</td><td>Ceramic capacitors</td><td>10</td><td>reading a code</td></tr>
+    <tr><td>3</td><td>Electrolytic capacitors</td><td>6</td><td><b>polarity</b>: one way round only</td></tr>
+    <tr><td>4</td><td>Diodes and LEDs</td><td>6</td><td>polarity marked by a stripe or a flat</td></tr>
+    <tr><td>5</td><td>Male headers and jumpers</td><td>9</td><td>cutting a strip, keeping it upright</td></tr>
+    <tr><td>6</td><td>Female sockets</td><td>5</td><td>using the module as a jig</td></tr>
+    <tr><td>7</td><td>Terminals, USB, button, fuse clips</td><td>6</td><td>big pins, big joints</td></tr>
+    <tr><td>8</td><td>Small transistors</td><td>3</td><td>reading the part number</td></tr>
+    <tr><td>9</td><td>Power parts and heatsinks</td><td>4</td><td>live metal tabs, heat</td></tr>
   </table></div>
-  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>Measure each resistor with the meter before it goes in. It is faster and more reliable than reading bands.</p></div>
-  <footer><span>ST-2048:1</span><span>30</span></footer>
-</section>
-
-<section class="sheet" id="s24">
-  <div class="head"><span class="no-">24</span><h3>Round 1: small caps and D1</h3></div>
-  <figure class="fig" data-fig="pcb_diode" data-alt="Diode standing over the circle, stripe at the top, bent lead into the square K pad"></figure>
+  <figure class="fig" data-fig="bend_lead" data-alt="Leads splayed outward under the board to hold the part in place"></figure>
   <ul class="do">
-    <li><span class="hw">10 × 100 nF</span> ceramics, marked <b>104</b>. No polarity.</li>
-    <li><b>D1</b> <span class="hw">1N4744A</span> zener stands like a resistor, <b>stripe at the top</b>. The bent top lead goes into the <b>square K pad</b>; the body stands over the circle.</li>
+    <li>Fit all of one kind, splay the legs so they stay put, turn the board over, solder them all, trim them all. Then tick them off on the map.</li>
+    <li>From kind 3 on, the board no longer lies flat on its face. A vise or a "helping hands" stand, or a strip of masking tape over each part, keeps it steady.</li>
+    <li>When kind 9 is done, the <a href="#b-quick">quick check</a> (step 39) lights the board for the first time. Then <a href="#C">section C</a> tests it properly, <b>before</b> any module goes in.</li>
   </ul>
-  <footer><span>ST-2048:1</span><span>31</span></footer>
+  <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 
-<section class="sheet" id="s25">
-  <div class="head"><span class="no-">25</span><h3>Round 2: power input</h3></div>
-  <figure class="fig" data-fig="pcb_to220" data-alt="TO-220 transistor: tab toward the bold bar, pin 1 in the square pad"></figure>
-  <figure class="fig" data-fig="pcb_fuse" data-alt="Fuse clips with their stop tabs facing outward"></figure>
+<!-- resistors -->
+<section class="sheet" id="b-res">
+  <div class="head"><span class="no-">25</span><h3>Resistors: how</h3></div>
+  <figure class="fig" data-fig="pcb_res" data-alt="Resistor standing over the circle, top lead bent over into the other pad"></figure>
   <ul class="do">
-    <li><b>Q1</b> <span class="hw">IRF4905</span>: metal tab toward the bold bar, pin 1 (gate) in the square pad. Printed face toward you, the legs read G D S.</li>
-    <li><b>D2</b> <span class="hw">P6KE20CA</span> is bidirectional, so either way up.</li>
-    <li><b>F1</b> clips with stop tabs <b>out</b>, <b>C1</b> 470 µF (next panel), <b>J1</b> terminal with its openings to the board edge.</li>
-    <li>Then go to <a href="#s30">Test 0 to Test 2</a>.</li>
+    <li>These resistors <b>stand up</b>. Bend one lead tightly over the top of the body and down beside it. The body stands over the <b>circle</b>; the bent lead goes into the other hole.</li>
+    <li>No polarity: either end can go up.</li>
+    <li><b>Measure every resistor</b> with the meter on Ω before it goes in. It is quicker and surer than reading colours, and the colours below confirm it.</li>
   </ul>
-  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>Q1 is where reverse-polarity protection is won or lost: drain to the supply, source to the load. The footprint fixes that, as long as pin 1 is in the square pad.</p></div>
-  <footer><span>ST-2048:1</span><span>32</span></footer>
+  <figure class="fig" data-fig="res_bands" data-values="10k 1k 100k 4.7k 330 100k:1% 18k:1%" data-alt="Colour bands for each resistor value, ordinary and precision"></figure>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p><b>R14 and R15 are the 1 % pair</b> that scales the battery voltage for the ESP32. Keep them apart from the ordinary 100 kΩ resistors: a swap makes every battery reading wrong.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 
-<section class="sheet" id="s26">
-  <div class="head"><span class="no-">26</span><h3>Round 3: the 5 V buck</h3></div>
-  <figure class="fig" data-fig="pcb_lm2596" data-alt="LM2596T-5.0 with five staggered legs"></figure>
+<section class="sheet wide" id="b-res-map">
+  <div class="head"><span class="no-">26</span><h3>Resistors: where</h3></div>
+  <figure class="fig" data-fig="pcb_map" data-match="^R\d+$" data-skip="R10 R11" data-alt="Board map with every resistor position highlighted and labelled with its value"></figure>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>Value</th><th>How many</th><th>Where</th></tr>
+    <tr><td>10 kΩ</td><td>7</td><td>R1 R3 R4 R9 R13 R16 R18</td></tr>
+    <tr><td>1 kΩ</td><td>4</td><td>R2 R6 R7 R17</td></tr>
+    <tr><td>100 kΩ</td><td>2</td><td>R5 R19</td></tr>
+    <tr><td>4.7 kΩ</td><td>1</td><td>R12</td></tr>
+    <tr><td>330 Ω</td><td>1</td><td>R8</td></tr>
+    <tr><td>100 kΩ 1 %, 18 kΩ 1 %</td><td>1 + 1</td><td>R14, R15</td></tr>
+    <tr><td><b>leave empty</b></td><td></td><td>R10 R11: the DS3231 module has its own I²C pull-ups</td></tr>
+  </table></div>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>Work one value at a time: all seven 10 kΩ, then all four 1 kΩ, and so on. The value bag never has to be put down mid-row.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<!-- ceramics -->
+<section class="sheet wide" id="b-cer">
+  <div class="head"><span class="no-">27</span><h3>Ceramic capacitors: what and where</h3></div>
+  <figure class="fig" data-fig="cap_code" data-code="104" data-alt="A ceramic disc capacitor marked 104, decoded to 100 nF"></figure>
+  <figure class="fig" data-fig="pcb_map" data-refs="C2 C4 C6 C8 C10 C12 C13 C15 C16 C17" data-alt="Board map with every 100 nF ceramic capacitor highlighted"></figure>
+  <ul class="do">
+    <li><b>Ten, all the same: 100 nF, printed 104.</b> Small blue or yellow discs. Each one sits beside a chip or module pin and smooths its supply.</li>
+    <li>No polarity. Push it down until the kinks in its legs stop it, a millimetre or two above the board.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<!-- electrolytics -->
+<section class="sheet" id="b-elec">
+  <div class="head"><span class="no-">28</span><h3>Electrolytic capacitors: how</h3></div>
   <figure class="fig" data-fig="pcb_cap" data-alt="Electrolytic capacitor: long leg into the square plus pad, stripe away"></figure>
   <ul class="do">
-    <li><b>U2</b> <span class="hw">LM2596T-5.0</span>: legs 1, 3, 5 in one row, 2 and 4 in the other; pin 1 square. <b>Fit the clip heatsink.</b></li>
-    <li><b>L1</b> 33 µH, no polarity. <b>D3</b> <span class="hw">1N5822</span> stands like D1: stripe up, bent lead to K.</li>
-    <li><b>C3</b> 470 µF and <b>C5</b> 220 µF must be the <b>low-ESR</b> ones. Long leg into the square <b>+</b> pad, stripe away from it.</li>
-    <li><b>R2 + LED1</b> (next page). Then <a href="#s33">Test 3</a>.</li>
+    <li>These have <b>polarity</b>, the first parts on the board that do. The <b>long leg is +</b>. The <b>stripe</b> down the sleeve marks <b>−</b>.</li>
+    <li>On the board, <b>+</b> is the <b>square pad</b>, with a small <b>+</b> printed beside the circle. Long leg into the square pad, stripe away from it.</li>
+    <li>Sit each one flat on the board before soldering.</li>
   </ul>
-  <footer><span>ST-2048:1</span><span>33</span></footer>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>Where</th><th>Value</th><th>Size</th><th></th></tr>
+    <tr><td>C1</td><td>470 µF 25 V</td><td>10 mm</td><td>12 V input</td></tr>
+    <tr><td>C3</td><td>470 µF 25 V <b>low-ESR</b></td><td>10 mm</td><td>regulator input</td></tr>
+    <tr><td>C5</td><td>220 µF 25 V</td><td>10 mm</td><td>5 V output</td></tr>
+    <tr><td>C11</td><td>220 µF 25 V</td><td>10 mm</td><td>motor driver supply</td></tr>
+    <tr><td>C7</td><td>100 µF 16 V</td><td>8 mm</td><td>camera 5 V</td></tr>
+    <tr><td>C9</td><td>100 µF 10 V</td><td>8 mm</td><td>3.3 V</td></tr>
+  </table></div>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>An electrolytic fitted backwards can swell or burst when power goes on. Check every one against its <b>+</b> before soldering. A higher voltage rating than listed is always fine; a lower one never is.</p></div>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>C5 and C11 are the 220 µF Amazon parts (RESUME.md). If the driver resets or the motor steps noisily later, swap C11 for a low-ESR part first.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 
-<section class="sheet" id="s27">
-  <div class="head"><span class="no-">27</span><h3>Round 4: camera switch, LEDs</h3></div>
-  <figure class="fig" data-fig="pcb_led" data-alt="LED: short leg and flat side into the square K pad"></figure>
+<section class="sheet wide" id="b-elec-map">
+  <div class="head"><span class="no-">29</span><h3>Electrolytic capacitors: where</h3></div>
+  <figure class="fig" data-fig="pcb_map" data-refs="C1 C3 C5 C7 C9 C11" data-label="C1=470 µF 25 V;C3=470 µF 25 V low-ESR;C5=220 µF 25 V;C11=220 µF 25 V;C7=100 µF 16 V;C9=100 µF 10 V" data-alt="Board map with the six electrolytic capacitors highlighted, square + pads visible"></figure>
+  <p class="lead-in">The square pad in each circle is <b>+</b>. Look for it on the board before each capacitor goes in.</p>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<!-- diodes and LEDs -->
+<section class="sheet" id="b-diode">
+  <div class="head"><span class="no-">30</span><h3>Diodes and LEDs: how</h3></div>
+  <div class="row"><figure class="fig" data-fig="pcb_diode" data-alt="Diode standing over the circle, stripe at the top, bent lead into the square K pad"></figure><figure class="fig" data-fig="pcb_led" data-alt="LED: short leg and flat side into the square K pad"></figure></div>
   <ul class="do">
-    <li><b>Q2</b> <span class="hw">IRF4905</span> as Q1. <b>Q3</b> <span class="hw">2N3904</span> (next panel). <b>C7</b> 100 µF 16 V, <b>J2</b> USB-A, <b>J3</b> terminal.</li>
-    <li><b>LED1, LED2</b> green, <b>LED3</b> red: flat side and short leg into the <b>square K pad</b>.</li>
-    <li>Then <a href="#s34">Test 4</a>.</li>
+    <li><b>Diodes stand like resistors</b>, with the <b>stripe at the top</b>. The bent top lead goes into the <b>square K pad</b>.</li>
+    <li><b>D1</b> <span class="hw">1N4744A</span> is small; <b>D3</b> <span class="hw">1N5822</span> is big and black. Both have a stripe.</li>
+    <li><b>D2</b> <span class="hw">P6KE20CA</span> works either way round: it has no stripe to match.</li>
+    <li><b>LEDs:</b> the <b>short leg</b> and the <b>flat side</b> of the rim go to the <b>square K pad</b>. Two green, one red.</li>
   </ul>
-  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>TO-220 tabs are live. Q1's tab is the 12 V input, Q2's is the camera 5 V, U2's is ground. Keep U2's heatsink clear of both.</p></div>
-  <footer><span>ST-2048:1</span><span>34</span></footer>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>Not sure which LED leg is shorter after trimming? Set the meter to diode test: the LED glows faintly when the black probe is on K.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 
-<section class="sheet" id="s28">
-  <div class="head"><span class="no-">28</span><h3>Round 5: GPS switch</h3></div>
-  <figure class="fig" data-fig="pcb_to92" data-alt="TO-92 transistor: flat face over the flat edge of the outline"></figure>
+<section class="sheet wide" id="b-diode-map">
+  <div class="head"><span class="no-">31</span><h3>Diodes and LEDs: where</h3></div>
+  <figure class="fig" data-fig="pcb_map" data-refs="D1 D2 D3 LED1 LED2 LED3" data-label="D1=1N4744A, stripe up;D2=P6KE20CA, either way;D3=1N5822, stripe up;LED1=green, 5 V on;LED2=green, camera on;LED3=red, status" data-alt="Board map with the three diodes and three LEDs highlighted"></figure>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<!-- connectors -->
+<section class="sheet" id="b-mf">
+  <div class="head"><span class="no-">32</span><h3>Male and female</h3></div>
+  <figure class="fig" data-fig="male_female" data-alt="Male header with pins, female socket with holes, a module's pins going into a socket"></figure>
   <ul class="do">
-    <li><b>Q5</b> <span class="hw">2N3904</span> NPN and <b>Q4</b> <span class="hw">2N3906</span> PNP. Flat face over the flat edge of the outline.</li>
-    <li>Read the print on each one before it goes in. They look identical and swapping them fails quietly.</li>
-    <li><b>C17</b> 100 nF if not already in. Then <a href="#s35">Test 5</a>.</li>
+    <li>A <b>male</b> header has <b>pins</b>. A <b>female</b> socket has <b>holes</b>.</li>
+    <li>On this board, a <b>female socket</b> goes wherever a <b>module plugs in</b> (ESP32, TMC2209, DS3231). A <b>male header</b> goes wherever a <b>cable plugs on</b> (encoder, GPS, sensors) or a jumper sits.</li>
+    <li>Male headers go in <b>short ends down</b>, through the board; the long pins stand up.</li>
   </ul>
-  <footer><span>ST-2048:1</span><span>35</span></footer>
+  <figure class="fig" data-fig="header_snap" data-alt="A header strip cut to five pins"></figure>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>Cut from the 1×40 male strip</th><th>Pins</th></tr>
+    <tr><td>J7 J9</td><td>5 each</td></tr>
+    <tr><td>J8 J10 J11</td><td>4 each</td></tr>
+    <tr><td>JP4 JP5</td><td>3 each</td></tr>
+    <tr><td>J5 JP3</td><td>2 each</td></tr>
+    <tr><td><b>total</b></td><td><b>32 of 40</b></td></tr>
+  </table></div>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>Count <b>pins</b>, not gaps. Cut through the middle of the next pin with flush cutters, and the edge stays clean.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 
-<section class="sheet" id="s29">
-  <div class="head"><span class="no-">29</span><h3>Round 6: sockets, headers, the rest</h3></div>
+<section class="sheet wide" id="b-male-map">
+  <div class="head"><span class="no-">33</span><h3>Male headers and jumpers: where</h3></div>
+  <figure class="fig" data-fig="pcb_map" data-refs="J5 J7 J8 J9 J10 J11 JP3 JP4 JP5" data-label="J5=2 pins, DIAG lead;J7=5 pins, AS5600 encoder;J8=4 pins, home sensor;J9=5 pins, GPS;J10=4 pins, I²C expansion;J11=4 pins, spare inputs;JP3=2 pins, leave open;JP4=3 pins, shunt on MS1+GND;JP5=3 pins, shunt on MS2+GND" data-alt="Board map with the male headers and jumper headers highlighted"></figure>
+  <div class="cmp">
+    <div class="ok"><figure class="fig" data-fig="square_ok"></figure>upright</div>
+    <div class="no"><figure class="fig" data-fig="square_no"></figure>leaning</div>
+  </div>
+  <ul class="do">
+    <li>Solder <b>one pin</b>, then look from two sides. Leaning? Melt that one joint and push the header straight with a finger on the plastic, not the pins. Then solder the rest.</li>
+    <li><b>Jumper shunts</b> on JP4 and JP5 bridge the <b>two pins at the GND end</b> (the lower two, next to the printed GND). JP3 gets <b>no</b> shunt.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<section class="sheet wide" id="b-female-map">
+  <div class="head"><span class="no-">34</span><h3>Female sockets: how and where</h3></div>
+  <figure class="fig" data-fig="pcb_map" data-refs="J20 J21 J30 J31 J6" data-label="J20=1×15, ESP32 upper row;J21=1×15, ESP32 lower row;J30=1×8, TMC2209 left;J31=1×8, TMC2209 right;J6=1×6, DS3231 clock" data-alt="Board map with the five female sockets highlighted"></figure>
   <figure class="fig" data-fig="pcb_socket" data-alt="Female header socket soldered with the module plugged in to keep it square"></figure>
   <ul class="do">
-    <li><b>C11</b> 100 µF low-ESR sits at the driver socket (VMOT). <b>C9</b> 100 µF 10 V on 3V3.</li>
-    <li><b>J4</b> motor terminal, <b>SW1</b>, headers <b>J5 J7 J8 J9 J10 J11</b>, jumpers <b>JP3 JP4 JP5</b>.</li>
-    <li>Sockets: ESP32 (2 × 1×15), TMC2209 (2 × 1×8), DS3231 (1×6). Plug the module in, tack the two end pins of each row, check it sits square, then solder the rest. Unplug the module afterwards.</li>
-    <li>Jumpers <b>JP4, JP5 to GND</b>: UART address 0, which the firmware expects. <b>JP3</b> open.</li>
+    <li>Push both rows of a pair into the board, <b>plug the module in</b> to hold them exactly the right distance apart, and turn it all over.</li>
+    <li>Solder the <b>two end pins</b> of each row, check everything sits flat and square, then solder the rest. <b>Unplug the module</b> afterwards: modules go in during section C, one at a time.</li>
+    <li>A socket has no front or back. The module's way round is set later, by the <b>1</b> and the arrow printed on the board.</li>
   </ul>
-  <footer><span>ST-2048:1</span><span>36</span></footer>
+  <footer><span>ST-2048:1</span><span></span></footer>
 </section>
+
+<section class="sheet wide" id="b-term">
+  <div class="head"><span class="no-">35</span><h3>Terminals, USB, button, fuse clips</h3></div>
+  <figure class="fig" data-fig="pcb_map" data-refs="J1 J2 J3 J4 SW1 F1" data-label="J1=12 V in;J2=USB-A, camera power only;J3=camera 5 V out;J4=motor;SW1=CONFIG / WAKE button;F1=3 A fuse clips (see note)" data-alt="Board map with the screw terminals, USB socket, button and fuse clips highlighted"></figure>
+  <div class="row"><figure class="fig" data-fig="pcb_fuse" data-alt="Fuse clips with their stop tabs facing outward"></figure></div>
+  <ul class="do">
+    <li><b>Screw terminals</b> J1, J3, J4: the wire openings face the <b>bottom edge</b> of the board as the map shows it, toward the line printed just past the holes. Both ways fit the holes; only that one is right.</li>
+    <li><b>J2 USB-A</b>: the two metal shell tabs solder too. They carry the strength when a cable is pulled.</li>
+    <li><b>SW1</b> fits two ways and both are correct. Press it flat before soldering.</li>
+    <li>These pins are big and soak up heat: hold the iron on a little longer, 4 to 5 seconds, until the solder flows into the hole.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p><b>Rev C boards:</b> the F1 clip holes are turned 90° to the clips, so standard clips do not drop in (fixed in Rev D). Bend the clip legs to suit the holes, or wire an in-line 5×20 fuse holder to the two F1 positions. Whichever you choose, the stop tabs face <b>out</b> so the fuse cannot slide.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<!-- transistors -->
+<section class="sheet wide" id="b-to92">
+  <div class="head"><span class="no-">36</span><h3>Small transistors: how and where</h3></div>
+  <div class="row"><figure class="fig" data-fig="pcb_to92" data-alt="TO-92 transistor: flat face over the flat edge of the outline"></figure></div>
+  <figure class="fig" data-fig="pcb_map" data-refs="Q3 Q4 Q5" data-label="Q3=2N3904, camera switch;Q4=2N3906 (the odd one), GPS switch;Q5=2N3904, GPS switch" data-alt="Board map with the three small transistors highlighted"></figure>
+  <ul class="do">
+    <li>The <b>flat face</b> of the body sits over the <b>flat edge</b> of the outline. The legs go straight down, middle leg into the middle hole.</li>
+    <li><b>Read the print on each one before it goes in.</b> The 2N3904 and the 2N3906 look identical. Q3 and Q5 are <span class="hw">2N3904</span>; <b>Q4 is the 2N3906</b>.</li>
+    <li>Leave 3 to 5 mm of leg above the board. The heat stays in the leg, not the transistor.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>A swapped 2N3904/2N3906 does not smoke. The GPS simply never powers up, and it takes a long time to find. Read the print with a magnifier or a phone camera.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<!-- power parts -->
+<section class="sheet" id="b-power">
+  <div class="head"><span class="no-">37</span><h3>Power parts: how</h3></div>
+  <div class="row"><figure class="fig" data-fig="pcb_to220" data-alt="TO-220 transistor: tab toward the bold bar, pin 1 in the square pad"></figure><figure class="fig" data-fig="pcb_lm2596" data-alt="LM2596T-5.0 with five staggered legs"></figure></div>
+  <ul class="do">
+    <li><b>Q1, Q2</b> <span class="hw">IRF4905</span>: the <b>metal tab</b> faces the <b>bold bar</b> on the outline, and pin 1 goes in the square pad. Printed face toward you, the legs read G D S.</li>
+    <li><b>U2</b> <span class="hw">LM2596T-5.0</span>: five legs in two rows, 1, 3, 5 in one and 2, 4 in the other. Pin 1 is the square pad. Clip the heatsink on before soldering, so it sits where it will live.</li>
+    <li><b>L1</b> 33 µH, the big coil: no polarity. Its legs are 6 mm apart and the holes 5 mm, so squeeze them in gently with pliers.</li>
+    <li>Stand each part upright and square, solder one leg, check, then the rest.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>The metal tabs are <b>live</b>. Q1's tab is the 12 V input, Q2's is the camera 5 V, U2's is ground. Heatsinks must not touch each other or anything else.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<section class="sheet wide" id="b-power-map">
+  <div class="head"><span class="no-">38</span><h3>Power parts: where</h3></div>
+  <figure class="fig" data-fig="pcb_map" data-refs="Q1 Q2 U2 L1" data-label="Q1=IRF4905, reverse-polarity guard;Q2=IRF4905, camera switch;U2=LM2596T-5.0 + heatsink;L1=33 µH coil" data-alt="Board map with Q1, Q2, U2 and L1 highlighted"></figure>
+  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>Q1 is where reverse-polarity protection is won or lost: drain to the supply, source to the load. The footprint fixes that, as long as pin 1 is in the square pad.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<section class="sheet" id="b-quick">
+  <div class="head"><span class="no-">39</span><h3>Quick check: first light</h3></div>
+  <figure class="fig" data-fig="meter" data-mode="volt" data-v="5.02" data-a="ESP32 socket VIN hole" data-b="the GND hole next to it"></figure>
+  <figure class="fig" data-fig="pcb_probe" data-supply="J1:1 J1:2" data-probes="red:J20:15:+5 V (socket VIN hole);black:J20:14:GND (next hole)" data-alt="Probe points: the ESP32 socket VIN and GND holes"></figure>
+  <ul class="do">
+    <li><b>No modules in the sockets.</b> Meter on Ω across J1: the reading climbs as C1 charges. A steady reading under 10 Ω is a short: find it first.</li>
+    <li>12 V into J1 through a <b>100 mA current limit</b>, or a 12 V bulb in series with the lead. <b>+ to the left screw</b> (J1 pin 1, the square pad).</li>
+    <li><b>LED1 lights green.</b> The meter reads <b>4.9 to 5.1 V</b> at the ESP32 socket's VIN hole. LED2 and LED3 stay dark. Nothing gets warm.</li>
+    <li>Power off. All good? On to the full tests in section C. Not good? Section C's tests, one at a time, show which part is at fault.</li>
+  </ul>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>This is the first time the board does something. If LED1 lights, the input protection, the fuse and the 5 V regulator are all in and working.</p></div>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
+<section class="sheet" id="b-done">
+  <div class="head"><span class="no-">40</span><h3>Before you test</h3></div>
+  <figure class="fig" data-fig="pcb_iso" data-alt="The assembled board"></figure>
+  <ul class="do">
+    <li>Every box on every map ticked. The only empty places are <b>R10 and R11</b>, and the sockets, which stay empty.</li>
+    <li>Turn the board over under a bright light. Every joint a shiny cone, no bridges, every lead trimmed.</li>
+    <li>Scrub off the flux with isopropyl alcohol and an old toothbrush, and let it dry.</li>
+    <li>Now <a href="#s30">Test 0</a>. No module goes in until section C says so.</li>
+  </ul>
+  <footer><span>ST-2048:1</span><span></span></footer>
+</section>
+
 </div>
 
 <!-- ===================== C SMOKE ===================== -->
@@ -724,29 +896,32 @@ p{margin:0}
 <div class="grid">
 
 <section class="sheet" id="s30">
-  <div class="head"><span class="no-">30</span><h3>Test 0: Look, then measure</h3></div>
-  <figure class="fig" data-fig="meter" data-v="OL" data-a="J1 +12V" data-b="J1 GND"></figure>
+  <div class="head"><span class="no-">41</span><h3>Test 0: DON'T HOOK UP POWER YET – Look, then measure resistance</h3></div>
+  <div class="row" style="align-items:flex-start;flex-wrap:nowrap"><figure class="fig" data-fig="meter" style="flex:0 0 300px" data-mode="ohm" data-v="OL" data-a="J1 +12V screw" data-b="J1 GND screw"></figure><div class="note" style="flex:1 1 320px;border-top:0;padding-top:0;font-size:13px"><svg class="ico"><use href="#i-info"/></svg><div><p><b>How this works with no power.</b> On Ω the meter sends a small current of its own and reads the voltage it makes. Across J1 that current fills the board's capacitors through the fuse and Q1, so the reading starts low and rises to megohms, then OL. A short never fills and stays low. The test: <b>does it climb, or stay put?</b></p><p><b>Here the leads matter.</b> Unpowered, Q1 passes the meter's current only from J1 + inwards. Red is + on most meters, so red on +12V gives the climb. Swapped, the meter jumps straight to OL: harmless, but no check.</p></div></div></div>
+  <figure class="fig" style="width:84%;margin:0 auto" data-fig="pcb_probe" data-probes="red:J1:1:1. J1 +12 V screw;black:J1:2:1. J1 GND screw;red:J20:15:2. 5 V (socket VIN hole);black:J20:14:2. GND (next hole);red:J21:15:3. 3V3 (socket hole);black:J21:14:3. GND (next hole)" data-alt="Probe points for the three resistance checks: J1 screws, ESP32 socket VIN and GND holes, 3V3 and GND holes"></figure>
   <ul class="do">
-    <li>Look for bridges and dull joints under a light. Clean the flux off.</li>
-    <li>Unpowered, meter on Ω: <b>J1 +12V to GND</b> climbs as C1 charges. <b>5 V to GND</b> and <b>3V3 to GND</b> (socket pins) are not below 10 Ω.</li>
+    <li><b>1.</b> Red lead on J1 +12V, black on J1 GND. The reading <b>starts low and climbs</b> to megohms or <b>OL</b> (see the note). A reading that <b>stays</b> low is a short: <b>find it before any power goes in</b>.</li>
+    <li><b>2.</b> 5 V to GND and <b>3.</b> 3V3 to GND, at the socket holes: they climb the same way, or settle at a few kΩ through the resistors on those rails. Neither may stay below 10 Ω.</li>
   </ul>
-  <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>A steady reading under 10 Ω is a short. Find it before any power goes in.</p></div>
   <footer><span>ST-2048:1</span><span>37</span></footer>
 </section>
 
 <section class="sheet" id="s31">
-  <div class="head"><span class="no-">31</span><h3>Test 1: First power, current-limited</h3></div>
-  <figure class="fig" data-fig="meter" data-v="12.0" data-a="Q1 source (pin 3)" data-b="J1 GND"></figure>
+  <div class="head"><span class="no-">42</span><h3>Test 1: First power, current-limited</h3></div>
+  <figure class="fig" data-fig="meter" data-mode="volt" data-v="12.0" data-a="J31 VM hole (+12 V)" data-b="J31 GND hole"></figure>
+  <figure class="fig" data-fig="pcb_probe" data-supply="J1:1 J1:2" data-probes="red:J31:1:+12 V (driver socket VM hole);black:J31:2:GND (next hole)" data-alt="Probe points: the driver socket VM and GND holes"></figure>
   <ul class="do">
-    <li>After round 2. Supply at <b>12 V, 100 mA limit</b> into J1.</li>
-    <li>Q1's source leg reads the input voltage, within 0.1 V.</li>
+    <li>At this point all the electronic components are installed. <b>EXCEPT DO NOT YET INSERT THE MODULES:</b> the ESP32 goes in at <a href="#s37">step 48</a>, the TMC2209 and DS3231 at <a href="#s38">step 49</a>, each only after the tests before it pass. Supply at <b>12 V, 100 mA limit</b> into J1.</li>
+    <li>The driver socket's <b>VM hole</b> (the +12 V rail, after Q1) reads the input voltage, within 0.1 V.</li>
   </ul>
   <footer><span>ST-2048:1</span><span>38</span></footer>
 </section>
 
 <section class="sheet" id="s32">
-  <div class="head"><span class="no-">32</span><h3>Test 2: Reverse polarity</h3></div>
-  <figure class="fig" data-fig="meter" data-v="0.00" data-a="Q1 source (pin 3)" data-b="J1 GND"></figure>
+  <div class="head"><span class="no-">43</span><h3>Test 2: Verify correct polarity to the chip</h3></div>
+  <p class="lead-in">Step 42 showed power gets through when the supply is connected the right way. This step connects it the <b>wrong</b> way on purpose and shows that Q1 stops it, so a reversed battery can never reach the chips.</p>
+  <figure class="fig" data-fig="meter" data-mode="volt" data-v="0.00" data-a="J31 VM hole (+12 V)" data-b="J31 GND hole"></figure>
+  <figure class="fig" data-fig="pcb_probe" data-supply="J1:2 J1:1" data-supply-set="12 V, 100 mA, SWAPPED" data-probes="red:J31:1:+12 V (driver socket VM hole);black:J31:2:GND (next hole)" data-alt="Probe points: the driver socket VM and GND holes"></figure>
   <ul class="do">
     <li>Swap the leads at J1, still current-limited. The rail reads <b>0 V</b> and nothing gets warm.</li>
     <li>If the rail shows −12 V, Q1 is in backwards. Stop here.</li>
@@ -755,37 +930,41 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s33">
-  <div class="head"><span class="no-">33</span><h3>Test 3: The 5 V rail</h3></div>
-  <figure class="fig" data-fig="meter" data-v="5.02" data-a="C5 +, or the socket's VIN pin" data-b="GND"></figure>
+  <div class="head"><span class="no-">44</span><h3>Test 3: Verify 5 V is correctly converted from the 12 V</h3></div>
+  <figure class="fig" data-fig="meter" data-mode="volt" data-v="5.02" data-a="ESP32 socket VIN hole" data-b="the GND hole next to it"></figure>
+  <figure class="fig" data-fig="pcb_probe" data-supply="J1:1 J1:2" data-probes="red:J20:15:+5 V (socket VIN hole);black:J20:14:GND (next hole)" data-alt="Probe points: the ESP32 socket VIN and GND holes"></figure>
   <ul class="do">
-    <li>After round 3. <b>4.9 to 5.1 V</b> at C5 and at the ESP32 socket's VIN pin. LED1 lights.</li>
+    <li><b>4.9 to 5.1 V</b> at the ESP32 socket's VIN hole. LED1 lights.</li>
     <li>Idle draw at 12 V is around 10 to 20 mA: the regulator's own current plus LED1.</li>
   </ul>
   <footer><span>ST-2048:1</span><span>40</span></footer>
 </section>
 
 <section class="sheet" id="s34">
-  <div class="head"><span class="no-">34</span><h3>Test 4: Camera switch</h3></div>
-  <figure class="fig" data-fig="meter" data-v="5.00" data-a="J3 +5V" data-b="J3 GND"></figure>
+  <div class="head"><span class="no-">45</span><h3>Test 4: Camera switch</h3></div>
+  <figure class="fig" data-fig="meter" data-mode="volt" data-v="5.00" data-a="J3 +5V screw" data-b="J3 GND screw"></figure>
+  <figure class="fig" data-fig="pcb_probe" data-supply="J1:1 J1:2" data-probes="red:J3:1:J3 +5V screw;black:J3:2:J3 GND screw;bridge:J20:15:1 kΩ lead: VIN hole;bridge:J20:6:1 kΩ lead: CAM_EN hole" data-alt="Probe points: J3 screws; the 1 kΩ resistor from the VIN hole to the CAM_EN hole"></figure>
   <ul class="do">
-    <li>After round 4. J3 reads <b>0 V</b> at rest: the camera is off by default.</li>
+    <li>J3 reads <b>0 V</b> at rest: the camera is off by default.</li>
     <li>Hold a <b>1 kΩ</b> resistor from the socket's VIN pin to its <b>CAM_EN</b> pin. J3 and the USB-A read 5 V, LED2 lights. Take it away and they drop to 0.</li>
   </ul>
   <footer><span>ST-2048:1</span><span>41</span></footer>
 </section>
 
 <section class="sheet" id="s35">
-  <div class="head"><span class="no-">35</span><h3>Test 5: GPS switch</h3></div>
-  <figure class="fig" data-fig="meter" data-v="4.81" data-a="J9 pin 2 (VCC)" data-b="J9 pin 5 (GND)"></figure>
+  <div class="head"><span class="no-">46</span><h3>Test 5: GPS switch</h3></div>
+  <figure class="fig" data-fig="meter" data-mode="volt" data-v="4.81" data-a="J9 pin 2 (VCC)" data-b="J9 pin 5 (GND)"></figure>
+  <figure class="fig" data-fig="pcb_probe" data-supply="J1:1 J1:2" data-probes="red:J9:2:J9 pin 2 (GPS VCC);black:J9:5:J9 pin 5 (GND);bridge:J20:15:1 kΩ lead: VIN hole;bridge:J21:9:1 kΩ lead: GPS_EN hole" data-alt="Probe points: J9 pins 2 and 5; the 1 kΩ resistor from the VIN hole to the GPS_EN hole"></figure>
   <ul class="do">
-    <li>After round 5. The same 1 kΩ from VIN to the <b>GPS_EN</b> pin: J9 pin 2 reads about <b>4.8 V</b>. Without it, 0 V.</li>
+    <li>The same 1 kΩ from VIN to the <b>GPS_EN</b> pin: J9 pin 2 reads about <b>4.8 V</b>. Without it, 0 V.</li>
   </ul>
   <footer><span>ST-2048:1</span><span>42</span></footer>
 </section>
 
 <section class="sheet" id="s36">
-  <div class="head"><span class="no-">36</span><h3>Test 6: Battery divider</h3></div>
-  <figure class="fig" data-fig="meter" data-v="1.83" data-a="VBAT_SENSE socket pin" data-b="GND"></figure>
+  <div class="head"><span class="no-">47</span><h3>Test 6: Battery divider</h3></div>
+  <figure class="fig" data-fig="meter" data-mode="volt" data-v="1.83" data-a="VBAT_SENSE socket hole" data-b="GND socket hole"></figure>
+  <figure class="fig" data-fig="pcb_probe" data-supply="J1:1 J1:2" data-probes="red:J20:4:VBAT_SENSE (socket hole);black:J20:14:GND (socket hole)" data-alt="Probe points: the VBAT_SENSE and GND holes of the ESP32 socket"></figure>
   <ul class="do">
     <li>VBAT_SENSE = input × 18 / 118. <b>12.0 V in gives 1.83 V</b>, a full 14.6 V LiFePO4 gives 2.23 V. Both are safely under the ESP32's 3.3 V.</li>
   </ul>
@@ -793,27 +972,33 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s37">
-  <div class="head"><span class="no-">37</span><h3>Test 7: Warm check, then the ESP32</h3></div>
-  <figure class="fig" data-fig="meter" data-v="3.30" data-a="J7 pin 2 (3V3)" data-b="J7 pin 1 (GND)"></figure>
+  <div class="head"><span class="no-">48</span><h3>Test 7: Warm check, then the ESP32</h3></div>
+  <div class="row" style="align-items:flex-start;flex-wrap:nowrap"><figure class="fig" data-fig="meter" style="flex:0 0 300px" data-mode="volt" data-v="3.30" data-a="J7 pin 2 (3V3)" data-b="J7 pin 1 (GND)"></figure><div class="note" style="flex:1 1 320px;border-top:0;padding-top:0;font-size:13px;align-self:center"><svg class="ico"><use href="#i-info"/></svg><p>3.3 V comes out of the ESP32 module's own regulator. With no module fitted, the 3V3 net reads nothing, and that is correct.</p></div></div>
+  <figure class="fig" data-fig="pcb_probe" data-supply="J1:1 J1:2" data-supply-set="12.0 V, LIMIT 300 mA" data-probes="red:J7:2:J7 pin 2 (3V3);black:J7:1:J7 pin 1 (GND)" data-alt="Probe points: J7 pins 2 and 1"></figure>
   <ul class="do">
     <li>Five minutes powered with nothing fitted. U2 and Q1 barely warm.</li>
     <li><b>Power off.</b> Fit the ESP32 only: USB <b>toward the arrow</b>, its pin 1 at the socket's <b>1</b>. If it does not line up, stop.</li>
+    <li>Raise the supply's current limit to <b>300 mA</b>: the ESP32 draws more than the bare board, in bursts when its radio starts.</li>
     <li>Power on. <b>3.2 to 3.4 V</b> at J7 pin 2, J10 pin 2, the DS3231 socket's VCC and the driver socket's VIO. The OLED may light.</li>
   </ul>
-  <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>3.3 V comes out of the ESP32 module's own regulator. With no module fitted, the 3V3 net reads nothing, and that is correct.</p></div>
   <footer><span>ST-2048:1</span><span>44</span></footer>
 </section>
 
 <section class="sheet" id="s38">
-  <div class="head"><span class="no-">38</span><h3>Test 8: The driver and the clock</h3></div>
-  <ul class="do">
-    <li><b>Power off.</b> Motor wired to J4 <b>before</b> the driver goes in (<a href="#s40">step 40</a>).</li>
-    <li><b>TMC2209</b>: match <b>EN</b> on the module to EN on the silkscreen. On BTT modules the chip is on the underside, which is normal. Turn the V<sub>REF</sub> pot to its low end for now.</li>
-    <li>DIAG: no vendor brings it out on the header. Flying lead from the module's DIAG pad to <b>J5</b> pin 1.</li>
-    <li><b>DS3231</b> (ZS-042) with a CR2032, in the order printed: <span class="hw">32K SQW SCL SDA VCC GND</span>. Its charging circuit is harmless at 3.3 V.</li>
-  </ul>
+  <div class="head"><span class="no-">49</span><h3>Fit the driver and the clock</h3><span class="tag">fitting, then a check</span></div>
+  <p class="lead-in">Not a measurement: this is where the last two modules go into their sockets. Each one fits two ways round; the blue rings show where its pin 1 goes.</p>
+  <figure class="fig" style="width:86%;margin:0 auto" data-fig="pcb_probe" data-supply="J1:1 J1:2" data-supply-set="12.0 V, LIMIT 500 mA" data-probes="pin:J30:1:TMC2209 EN pin here;pin:J6:1:DS3231 32K pin here;pin:J5:1:DIAG lead to this pin" data-alt="Where each module's pin 1 goes: the EN hole of the driver socket, the 32K hole of the clock socket, and J5 pin 1 for the DIAG lead"></figure>
+  <ol class="do">
+    <li><b>Power off</b> and unplug the supply.</li>
+    <li><b>Wire the motor first:</b> do <a href="#s40">step 51</a>, then come back. The driver must never be powered without its motor.</li>
+    <li>Turn the TMC2209's V<sub>REF</sub> pot to its <b>low end</b> (fully anticlockwise) for now.</li>
+    <li><b>TMC2209</b> into J30/J31: the module's <b>EN</b> pin into the hole marked <b>EN</b>. On BTT modules the chip is on the underside; that is normal.</li>
+    <li><b>DIAG:</b> no module brings it out on its header. Solder a short flying lead from the module's DIAG pad to <b>J5 pin 1</b>.</li>
+    <li><b>DS3231</b> (ZS-042) with a CR2032 into J6: its <b>32K</b> pin into the first hole. The printed order runs <span class="hw">32K SQW SCL SDA VCC GND</span>. Its charging circuit is harmless at 3.3 V.</li>
+    <li><b>Check:</b> power on at 12 V with a 500 mA current limit for a minute. Nothing gets warm, the OLED still lights. Power off.</li>
+  </ol>
   <div class="note"><svg class="ico"><use href="#i-warn"/></svg><p>Never plug or unplug the motor with power on. The driver dies from the inductive kick, and C11 must be fitted at VMOT before the driver sees 12 V.</p></div>
-  <footer><span>ST-2048:1</span><span>45</span></footer>
+  <footer><span>ST-2048:1</span><span></span></footer>
 </section>
 </div>
 
@@ -822,7 +1007,7 @@ p{margin:0}
 <div class="grid">
 
 <section class="sheet wide" id="s39">
-  <div class="head"><span class="no-">39</span><h3>The whole loom</h3></div>
+  <div class="head"><span class="no-">50</span><h3>The whole loom</h3></div>
   <!--FZ:bb|Fritzing breadboard view of the whole loom: battery through a 3 A fuse to J1, motor to J4, camera to J2, AS5600 to J7, GPS to J9-->
   <p class="fzcap">Fritzing, breadboard view. Source: <span class="hw">hardware/fritzing/star_tracker_wiring.fzz</span>, generated by <span class="hw">gen_fritzing.py</span> from the KiCad layout.</p>
   <!--FZ:power|Close-up: battery positive through the inline fuse to J1 pin 1, battery negative to J1 pin 2-->
@@ -834,7 +1019,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s40">
-  <div class="head"><span class="no-">40</span><h3>Motor coils</h3></div>
+  <div class="head"><span class="no-">51</span><h3>Motor coils</h3></div>
   <!--FZ:motor|Close-up: J4 A1 A2 B1 B2 to the motor's two coils-->
   <figure class="fig" data-fig="coils" data-alt="Find the two coil pairs with an ohmmeter"></figure>
   <ul class="do">
@@ -845,7 +1030,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s41">
-  <div class="head"><span class="no-">41</span><h3>Encoder lead</h3></div>
+  <div class="head"><span class="no-">52</span><h3>Encoder lead</h3></div>
   <!--FZ:encoder|Close-up: J7 GND 3V3 SDA SCL DIR to the AS5600 breakout-->
   <div class="tblwrap"><table class="tbl">
     <tr><th>J7</th><th>Board</th><th>AS5600</th></tr>
@@ -863,7 +1048,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s42">
-  <div class="head"><span class="no-">42</span><h3>GPS and the PPS lead</h3></div>
+  <div class="head"><span class="no-">53</span><h3>GPS and the PPS lead</h3></div>
   <!--FZ:gps|Close-up: J9 PPS VCC RXD TXD GND to the GY-NEO6MV2, PPS as a flying lead from the LED-->
   <ul class="do">
     <li>The GY-NEO6MV2's own 4-wire cable plugs into <b>J9 pins 2 to 5</b> (VCC RX TX GND), in the module's own order.</li>
@@ -876,14 +1061,14 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s43">
-  <div class="head"><span class="no-">43</span><h3>Camera cable</h3></div>
+  <div class="head"><span class="no-">54</span><h3>Camera cable</h3></div>
   <!--FZ:camera|Close-up: J2 USB-A to the GoPro's USB-C-->
   <ul class="do">
     <li><b>J2</b> USB-A → short right-angle USB-C → HERO6. J2's data lines are shorted, which tells the camera it may draw full charge current.</li>
     <li>Route it with the platform at the start angle. A night is <b>180.5°</b> of travel, so leave a slack loop that reaches both ends without pulling on the camera.</li>
     <li>Tie the cable to the platform so the loop, not the USB-C plug, takes the bend.</li>
   </ul>
-  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>Measure the real arc the loop allows. It becomes <span class="hw">TRAVEL_MIN_DEG</span> / <span class="hw">TRAVEL_MAX_DEG</span> in <a href="#s50">step 50</a>.</p></div>
+  <div class="note"><svg class="ico"><use href="#i-tip"/></svg><p>Measure the real arc the loop allows. It becomes <span class="hw">TRAVEL_MIN_DEG</span> / <span class="hw">TRAVEL_MAX_DEG</span> in <a href="#s50">step 61</a>.</p></div>
   <footer><span>ST-2048:1</span><span>50</span></footer>
 </section>
 </div>
@@ -893,7 +1078,7 @@ p{margin:0}
 <div class="grid">
 
 <section class="sheet" id="s44">
-  <div class="head"><span class="no-">44</span><h3>Pin check</h3><span class="tag pill now">today</span></div>
+  <div class="head"><span class="no-">55</span><h3>Pin check</h3><span class="tag pill now">today</span></div>
   <ul class="do">
     <li>Flash <span class="hw">firmware/pincheck/pincheck.ino</span>. Arduino IDE, board "DOIT ESP32 DEVKIT V1", serial monitor at 115200. Nothing else needs to be connected.</li>
     <li>It scans three I²C buses and names what answers, then prints PSRAM.</li>
@@ -910,7 +1095,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s45">
-  <div class="head"><span class="no-">45</span><h3>First spin, and which way</h3><span class="tag pill now">today</span></div>
+  <div class="head"><span class="no-">56</span><h3>First spin, and which way</h3><span class="tag pill now">today</span></div>
   <figure class="fig" data-fig="direction" data-alt="Facing north the sky turns counter-clockwise; seen from the camera end the platform turns clockwise"></figure>
   <ul class="do">
     <li><span class="hw">sidereal_drive.ino</span> drives STEP 25, DIR 26, EN 27, which the planned pin map keeps.</li>
@@ -922,7 +1107,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s46">
-  <div class="head"><span class="no-">46</span><h3>Driver current and microsteps</h3><span class="tag pill">planned</span></div>
+  <div class="head"><span class="no-">57</span><h3>Driver current and microsteps</h3><span class="tag pill">planned</span></div>
   <ul class="do">
     <li>Over UART: run current <b>300 to 400 mA</b>. There is a 250 × torque margin, and low current means less vibration and heat.</li>
     <li>MRES <b>1/32</b> for tracking, <b>1/8</b> for slews. The position counter always stays in 1/32 units.</li>
@@ -932,7 +1117,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s47">
-  <div class="head"><span class="no-">47</span><h3>Magnet gap</h3><span class="tag pill">planned</span></div>
+  <div class="head"><span class="no-">58</span><h3>Magnet gap</h3><span class="tag pill">planned</span></div>
   <figure class="fig" data-fig="agc" data-alt="AGC scale 0 to 128, aim for the middle"></figure>
   <ul class="do">
     <li>Read <b>AGC</b>, <b>MAGNITUDE</b> and the <b>MD / ML / MH</b> status bits. Shown on the OLED and the phone page.</li>
@@ -943,7 +1128,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s48">
-  <div class="head"><span class="no-">48</span><h3>Encoder zero</h3><span class="tag pill">planned</span></div>
+  <div class="head"><span class="no-">59</span><h3>Encoder zero</h3><span class="tag pill">planned</span></div>
   <figure class="fig" data-fig="dial" data-alt="Encoder dial: the night's sweep runs from 1024 to about 3080 counts and never crosses the 0/4095 seam"></figure>
   <ul class="do">
     <li>Park the platform at the start angle. Turn the magnet cap on the shaft until the raw reading is near <b>1024</b>.</li>
@@ -953,7 +1138,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s49">
-  <div class="head"><span class="no-">49</span><h3>Clock and site</h3><span class="tag pill">planned</span></div>
+  <div class="head"><span class="no-">60</span><h3>Clock and site</h3><span class="tag pill">planned</span></div>
   <ul class="do">
     <li>Set the DS3231 from the phone's clock (<span class="hw">POST /api/time</span>), or let TIME_SYNC take it from a GPS fix.</li>
     <li>Put your latitude and longitude into the schedule's <span class="hw">site</span>. The default is 0, 0. With a GPS fix, the tracker overrides it each night.</li>
@@ -963,9 +1148,9 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s50">
-  <div class="head"><span class="no-">50</span><h3>Travel limits</h3><span class="tag pill">planned</span></div>
+  <div class="head"><span class="no-">61</span><h3>Travel limits</h3><span class="tag pill">planned</span></div>
   <ul class="do">
-    <li>Jog to each end of the arc the camera cable allows (<a href="#s43">step 43</a>) and note the encoder angle.</li>
+    <li>Jog to each end of the arc the camera cable allows (<a href="#s43">step 54</a>) and note the encoder angle.</li>
     <li>Set <span class="hw">TRAVEL_MIN_DEG</span> / <span class="hw">TRAVEL_MAX_DEG</span> in <span class="hw">include/config.h</span>. They are compile-time on purpose, so a phone cannot widen them.</li>
     <li>A schedule that would run past them is refused at upload, with the reason.</li>
   </ul>
@@ -973,7 +1158,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s51">
-  <div class="head"><span class="no-">51</span><h3>Backlash</h3><span class="tag pill">planned</span></div>
+  <div class="head"><span class="no-">62</span><h3>Backlash</h3><span class="tag pill">planned</span></div>
   <ul class="do">
     <li>Start with <span class="hw">BACKLASH_USTEPS = 10000</span>. The estimate from 0.35 mm on the final mesh is about 7,600, or 750 arcsec.</li>
     <li>Run <span class="hw">repeat_test</span>: orient, short track, rewind, read the encoder at the start angle, N times. It reports mean and σ of the return error in arcsec.</li>
@@ -984,7 +1169,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s52">
-  <div class="head"><span class="no-">52</span><h3>Camera profile</h3><span class="tag pill">planned</span></div>
+  <div class="head"><span class="no-">63</span><h3>Camera profile</h3><span class="tag pill">planned</span></div>
   <ul class="do">
     <li>Run <span class="hw">discover</span>. It joins the HERO6, dumps its <span class="hw">/gp/gpControl</span> settings tree and serves it at <span class="hw">/api/camera/dump</span>.</li>
     <li>Fill <span class="hw">camera_profile.json</span> from your camera's own tree. The IDs in FIRMWARE.md are placeholders.</li>
@@ -994,7 +1179,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s53">
-  <div class="head"><span class="no-">53</span><h3>First light</h3><span class="tag pill now">today</span></div>
+  <div class="head"><span class="no-">64</span><h3>First light</h3><span class="tag pill now">today</span></div>
   <ul class="do">
     <li>Open-loop drive, a 50 mm lens, <b>one 5-minute exposure</b>. Measure the trailing.</li>
     <li>Only then decide what to fix. Upgrading shaft 3 to ground stock is the first mechanical step if the numbers call for it.</li>
@@ -1009,7 +1194,7 @@ p{margin:0}
 <div class="grid">
 
 <section class="sheet" id="s54">
-  <div class="head"><span class="no-">54</span><h3>Set up and polar align</h3></div>
+  <div class="head"><span class="no-">65</span><h3>Set up and polar align</h3></div>
   <figure class="fig" data-fig="wedge_setup" data-alt="Tripod and wedge tilted to your latitude, output axis pointing at Polaris"></figure>
   <ul class="do">
     <li>Level the tripod. Tilt the wedge to your latitude and point the output axis north.</li>
@@ -1019,7 +1204,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s55">
-  <div class="head"><span class="no-">55</span><h3>Load the camera</h3></div>
+  <div class="head"><span class="no-">66</span><h3>Load the camera</h3></div>
   <ul class="do">
     <li>Camera on, cable tied, slack loop free to swing.</li>
     <li>Bias the balance so the load pulls one way through the whole sweep. That keeps the mesh on one flank.</li>
@@ -1033,7 +1218,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s56">
-  <div class="head"><span class="no-">56</span><h3>Configure from your phone</h3></div>
+  <div class="head"><span class="no-">67</span><h3>Configure from your phone</h3></div>
   <div class="row"><figure class="fig" data-fig="phone" data-alt="Example of the planned phone status page"></figure>
   <ul class="do" style="flex:1;min-width:220px">
     <li>Press <b>CONFIG</b> (SW1). The tracker raises its own Wi-Fi network for 10 minutes.</li>
@@ -1045,7 +1230,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s57">
-  <div class="head"><span class="no-">57</span><h3>Walk away</h3></div>
+  <div class="head"><span class="no-">68</span><h3>Walk away</h3></div>
   <figure class="fig" data-fig="timeline" data-w="600" data-alt="The night: idle, preflight, GPS, orient, camera, track, stop, rewind, idle"></figure>
   <ul class="do">
     <li>It sleeps until the dusk alarm, checks itself, takes a GPS fix, slews to the start angle going forward, starts the camera, then tracks.</li>
@@ -1056,7 +1241,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s58">
-  <div class="head"><span class="no-">58</span><h3>Next morning</h3></div>
+  <div class="head"><span class="no-">69</span><h3>Next morning</h3></div>
   <ul class="do">
     <li>Read the night report: planned against actual start and stop, the largest encoder disagreement, lowest battery, camera result, every warning.</li>
     <li>Encoder disagreement over <b>0.5°</b> is a warning worth a look; the train may be slipping.</li>
@@ -1066,7 +1251,7 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s59">
-  <div class="head"><span class="no-">59</span><h3>Care</h3></div>
+  <div class="head"><span class="no-">70</span><h3>Care</h3></div>
   <div class="cmp">
     <div class="ok"><b style="font-size:14px">jog under power</b></div>
     <div class="no"><b style="font-size:14px">turn the platform<br>by hand</b></div>
@@ -1111,7 +1296,7 @@ p{margin:0}
   <div class="tblwrap"><table class="tbl">
     <tr><th>Harness</th><th>Board</th><th>Far end</th><th>Wires</th></tr>
     <tr><td>Power</td><td>J1 +12V, GND</td><td>battery via 3 A inline fuse</td><td>red through the fuse, black direct</td></tr>
-    <tr><td>Motor</td><td>J4 A1 A2 B1 B2</td><td>NEMA 17, coil A and coil B</td><td>pairs found with a meter (step 40)</td></tr>
+    <tr><td>Motor</td><td>J4 A1 A2 B1 B2</td><td>NEMA 17, coil A and coil B</td><td>pairs found with a meter (step 51)</td></tr>
     <tr><td>Encoder</td><td>J7 GND 3V3 SDA SCL DIR</td><td>AS5600 GND VCC SDA SCL DIR</td><td>DIR is tied to GND on the board</td></tr>
     <tr><td>GPS</td><td>J9 PPS VCC RXD TXD GND</td><td>GY-NEO6MV2, PPS from its LED</td><td>module's own 4-wire cable + one lead</td></tr>
     <tr><td>Camera</td><td>J2 USB-A</td><td>HERO6 USB-C</td><td>short right-angle cable, slack loop</td></tr>
@@ -1150,6 +1335,7 @@ p{margin:0}
 <script src="figs_mech.js"></script>
 <script src="figs_elec.js"></script>
 <script src="figs_pcb.js"></script>
+<script src="figs_beginner.js"></script>
 <script>
 (function () {
   document.querySelectorAll('.fig[data-fig]').forEach(function (el) {

@@ -6,7 +6,7 @@
   var flat = function (s, w, h, svg) { s.raw(svg, [0, 0, w, h]); return { scale: 1, pad: 0 }; };
   function T(x, y, t, o) {
     o = o || {};
-    return '<text class="' + (o.cls || 'tx') + '" x="' + x + '" y="' + y + '" font-size="' + (o.size || 12) + '" text-anchor="' + (o.a || 'middle') + '">' +
+    return '<text class="' + (o.cls || 'tx') + '" x="' + x + '" y="' + y + '" font-size="' + (o.size || 12) + '" text-anchor="' + (o.a || 'middle') + '"' + (o.style ? ' style="' + o.style + '"' : '') + '>' +
       String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</text>';
   }
   function L(x1, y1, x2, y2, c) { return '<path class="' + (c || 't') + '" d="M' + x1 + ' ' + y1 + 'L' + x2 + ' ' + y2 + '"/>'; }
@@ -170,9 +170,9 @@
     cell(0, 0, pad(45, 35, true) + pad(85, 35, false), 'square pad = pin 1, +, or K');
     cell(1, 0, '<circle class="silk" cx="65" cy="35" r="26"/>' + pad(50, 35, true) + pad(80, 35, false) + T(22, 26, '+', { size: 16, cls: 'silkt' }), '"+" = long leg');
     cell(2, 0, '<path class="silk" d="M50 58 A24 24 0 1 1 88 50 L88 20"/>' + pad(56, 35, false) + pad(80, 35, true), 'flat edge = flat of the part');
-    cell(0, 1, '<rect class="silk" x="22" y="18" width="86" height="30"/><rect class="silkk" x="22" y="14" width="86" height="6"/>' + pad(40, 56, true, 6) + pad(65, 56, false, 6) + pad(90, 56, false, 6), 'bold bar = metal tab side');
-    cell(1, 1, '<circle class="silk" cx="50" cy="35" r="17"/>' + pad(50, 35, false, 7) + '<path class="silk" d="M67 35 H80"/>' + pad(88, 35, true, 7), 'circle = where the body stands');
-    cell(2, 1, pad(30, 35, true, 6) + pad(50, 35, false, 6) + pad(70, 35, false, 6) + pad(90, 35, false, 6) + T(30, 20, '1', { size: 15, cls: 'silkt' }), '"1" marks pin 1 of a socket');
+    cell(0, 1, '<rect class="silk" x="22" y="18" width="86" height="30"/><rect class="silkk" x="22" y="14" width="86" height="6"/>' + pad(40, 56, true, 6) + pad(65, 56, false, 6) + pad(90, 56, false, 6), 'bold bar = tab side');
+    cell(1, 1, '<circle class="silk" cx="50" cy="35" r="17"/>' + pad(50, 35, false, 7) + '<path class="silk" d="M67 35 H80"/>' + pad(88, 35, true, 7), 'circle = body stands here');
+    cell(2, 1, pad(30, 35, true, 6) + pad(50, 35, false, 6) + pad(70, 35, false, 6) + pad(90, 35, false, 6) + T(30, 20, '1', { size: 15, cls: 'silkt' }), '"1" = socket pin 1');
     return flat(s, 460, 230, g);
   };
   function standing(body, bentTo, kind) {
@@ -274,13 +274,30 @@
 
   /* ---------------- meter ---------------- */
   FIG.meter = function (s, el) {
+    // data-mode: ohm | volt | amp -- the dial points at it, a badge names it,
+    // the display shows its unit (a newcomer should not have to infer it)
     var v = el.getAttribute('data-v') || '5.00', a = el.getAttribute('data-a') || '+', b = el.getAttribute('data-b') || 'GND';
-    var g = '<rect class="f" x="10" y="8" width="110" height="168" rx="10"/><rect class="disp" x="22" y="22" width="86" height="40" rx="2"/>' + T(65, 50, v, { size: 20, cls: 'mono' });
-    g += '<circle class="l" cx="65" cy="108" r="24"/><path class="l" d="M65 108 L78 92"/><circle class="k" cx="40" cy="158" r="5"/><circle class="k" cx="90" cy="158" r="5"/>';
-    g += '<path class="probe" d="M90 158 C140 170 170 60 230 50"/><path class="probe k2" d="M40 158 C80 200 180 160 230 138"/>';
-    g += '<path class="k" d="M230 46 l26 4 l-26 4z"/><path class="k" d="M230 134 l26 4 l-26 4z"/>';
+    var mode = el.getAttribute('data-mode') || (v === 'OL' ? 'ohm' : 'volt');
+    var M = { ohm: ['RESISTANCE', 'Ω', -50], volt: ['VOLTAGE  DC', 'V', 0], amp: ['CURRENT', 'A', 50] }[mode];
+    var g = '<rect class="f" x="10" y="8" width="110" height="168" rx="10"/><rect class="disp" x="22" y="20" width="86" height="36" rx="2"/>' +
+      T(58, 46, v, { size: 19, cls: 'mono' }) + T(101, 46, v === 'OL' ? '' : M[1], { size: 11, a: 'end', cls: 'mono' });
+    g += '<rect class="k" x="20" y="62" width="90" height="16" rx="3"/>' + T(65, 74, M[0], { size: 10, style: 'fill:var(--paper);font-weight:800' });
+    var cx = 65, cy = 124, r = 19;
+    [['Ω', -50, 'ohm'], ['V⎓', 0, 'volt'], ['A', 50, 'amp']].forEach(function (m) {
+      var t = (m[1] - 90) * Math.PI / 180, on = m[2] === mode;
+      g += T(cx + 30 * Math.cos(t), cy + 30 * Math.sin(t) + 4, m[0], { size: on ? 13 : 10, style: on ? 'font-weight:800' : 'fill:var(--ink2);font-weight:500' });
+    });
+    var tp = (M[2] - 90) * Math.PI / 180;
+    g += '<circle class="l" cx="' + cx + '" cy="' + cy + '" r="' + r + '"/><path class="l" style="stroke-width:3" d="M' + cx + ' ' + cy + ' L' +
+      (cx + (r - 3) * Math.cos(tp)).toFixed(1) + ' ' + (cy + (r - 3) * Math.sin(tp)).toFixed(1) + '"/>';
+    var RED = 'stroke:#d42a22';            // the red lead is red, the black lead ink, as on a real meter
+    g += '<circle class="k" cx="40" cy="162" r="5"/><circle cx="90" cy="162" r="5" style="fill:#d42a22"/>';
+    g += '<path class="probe" style="' + RED + '" d="M90 162 C140 172 170 60 230 50"/><path class="probe k2" d="M40 162 C80 204 180 162 230 138"/>';
+    g += '<path d="M230 46 l26 4 l-26 4z" style="fill:#d42a22"/><path class="k" d="M230 134 l26 4 l-26 4z"/>';
     g += T(262, 44, a, { a: 'start', size: 12 }) + T(262, 132, b, { a: 'start', size: 12 });
-    return flat(s, 360, 186, g);
+    g += T(262, 62, 'red lead', { a: 'start', size: 10, style: 'fill:var(--ink2);font-weight:500' }) + T(262, 150, 'black lead', { a: 'start', size: 10, style: 'fill:var(--ink2);font-weight:500' });
+    // named on top: a newcomer may not know the instrument by sight
+    return flat(s, 360, 208, T(70, 14, 'DIGITAL VOLTAGE METER', { size: 10, style: 'font-weight:800' }) + '<g transform="translate(0 22)">' + g + '</g>');
   };
 
   /* ---------------- wiring ---------------- */

@@ -99,26 +99,24 @@ def kicad_clean(text):
     return text
 
 
-def board_json():
-    """Every footprint's reference, library name, value and absolute pad
-    positions, for the isometric board drawings. Straight from the layout."""
-    import json
-    sys.path.insert(0, os.path.join(REPO, 'hardware'))
-    sys.path.insert(0, FZ_DIR)
-    import kicadlib as K
-    import gen_fritzing as G
-    t = K.parse(read(G.PCB))
-    vals = {}
-    for fp in K.kids(t, 'footprint'):
-        props = {p[1]: p[2] for p in K.kids(fp, 'property')}
-        vals[props.get('Reference')] = props.get('Value', '')
-    fps, pads, _, _, _, _ = G.load_board()
-    out = []
-    for ref, (x, y, a, name) in fps.items():
-        out.append(dict(r=ref, f=name.split(':')[-1], v=vals.get(ref, ''), a=a,
-                        p=[[round(q['x'], 2), round(q['y'], 2), q['num']] for q in pads.get(ref, [])]))
-    return json.dumps(out, separators=(',', ':'))
+KIT = os.path.join(os.path.expanduser('~'), '.claude', 'skills', 'flatpack-guide')
+PCB = os.path.join(REPO, 'hardware', 'star_tracker_ctrl', 'star_tracker_ctrl.kicad_pcb')
 
+
+def board_assets():
+    """window.BOARD (every footprint: ref, value, pads, silkscreen) and
+    window.BOARD_INFO (outline, board text), read straight from the layout by
+    the flatpack-guide kit's kicad_board.py."""
+    sys.path.insert(0, os.path.join(KIT, 'scripts'))
+    import kicad_board as KB
+    return '<script>window.BOARD=%s;window.BOARD_INFO=%s;</script>' % (KB.board_json(PCB), KB.board_info_json(PCB))
+
+
+def script_src(f):
+    """A figure script: this folder's copy, else the kit's (figs_beginner.js
+    lives in the kit so other guides share it)."""
+    p = os.path.join(HERE, f)
+    return p if os.path.exists(p) else os.path.join(KIT, 'assets', f)
 
 def main():
     if '--no-fritzing' not in sys.argv:
@@ -156,9 +154,9 @@ def main():
         return '%.1f %.1f %.1f %.1f' % (ox + x * MIL_PER_MM, oy + y * MIL_PER_MM, w * MIL_PER_MM, h * MIL_PER_MM)
 
     html = '<meta charset="utf-8">\n' + read(os.path.join(HERE, 'guide.html'))
-    for f in ('engine.js', 'figs_mech.js', 'figs_elec.js', 'figs_pcb.js'):
-        html = html.replace('<script src="%s"></script>' % f, '<script>\n%s\n</script>' % read(os.path.join(HERE, f)))
-    html = html.replace('<!--ASSETS-->', symbols + '\n<script>window.BOARD=%s;</script>' % board_json())
+    for f in ('engine.js', 'figs_mech.js', 'figs_elec.js', 'figs_pcb.js', 'figs_beginner.js'):
+        html = html.replace('<script src="%s"></script>' % f, '<script>\n%s\n</script>' % read(script_src(f)))
+    html = html.replace('<!--ASSETS-->', symbols + '\n' + board_assets())
 
     def fill(m):
         kind, alt = m.group(1), m.group(2)
