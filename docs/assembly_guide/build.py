@@ -106,15 +106,24 @@ PCB = os.path.join(REPO, 'hardware', 'star_tracker_ctrl', 'star_tracker_ctrl.kic
 def board_assets():
     """window.BOARD (every footprint: ref, value, pads, silkscreen) and
     window.BOARD_INFO (outline, board text), read straight from the layout by
-    the flatpack-guide kit's kicad_board.py."""
-    sys.path.insert(0, os.path.join(KIT, 'scripts'))
+    the flatpack-guide kit's kicad_board.py (the repo's copy in kit/ first)."""
+    use_kit_scripts()
     import kicad_board as KB
     return '<script>window.BOARD=%s;window.BOARD_INFO=%s;</script>' % (KB.board_json(PCB), KB.board_info_json(PCB))
 
 
+def use_kit_scripts():
+    """kicad_board / kicad_nets: the copies in kit/ (so the repo builds without
+    the flatpack-guide kit installed; see kit/README.txt), else the kit's own."""
+    for p in (os.path.join(KIT, 'scripts'), os.path.join(HERE, 'kit')):
+        if p in sys.path:
+            sys.path.remove(p)
+        sys.path.insert(0, p)
+
+
 def script_src(f):
-    """A figure script: this folder's copy, else the kit's (figs_beginner.js
-    lives in the kit so other guides share it)."""
+    """A figure script: this folder's copy (figs_beginner.js is a copy of the
+    kit's, so the repo builds without the kit), else the kit's."""
     p = os.path.join(HERE, f)
     return p if os.path.exists(p) else os.path.join(KIT, 'assets', f)
 
@@ -135,7 +144,7 @@ def main():
     ki_vb, ki_in = svg_parts(ki)
     # the schematic is label-connected (pin stub + net name, no drawn wires), so
     # draw each net's connections under the symbols or the page shows islands
-    sys.path.insert(0, os.path.join(os.path.expanduser('~'), '.claude', 'skills', 'flatpack-guide', 'scripts'))
+    use_kit_scripts()
     import kicad_nets
     ki_in = kicad_nets.overlay(SCH) + ki_in
     symbols = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true">'
