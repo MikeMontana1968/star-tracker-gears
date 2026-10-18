@@ -280,7 +280,7 @@
     var mode = el.getAttribute('data-mode') || (v === 'OL' ? 'ohm' : 'volt');
     var M = { ohm: ['RESISTANCE', 'Ω', -50], volt: ['VOLTAGE  DC', 'V', 0], amp: ['CURRENT', 'A', 50] }[mode];
     var g = '<rect class="f" x="10" y="8" width="110" height="168" rx="10"/><rect class="disp" x="22" y="20" width="86" height="36" rx="2"/>' +
-      T(58, 46, v, { size: 19, cls: 'mono' }) + T(101, 46, v === 'OL' ? '' : M[1], { size: 11, a: 'end', cls: 'mono' });
+      T(58, 46, v, { size: 19, cls: 'mono' }) + T(101, 46, v === 'OL' || /[ΩVA]\s*$/.test(v) ? '' : M[1], { size: 11, a: 'end', cls: 'mono' });   // no second unit if the reading has one
     g += '<rect class="k" x="20" y="62" width="90" height="16" rx="3"/>' + T(65, 74, M[0], { size: 10, style: 'fill:var(--paper);font-weight:800' });
     var cx = 65, cy = 124, r = 19;
     [['Ω', -50, 'ohm'], ['V⎓', 0, 'volt'], ['A', 50, 'amp']].forEach(function (m) {
