@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     Regenerate every build artifact for the sidereal drive gearbox.
@@ -41,6 +41,8 @@ $BrgFit    = 0.50   # 625ZZ pocket allowance -- SET FROM THE BEARING GAUGE
 $OutBolts  = 6      # output wheel clamp bolts
 $OutBoltR  = 18     # ...on this radius, clear of the 22 mm register
 $OutBore   = 22     # output wheel centre bore = os_reg_d, the register it sits on
+$RegFit    = 0.50   # register post under the wheel bore (post-under-hole rule above). At 0 the
+                    # printed register and bore both came out 21.9 and would not go together.
 $PlateT    = 4.3    # baseplate thickness, mm (as ordered)
 
 # ---------------------------------------------------------------------------
@@ -68,7 +70,7 @@ $targets = @(
      d=@("os_brg_fit=$BrgFit") }
   @{ g='encoder'; f='output_tower_DOWELS.stl'; p='towerdowels'; d=@() }
   @{ g='encoder'; f='output_hub_lower.stl'; p='hublower';
-     d=@("bc_holes=$OutBolts", "bc_r=$OutBoltR") }
+     d=@("bc_holes=$OutBolts", "bc_r=$OutBoltR", "os_reg_d=$($OutBore - $RegFit)") }
   @{ g='encoder'; f='output_hub_upper.stl'; p='hubupper';
      d=@("bc_holes=$OutBolts", "bc_r=$OutBoltR") }
   @{ g='encoder'; f='magnet_cap.stl';     p='magnetcap';     d=@() }

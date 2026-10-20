@@ -129,6 +129,8 @@ os_flange_bc = 35;   // flange bolt circle dia. At Ø28 the web between the
                      // -- under the min-feature rule for 4 mm aluminium.
                      // Ø35 gives 4.60 mm.
 os_brg_fit = 0.5;    // bearing pocket allowance -- SET THIS FROM THE BEARING GAUGE
+os_bkt_fit = 0.5;    // AS5600 bracket sleeve over the 22 mm tower tube. The printer's
+                     // post-under-hole rule (build.ps1) wants 0.5; the old 0.3 was tight.
 os_cut     = false;  // cut the assembly in half for a section view (needs --render)
 
 /* [Split bearing tower] */
@@ -831,7 +833,7 @@ module magnet_cap() {
 module as5600_bracket() {
     difference() {
         translate([0,0,-40]) cylinder(d = 30, h = 40 + os_zdisc(), $fn = 72);
-        translate([0,0,-20])   cylinder(d = os_tower_od + 0.3, h = 20 + os_zdisc() + 1, $fn = 72);
+        translate([0,0,-20])   cylinder(d = os_tower_od + os_bkt_fit, h = 20 + os_zdisc() + 1, $fn = 72);
         translate([0,0,-38.4]) cylinder(d = 24, h = 18.6, $fn = 72);
         translate([0,0,-40.1]) cylinder(d = 14, h = 1.9, $fn = 48);
         for (i=[-1,1]) translate([i*8.5, 0, -40.1]) cylinder(d = 2.7, h = 3, $fn = 24);

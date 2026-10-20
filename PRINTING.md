@@ -114,11 +114,11 @@ axis and turn with the wheel, and the camera load wants real bearings anyway.
 | `output_tower_LOWER.stl` | 1 | clamp disc under the plate, spigot tube, lower 625ZZ pocket |
 | `output_tower_UPPER.stl` | 1 | flange on the plate top, upper 625ZZ pocket |
 | `output_tower_DOWELS.stl` | 1 | three Ø2.9 x 11.9 alignment dowels (they cross the plate) |
-| `output_hub_lower.stl` | 1 | clamps the shaft, Ø22 register the wheel locates on |
+| `output_hub_lower.stl` | 1 | clamps the shaft, Ø21.5 register the wheel locates on (0.5 under the wheel's Ø22 bore, the post-under-hole rule; a Ø22 register printed 21.9 and would not go in) |
 | `hub_washer.stl` | 1 | Ø7.2 x 1.0, sits on the upper bearing's inner race |
 | `output_hub_upper.stl` | 1 | camera platform, 10 mm thick, pocket for a full 1/4"-20 nut |
 | `magnet_cap.stl` | 1 | presses on the shaft end, 1.5 mm floor under the magnet |
-| `as5600_bracket.stl` | 1 | slides up the tower spigot until it stops on the clamp disc; PCB screws to its underside |
+| `as5600_bracket.stl` | 1 | slides up the tower spigot until it stops on the clamp disc; PCB screws to its underside. Sleeve Ø22.5 over the Ø22 spigot (`os_bkt_fit` 0.5; 0.3 was tight) |
 
 Also needed: a **5 mm ground shaft cut to 55 mm** (not a nail — this one runs
 in bearings and carries the encoder), 2 x 625ZZ, a **diametrically** magnetised

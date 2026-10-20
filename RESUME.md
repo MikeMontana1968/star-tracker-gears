@@ -125,6 +125,21 @@ regenerate.
     its pins (pin 1, the square pad, is +5V_CAM). J3 is the screw-terminal twin
     of the USB-A J2, both switched by Q2; the label keeps anyone from treating it
     as a supply input.
+11. **Turn J1 so its wire openings face the board edge.** All three screw
+    terminals (J1, J3, J4) use the MaiXu footprint at 0 deg, whose wire entry is
+    the footprint's +y side (the line printed just past the holes). That suits
+    J3 on the bottom edge, but J1 sits at the TOP edge (y 8), so its openings
+    face into the board and the 12 V lead has to come in over the parts. Rotate
+    J1 180 deg in `place.py` (pin 1, +12V_IN, then sits on the right: update
+    the `+12V` / `GND` silk labels and the guide's J1 drawings to match). J4's
+    openings face C11/C12 (note 2); check them against wherever TMCX moves.
+12. **Put the revision and a contact on the silkscreen.** Today `design.REV`
+    reaches only KiCad's title block, so nothing on the board itself says which
+    revision it is. Add one line of board text built FROM `design.REV`, so it
+    can never go stale, plus the owner's address:
+    `STAR TRACKER CTRL  REV D  -  MikeMontana@Gmail.com` (or two lines if
+    space is tight), size about 1.2 mm, in a clear area away from pads. Check
+    the DRC silk-overlap list after regenerating.
 
 ## Module facts, measured and confirmed
 
