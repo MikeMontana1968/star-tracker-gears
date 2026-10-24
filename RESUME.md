@@ -191,6 +191,12 @@ fixed in the `.scad` and the docs:
 | 7 | Grub holes in gears that turn on fixed nails | Removed from `stage` and `final_stage_gear` |
 | 8 | 1/4"-20 nut pocket 2.2 mm deep | Upper hub 10 mm thick, 5.9 mm pocket; wheel screws are M3x20 |
 
+**2026-10-23: shafts 1-3 are #12 screws, not nails.** The nails did not work
+out. The plate's 4.9 mm holes were drilled out to 5.5 by hand, and each screw is
+nutted under the plate. Gears and spacers are rebored to 6.0 mm (`$Bore` in
+`build.ps1`; #12 is 5.49 mm over the threads, plus the 0.5 mm rule). The gears
+ride on the threads, so a screw with a smooth shank under the gear runs better.
+
 ## Still open
 
 - **Is the OLED on the rotating camera platform or the fixed enclosure?** The

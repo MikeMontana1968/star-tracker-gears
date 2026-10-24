@@ -74,6 +74,35 @@ COMPS = [
 ]
 
 
+# Which build.ps1 target each component is printed from. build.ps1 passes the
+# printer calibration (bores, fits, bolt circles) as -D overrides, so the model
+# takes the same overrides -- otherwise it shows the .scad defaults, not the
+# parts actually printed.
+PRINTED_AS = {
+    'baseplate': 'baseplate_4mm.stl', 'pinion': 'pinion.stl', 'stage1': 'stage.stl', 'stage2': 'stage.stl',
+    'stage3': 'final_stage_gear.stl', 'wheel': 'final_wheel_96T_m2_PRINTED.stl',
+    'tower': 'output_tower_UPPER.stl', 'hub_lo': 'output_hub_lower.stl', 'hub_hi': 'output_hub_upper.stl',
+    'magcap': 'magnet_cap.stl', 'washer': 'hub_washer.stl', 'bracket': 'as5600_bracket.stl',
+    'spacer1': 'SPACERS_shaft_0-4.stl', 'spacer2': 'SPACERS_shaft_0-4.stl', 'spacer3': 'SPACERS_shaft_0-4.stl',
+}
+
+
+def build_overrides():
+    """{target file: ['name=value', ...]} from build.ps1, its $variables expanded."""
+    ps = open(os.path.join(REPO, 'build.ps1'), encoding='utf-8-sig').read()
+    var = {m.group(1): m.group(2) for m in re.finditer(r'(?m)^\$(\w+)\s*=\s*([-\d.]+)', ps)}
+
+    def expand(s):
+        s = s.replace('\\`"', '"').replace('`"', '"')
+        s = re.sub(r'\$\(([^)]*)\)', lambda m: repr(round(eval(re.sub(r'\$(\w+)', lambda v: var[v.group(1)], m.group(1))), 6)), s)
+        return re.sub(r'\$(\w+)', lambda v: var.get(v.group(1), v.group(0)), s)   # non-numeric ones (paths) left alone
+    out = {}
+    for m in re.finditer(r"f='([^']+)';\s*p='[^']+';\s*d=@\((.*?)\)\s*\}", ps, re.S):
+        items = re.findall(r'"((?:[^"`]|`.)*)"|\'([^\']*)\'', m.group(2))
+        out.setdefault(m.group(1), [expand(a or b) for a, b in items])
+    return out
+
+
 def scad_source():
     src = open(SCAD, encoding='utf8').read()
     a = src.index('if      (part == "train")')
@@ -82,10 +111,16 @@ def scad_source():
     return src[:a] + '// (part menu removed by cad/freecad/export_parts.py)\ncomp = "";\n' + menu + '\n' + src[b:]
 
 
+OVERRIDES = build_overrides()
+
+
 def export(c):
     out = os.path.join(BUILD, c[0] + '.stl')
-    r = subprocess.run([OPENSCAD, '-o', out, '--export-format', 'binstl', '-D', 'comp="%s"' % c[0],
-                        os.path.join(BUILD, 'assembly_parts.scad')], capture_output=True, text=True)
+    defs = []
+    for d in OVERRIDES.get(PRINTED_AS.get(c[0]), []):
+        defs += ['-D', d]
+    r = subprocess.run([OPENSCAD, '-o', out, '--export-format', 'binstl', '-D', 'comp="%s"' % c[0]] + defs +
+                       [os.path.join(BUILD, 'assembly_parts.scad')], capture_output=True, text=True)
     ok = r.returncode == 0 and os.path.exists(out) and os.path.getsize(out) > 84
     return c[0], ok, '' if ok else (r.stderr[-400:])
 

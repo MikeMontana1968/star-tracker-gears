@@ -510,6 +510,7 @@ p{margin:0}
   <div class="row"><figure class="fig" data-fig="cap" data-alt="Magnet into its cap, cap pressed up onto the shaft end"></figure><figure class="fig" data-fig="cap_gauge" data-alt="Cap face 16.0 mm below the tower's bottom face"></figure></div>
   <ul class="do">
     <li>Check the magnet is <b>diametric</b>: spin it flat beside a compass and the needle turns a full circle with it.</li>
+    <li><b>Either face can go toward the sensor.</b> A diametric magnet's north and south are on its rim, not its faces, so flipping it only shifts the reading by a fixed angle, which <a href="#s48">step 59</a> takes out.</li>
     <li>Magnet flush into the pocket in the cap's end face. Press the cap up onto the shaft until the shaft bottoms. Do not glue it yet; <a href="#s48">step 59</a> sets its rotation.</li>
     <li>Slide the shaft until the cap's face is <b>16.0 mm below the tower's bottom face</b> (caliper depth rod), then tighten the hub grub.</li>
   </ul>
@@ -534,7 +535,7 @@ p{margin:0}
   <ul class="do">
     <li>Solder a 5-wire lead to the breakout first: GND, VCC, SDA, SCL, DIR.</li>
     <li>Board to the bracket underside, chip <b>up</b> into the window: <span class="hw">2 × M3×6</span>, thread-forming.</li>
-    <li>Push the bracket up the tower spigot until it <b>stops on the clamp disc</b>. That puts the die 2.0 mm from the magnet. <a href="#s47">Step 58</a> confirms it with the AGC reading; then a dab of hot glue holds it there.</li>
+    <li>Push the bracket up the tower spigot until it <b>stops on the clamp disc</b>. That puts the <b>chip's top surface</b> 2.0 mm from the magnet's face (the datasheet's air gap is measured to the package, not the board). <a href="#s47">Step 58</a> confirms it with the AGC reading; then a dab of hot glue holds it there.</li>
   </ul>
   <div class="note"><svg class="ico"><use href="#i-info"/></svg><p>At 3.3 V the AS5600 wants its VDD5V and VDD3V3 pins tied together. Many breakouts have a solder bridge for this; check yours.</p></div>
   <footer><span>ST-2048:1</span><span>24</span></footer>
@@ -1117,21 +1118,24 @@ p{margin:0}
 </section>
 
 <section class="sheet" id="s47">
-  <div class="head"><span class="no-">58</span><h3>Magnet gap</h3><span class="tag pill">planned</span></div>
+  <div class="head"><span class="no-">58</span><h3>Magnet gap</h3><span class="tag pill now">today</span></div>
   <figure class="fig" data-fig="agc" data-alt="AGC scale 0 to 128, aim for the middle"></figure>
   <ul class="do">
-    <li>Read <b>AGC</b>, <b>MAGNITUDE</b> and the <b>MD / ML / MH</b> status bits. Shown on the OLED and the phone page.</li>
-    <li>Want: MD = 1, ML = 0, MH = 0, AGC near mid-scale (about 64 of 128 at 3.3 V).</li>
-    <li>Slide the bracket to get there, then lock it with a dab of hot glue.</li>
+    <li>Flash <span class="hw">firmware/as5600_check</span>. Only J7 needs to be connected. It reads <b>AGC</b>, <b>MAGNITUDE</b> and the <b>MD / ML / MH</b> bits five times a second and shows them on the OLED and in the serial monitor at 115200.</li>
+    <li>Want: top line <b>GAP GOOD</b>. That means MD = 1, ML = 0, MH = 0 and AGC in the middle of its bar (about 64 of 128 at 3.3 V). The sketch only reads; it never programs the chip.</li>
+    <li><b>Too strong</b> (MH = 1, AGC near 0): slide the bracket down a little, away from the magnet.</li>
+    <li><b>Too weak</b> (ML = 1, AGC near 128): the bracket is already at its stop, so bring the magnet closer instead. Loosen the hub grub and slide the shaft down 0.5 mm at a time.</li>
+    <li>Then lock the bracket with a dab of hot glue.</li>
   </ul>
   <footer><span>ST-2048:1</span><span>54</span></footer>
 </section>
 
 <section class="sheet" id="s48">
-  <div class="head"><span class="no-">59</span><h3>Encoder zero</h3><span class="tag pill">planned</span></div>
+  <div class="head"><span class="no-">59</span><h3>Encoder zero</h3><span class="tag pill now">today</span></div>
   <figure class="fig" data-fig="dial" data-alt="Encoder dial: the night's sweep runs from 1024 to about 3080 counts and never crosses the 0/4095 seam"></figure>
   <ul class="do">
-    <li>Park the platform at the start angle. Turn the magnet cap on the shaft until the raw reading is near <b>1024</b>.</li>
+    <li>Same sketch. Park the platform at the start angle. Turn the magnet cap on the shaft until the big number on the OLED reads <b>ZERO OK</b>, which means raw is within ±12 counts (1°) of <b>1024</b>.</li>
+    <li><b>SEAM!</b> in the corner means the night would cross 4095 → 0. Keep turning toward 1024.</li>
     <li>The 180.5° sweep then ends near 3080 and never crosses the 0 / 4095 seam, so the firmware needs no wrap handling.</li>
   </ul>
   <footer><span>ST-2048:1</span><span>55</span></footer>

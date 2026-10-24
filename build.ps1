@@ -33,7 +33,8 @@ $out  = Join-Path $root 'out'
 # ---------------------------------------------------------------------------
 # A printed post must run ~0.50 mm under a printed hole's nominal diameter for
 # a snug rotating fit on this machine (hole shrink + post growth combined).
-$Bore      = 5.20   # gears 1-4, running on 4.88 mm 20d common nails
+$Bore      = 6.00   # gears 1-4, running on #12 screws (5.49 mm major dia) + the 0.50 rule.
+                    # Was 5.20 for 4.88 mm 20d nails; the nails did not work out.
 $MotorBore = 5.45   # motor pinion, on the NEMA17's 5.00 mm ground shaft
 $MotorFlat = 2.225  # D-cut flat: 2.0 + (MotorBore - 5.0) / 2
 $PostD     = 4.70   # test-plate posts, from FITGAUGE
@@ -78,6 +79,9 @@ $targets = @(
   @{ g='gears';   f='baseplate_4mm.stl';  p='baseplate';     d=@("bp_t=$PlateT") }
   @{ g='docs';    f='docs/baseplate_cut.svg'; p='baseplatecut'; d=@() }
   @{ g='encoder'; f='as5600_bracket.stl'; p='as5600bracket'; d=@() }
+  # optional washers for the bracket's pocket, under the magnet (plastic does
+  # not affect the field): a 2 mm ring round the magnet cap, or a thin solid disc
+  @{ g='encoder'; f='as5600_washer_1.5mm_disc.stl'; p='bracketwasher'; d=@('bkt_washer_t=1.5', 'bkt_washer_id=0', 'bkt_washer_od=21.5') }
   @{ g='gears'; f='SPACERS_shaft_0-4.stl';          p='spacers';    d=@("bore=$Bore") }
 
   # --- calibration and test rig, into _scratch --------------------------

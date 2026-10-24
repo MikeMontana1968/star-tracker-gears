@@ -7,9 +7,9 @@ design and [DESIGN_NOTES.md](DESIGN_NOTES.md) for why it is the way it is.
 All-printed build, module-2 final stage. **2048:1**, `USTEPS_PER_REV = 13,107,200`
 at 1/32 microstepping.
 
-**Every STL here is cut at `bore = 5.2` nominal.** On this printer that lands
-near 4.9-5.0 mm actual, which suits a 20d common nail (4.88 mm) better than it
-suits true 5.00 mm ground stock. See *Shafts* below.
+**The gears and spacers on shafts 1-3 are cut at `bore = 6.0`** (since 2026-10-23),
+to run on **#12 screws** (5.49 mm over the threads) nutted under the plate. The
+nails below did not work out; *Shafts* is kept as the history of why.
 
 ## The gear train — 5 pieces from 4 files
 
@@ -88,7 +88,7 @@ Holes, all in the SVG and on the 1:1 template:
 | Where | What |
 |---|---|
 | S0 | dia 23 NEMA17 pilot boss + 4 x M3 on a 31 mm square |
-| S1-S3 | dia 4.9, light press for 20d nails driven up from underneath |
+| S1-S3 | dia 5.5 for #12 screws, nut under the plate (cut 4.9 for nails, drilled out by hand) |
 | S4 | dia 22.4 tower clearance + 3 x M3 on dia 35 |
 | S4 | **4 x M5 on dia 50 — the wedge/tripod interface** |
 

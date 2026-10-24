@@ -229,8 +229,8 @@ These live at the top of `build.ps1`. They are the hardest-won numbers here.
 
 | Constant | Value | How it was found |
 |---|---|---|
-| `$Bore` | 5.20 | gears run on 4.88 mm 20d nails |
-| `$MotorBore` | 5.45 | NEMA17's ground 5.00 mm shaft needs a bigger bore than the nails |
+| `$Bore` | 6.00 | gears run on #12 screws (5.49 mm), was 5.20 for nails |
+| `$MotorBore` | 5.45 | NEMA17's ground 5.00 mm shaft needs its own bore |
 | `$PostD` | 4.70 | fit gauge |
 | `$BrgFit` | 0.50 | **provisional** — print the bearing gauge |
 

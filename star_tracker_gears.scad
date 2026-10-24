@@ -163,7 +163,8 @@ os_washer_od = 7.2;  // turning hub never touches the tower rim or outer race
 // the motor -- the wheels overhang it -- so it is a hull of lobes at the
 // shaft centres rather than a slab under the whole footprint.
 bp_t          = 4.3;   // AS ORDERED from SendCutSend (nearest stock to 4.0)
-bp_shaft_d    = 4.9;   // light press for the 4.88 mm nail shafts (1-3)
+bp_shaft_d    = 5.5;   // shafts 1-3 are #12 screws, nutted under the plate. As built:
+                       // the 4.9 nail press holes were drilled out to 5.5 by hand.
 bp_motor_boss = 23;    // NEMA17 pilot boss registers here
 bp_motor_bc   = 31;    // NEMA17 bolt pattern, square
 bp_tower_bc   = 35;    // bearing tower flange bolts, dia -- must equal os_flange_bc
@@ -840,6 +841,26 @@ module as5600_bracket() {
     }
 }
 
+// Printed: an optional washer that lies on the floor of the bracket's Ø24
+// pocket, under the magnet. Plastic does not affect the field. The floor is
+// 1.4 mm below the turning magnet cap's face, so:
+//   ring  (bkt_washer_id > 0): any thickness up to ~2 mm, the hole clears the Ø9 cap
+//   solid (bkt_washer_id = 0): must stay thinner than 1.4 mm; 0.8 leaves 0.6 running clearance
+bkt_washer_t  = 2.0;    // thickness
+bkt_washer_od = 23.2;   // loose in the Ø24 pocket (post-under-hole 0.5, plus 0.3 to drop in freely)
+bkt_washer_id = 11;     // 0 = solid disc. 11 clears the Ø9 magnet cap by ~1 mm a side
+module bracket_washer() {
+    difference() {
+        cylinder(d = bkt_washer_od, h = bkt_washer_t, $fn = 96);
+        if (bkt_washer_id > 0) translate([0,0,-1]) cylinder(d = bkt_washer_id, h = bkt_washer_t + 2, $fn = 64);
+        // 0.3 mm chamfer on the top outer edge so it drops into the pocket easily
+        translate([0,0,bkt_washer_t - 0.3]) difference() {
+            cylinder(d = bkt_washer_od + 1, h = 1, $fn = 96);
+            cylinder(d1 = bkt_washer_od, d2 = bkt_washer_od - 2, h = 1, $fn = 96);
+        }
+    }
+}
+
 module output_shaft_assembly() {
     if (os_cut) difference() {
         os_stack();
@@ -905,6 +926,7 @@ else if (part == "hublower")       output_hub_lower();
 else if (part == "hubupper")       output_hub_upper();
 else if (part == "magnetcap")      magnet_cap();
 else if (part == "as5600bracket")  as5600_bracket();
+else if (part == "bracketwasher")  bracket_washer();
 else if (part == "bearinggauge")   bearing_gauge();
 else if (part == "baseplate")      baseplate();
 else if (part == "baseplatecut")   baseplate_2d();
