@@ -861,6 +861,345 @@ module bracket_washer() {
     }
 }
 
+// Printed: GoPro base adapter disc, slipped over the upper hub's 1/4"-20 bolt
+// under the camera's base mount. Infill is the slicer's job: ~15-20 %, 3 walls.
+gp_disc_d  = 1.25 * 25.4;          // 31.75
+gp_disc_t  = 0.35 * 25.4;          //  8.89
+gp_bolt_d  = 0.24 * 25.4;          //  6.10, the 1/4"-20 as measured over the threads
+gp_hole_d  = gp_bolt_d + 0.5;      //  6.60, post-under-hole rule
+gp_chamfer = 0.6;                  // both outer edges, against elephant's foot
+module gopro_base_adapter() {
+    difference() {
+        hull() {
+            translate([0,0,gp_chamfer]) cylinder(d = gp_disc_d, h = gp_disc_t - 2*gp_chamfer, $fn = 120);
+            cylinder(d = gp_disc_d - 2*gp_chamfer, h = gp_disc_t, $fn = 120);
+        }
+        translate([0,0,-1]) cylinder(d = gp_hole_d, h = gp_disc_t + 2, $fn = 64);
+        // lead-ins so it starts onto the thread from either face
+        translate([0,0,-0.01]) cylinder(d1 = gp_hole_d + 1.2, d2 = gp_hole_d, h = 0.6, $fn = 64);
+        translate([0,0,gp_disc_t - 0.59]) cylinder(d1 = gp_hole_d, d2 = gp_hole_d + 1.2, h = 0.6, $fn = 64);
+    }
+}
+
+// ---------------------------------------------------------------------
+//  BENCH STAND -- a square tube that slides up over the motor until its rim
+//  meets the plate's underside, and a base it plugs into. The plate's weight
+//  goes down the tube walls; the motor only locates it.
+//  Square, not round: a round tube clearing the motor's corners would be
+//  ~66 across and hit the output tower's Ø41 disc 52.5 mm away (shaft 4).
+//  Square, it clears that disc by 7.6 and the AS5600 bracket by 13.
+//  Printed as drawn: tube on its bottom end, base flat.
+// ---------------------------------------------------------------------
+ms_motor   = 42.3;               // NEMA17 body, square
+ms_in      = ms_motor + 0.5;     // 42.8 -- slides on (post-under-hole rule)
+ms_wall    = 3.2;                // 8 lines of 0.4
+ms_out     = ms_in + 2*ms_wall;  // 49.2
+ms_r       = 3;                  // outer corner radius
+ms_h       = 3 * 25.4;           // 76.2, plate underside to the base
+// Notch at the top of the -X face (away from the gear train) for the connector
+// tab on the motor's side; the cable runs out through it. Turn the tube to suit.
+ms_slot_w  = 16.5;
+ms_slot_h  = 32;                 // down from the top rim
+ms_boss_d  = 8;                  // inner-corner screw bosses at the foot
+ms_boss_h  = 12;
+ms_boss_c  = ms_in/2 - 3;        // 18.4 -- merged into the corner walls
+ms_pilot   = 2.7;                // M3 thread-forming, as the tower halves use
+ms_base_d  = 170;                // Ø170 x 5: + skirt still fits the 220 bed
+ms_base_t  = 5;
+ms_sock_h  = 10;                 // socket collar the tube drops into
+ms_sock_in = ms_out + 0.5;       // 49.7
+ms_cb_d    = 6.5;                // M3 cap head counterbore, from underneath
+ms_cb_h    = 3;
+
+module rsquare(s, r, h) {        // square prism, rounded vertical edges, centred in XY
+    hull() for (x=[-1,1], y=[-1,1])
+        translate([x*(s/2-r), y*(s/2-r), 0]) cylinder(r = r, h = h, $fn = 32);
+}
+
+module motor_stand_tube() {
+    difference() {
+        union() {
+            difference() {
+                rsquare(ms_out, ms_r, ms_h);
+                translate([0,0,-1]) rsquare(ms_in, 0.5, ms_h + 2);
+            }
+            for (x=[-1,1], y=[-1,1]) translate([x*ms_boss_c, y*ms_boss_c, 0])
+                cylinder(d = ms_boss_d, h = ms_boss_h, $fn = 32);
+        }
+        for (x=[-1,1], y=[-1,1]) translate([x*ms_boss_c, y*ms_boss_c, -1])
+            cylinder(d = ms_pilot, h = ms_boss_h, $fn = 24);
+        // motor tab notch
+        translate([-ms_out/2 - 1, -ms_slot_w/2, ms_h - ms_slot_h]) cube([ms_wall + 2, ms_slot_w, ms_slot_h + 1]);
+        // 0.4 chamfer round the foot: no elephant's foot, and it starts into the socket
+        translate([0,0,-0.01]) difference() {
+            rsquare(ms_out + 2, ms_r, 0.41);
+            hull() {
+                rsquare(ms_out - 0.8, ms_r, 0.01);
+                translate([0,0,0.4]) rsquare(ms_out, ms_r, 0.01);
+            }
+        }
+    }
+}
+
+module motor_stand_base() {
+    difference() {
+        union() {
+            hull() {                                            // 1 mm chamfer on the top edge
+                cylinder(d = ms_base_d, h = ms_base_t - 1, $fn = 180);
+                cylinder(d = ms_base_d - 2, h = ms_base_t, $fn = 180);
+            }
+            rsquare(ms_sock_in + 2*ms_wall, ms_r + 0.5, ms_base_t + ms_sock_h);
+        }
+        translate([0,0,ms_base_t]) rsquare(ms_sock_in, ms_r + 0.25, ms_sock_h + 1);
+        for (x=[-1,1], y=[-1,1]) translate([x*ms_boss_c, y*ms_boss_c, 0]) {
+            translate([0,0,-1]) cylinder(d = 3.4, h = ms_base_t + 2, $fn = 24);
+            translate([0,0,-0.01]) cylinder(d = ms_cb_d, h = ms_cb_h, $fn = 32);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------
+//  CONTROLLER BOX -- houses the 150 x 100 Rev C board, lid up, glued (or
+//  screwed through its two ears) to the -X face of the motor tube, so the
+//  tube's tab notch opens straight into the box. Board x = 150 (J4 MOTOR,
+//  TMC2209) is the tube end; board y = 0 (J1 12 V, J2 camera USB-A) is -Y.
+//  Box frame: x = 0 far end .. pb_L tube end, y = 0 at the -Y wall, z = 0
+//  bottom; the lid's top sits flush with the tube top = plate underside.
+//
+//  Lid: two M3x12 socket caps at the far end, down into corner posts. The
+//  tube-end corners are under the plate, so there the lid carries two
+//  "leaves" that hang into the box and M3x8 socket caps go in sideways
+//  through the box walls. Every cap sits in a 3.2-deep counterbore: 0.2 below
+//  flush.
+//  Board: drops onto four standoffs (pins through its M3 holes) and four
+//  snap hooks catch its long edges. GPS: on the lid's underside at the far
+//  end, past the plate's edge, antenna facing up through the lid.
+//  Outside edges: 1/8" round-over. Edges that print against the bed (box
+//  bottom, lid top) get the same radius with a 45-degree foot, or the first
+//  layers droop. The lid-to-box seam is left square, not rounded into a groove.
+//
+//  MEASURE AND SET: pb_tall (the DS3231 standing in J6 is the assumption),
+//  pb_win (where the OLED is on the module), pb_gps / pb_ant.
+// ---------------------------------------------------------------------
+pb_brd     = [150, 100];
+pb_holes   = [[6,6], [144,6], [6,94], [144,94]];
+pb_wall    = 2.5;
+pb_floor   = 2.0;
+pb_ro      = 3.175;          // 1/8" round-over
+pb_zone    = 9;              // far end, beyond the board, for the lid-screw posts
+pb_gx      = 1;              // board to the tube-end wall
+pb_gy      = 2.5;            // board edge to side wall: hook 0.3 gap + 1.4 arm + 0.8 swing
+pb_so      = 6;              // standoff height under the board
+pb_pcb     = 1.6;
+pb_tall    = 28;             // above the board: tallest part measured 25.4 (2026-10-24) + 2.6
+pb_lid     = 3.6;
+pb_in      = [pb_zone + pb_brd[0] + pb_gx, pb_brd[1] + 2*pb_gy];   // 160 x 105
+pb_L       = pb_in[0] + 2*pb_wall;                                   // 165
+pb_W       = pb_in[1] + 2*pb_wall;                                   // 110
+pb_bz      = pb_floor + pb_so;                                       // board underside
+pb_tz      = pb_bz + pb_pcb;                                         // board top
+pb_H       = pb_tz + pb_tall;                                        // rim = lid underside
+function pb_b(p) = [pb_wall + pb_zone + p[0], pb_wall + pb_gy + p[1]];   // board -> box
+pb_ear_h   = pb_H - pb_floor;                                        // ears run the box's height
+
+pb_post    = 8;              // far-end lid-screw posts, square, in the corners
+pb_boss    = 5;              // lid boss under each far screw (lid is too thin for a counterbore)
+pb_cb_d    = 6.4;            // M3 socket-cap counterbore (head 5.5 x 3.0)
+pb_cb_h    = 3.2;
+pb_leaf    = [10, 6, 12];    // tube-end leaves: x, y (into the box), z (down from the lid)
+pb_pad     = 2.0;            // wall thickening behind each leaf (2.5 wall + 2.0 = 3.2 counterbore
+                             //   + 1.3); leaves the board 0.5 a side to drop in past it
+pb_ear     = [20, 3, 0];     // ears hugging the tube's +/-Y faces: length, thickness (height = box)
+pb_gus     = 12;             // gusset legs, ear to end wall, at the ears' foot and mid-height
+pb_hooks   = [[40, 0], [100, 0], [52, 100], [112, 100]];   // board x, board edge
+// OLED: on the USB half of the ideaspark module, measured off the 2026-10-24
+// photo against the J20/J21 pin rows (~47-72 x 37-52), plus a margin
+pb_win     = [45, 34, 74, 55];          // OLED viewport, board coords x0 y0 x1 y1
+pb_pane    = [4, 1.0];                  // top recess for the glued-on clear panel: margin, depth
+// GPS: not over the power section (25 mm parts), so over the low parts --
+// antenna over the WROOM half of the ESP32 (~13 tall), module over the empty
+// strip between the ESP32 and the bottom headers. Both stay 5+ mm clear.
+// Contact label, recessed into the lid's top: two lines, turned 90 degrees to
+// run across the lid, centred in the space between the viewport's panel recess
+// and the lid's tube end. Across the lid it gets 110 mm, so the size is set by
+// the email line fitting ~5 mm clear of the round-over (98 mm long at 5.9).
+pb_label   = ["MikeMontana@gmail.com", "732 966-0708"];
+pb_lbl_fnt = "Liberation Sans:style=Bold";
+pb_lbl_sz  = 5.9;                        // cap height ~ size
+pb_lbl_gap = 9.5;                        // baseline to baseline: ~15.4 mm overall
+pb_lbl_rot = 90;                         // -90 reads the other way
+pb_lbl_dep = 0.6;                        // 3 layers
+pb_ant     = [89, 38, 26.2];             // patch antenna pocket: centre (board), inner side
+pb_gps     = [40, 62, 35.5, 25.5];       // GY-NEO6MV2 board: x0 y0 (board), length, width
+
+module pb_rbox(L, W, H, r) {   // vertical + bottom edges rounded; bottom with a 45-degree foot
+    intersection() {
+        hull() for (x=[r, L-r], y=[r, W-r]) translate([x, y, 0]) {
+            translate([0,0,r]) sphere(r = r, $fn = 32);
+            cylinder(r = r*(sqrt(2)-1), h = 0.01, $fn = 16);
+            translate([0,0,r]) cylinder(r = r, h = max(H - r, 0.01), $fn = 32);
+        }
+        cube([L, W, H]);
+    }
+}
+
+module pb_rcube(s, r = 1) {    // small rounded block (ears)
+    hull() for (x=[r, s[0]-r], y=[r, s[1]-r], z=[r, s[2]-r])
+        translate([x, y, z]) sphere(r = r, $fn = 12);
+}
+
+module pb_hook() {             // u = toward the board; the board edge sits at u = 1.7
+    zc = pb_tz + 0.1;
+    rotate([90, 0, 90]) linear_extrude(8, center = true)
+        polygon([[0, 0.2], [1.4, 0.2], [1.4, zc], [2.3, zc], [2.3, zc + 0.3],   // roots 0.4 into the 0.6 relief floor
+                 [1.4, zc + 2.2], [0, zc + 2.2]]);
+}
+
+module pcb_box() {
+    yl = [pb_wall, pb_W - pb_wall];                 // inner faces of the side walls
+    difference() {
+        union() {
+            difference() {
+                union() {
+                    pb_rbox(pb_L, pb_W, pb_H, pb_ro);
+                    for (s = [-1, 1]) let(yi = pb_W/2 + s*(ms_out/2 + 0.25),
+                                          yo = yi + s*pb_ear[1]) {          // ear's outer face
+                        translate([pb_L - 2, s < 0 ? yo : yi, pb_floor])
+                            pb_rcube([pb_ear[0] + 2, pb_ear[1], pb_ear_h]);
+                        // gussets, ear to end wall, at the foot and mid-height
+                        for (z = [pb_floor, pb_floor + pb_ear_h/2 - 1.5]) hull()
+                            for (p = [[pb_L - 1, yo - s*1], [pb_L + pb_gus, yo - s*1], [pb_L - 1, yo + s*pb_gus]])
+                                for (dz = [1, 2]) translate([p[0], p[1], z + dz]) sphere(r = 1, $fn = 12);
+                    }
+                }
+                translate([pb_wall, pb_wall, pb_floor]) cube([pb_in[0], pb_in[1], pb_H]);
+                // floor reliefs under the hooks: a longer, kinder flex arm (cut before
+                // the hooks go in, or it cuts their roots off too)
+                for (h = pb_hooks) let(p = pb_b([h[0], h[1]]))
+                    translate([p[0] - 4.5, (h[1] == 0 ? p[1] - 1.9 : p[1] + 0.2), 0.6]) cube([9, 1.7, pb_floor]);
+            }
+            // far-end lid-screw posts
+            for (y = [pb_wall, pb_W - pb_wall - pb_post])
+                translate([pb_wall - 0.01, y, 0]) cube([pb_post, pb_post, pb_H - pb_boss - 0.3]);
+            // wall pads behind the leaves, with a 45-degree underside
+            for (s = [0, 1]) let(y0 = s ? pb_W - pb_wall - pb_pad : pb_wall)
+                hull() {
+                    translate([pb_L - pb_wall - 14, y0, pb_H - 14]) cube([14, pb_pad, 14]);
+                    translate([pb_L - pb_wall - 14, s ? pb_W - pb_wall - 0.01 : pb_wall, pb_H - 14 - pb_pad])
+                        cube([14, 0.01, 0.01]);
+                }
+            // board standoffs + locating pins
+            for (h = pb_holes) translate(concat(pb_b(h), 0)) {
+                cylinder(d = 7, h = pb_bz, $fn = 32);
+                translate([0,0,pb_bz]) cylinder(d = 2.9, h = pb_pcb + 0.6, $fn = 24);
+                translate([0,0,pb_bz + pb_pcb + 0.6]) cylinder(d1 = 2.9, d2 = 2.1, h = 0.4, $fn = 24);
+            }
+            // snap hooks on the long edges
+            for (h = pb_hooks) let(p = pb_b([h[0], h[1]]))
+                if (h[1] == 0) translate([p[0], p[1] - 1.7, 0]) pb_hook();
+                else translate([p[0], p[1] + 1.7, 0]) mirror([0,1,0]) pb_hook();
+        }
+        // post pilots (M3 thread-forming)
+        for (y = [pb_wall, pb_W - pb_wall - pb_post])
+            translate([pb_wall + pb_post/2, y + pb_post/2, pb_H - pb_boss - 13]) cylinder(d = 2.7, h = 14, $fn = 24);
+        // side screws into the leaves: counterbore + clearance through wall and pad
+        for (s = [0, 1]) translate([pb_L - pb_wall - 7, s ? pb_W : 0, pb_H - pb_leaf[2]/2])
+            rotate([s ? 90 : -90, 0, 0]) {
+                translate([0,0,-1]) cylinder(d = pb_cb_d, h = pb_cb_h + 1, $fn = 32);
+                translate([0,0,-1]) cylinder(d = 3.4, h = pb_wall + pb_pad + 2, $fn = 24);
+            }
+        // -Y wall: J1 12 V wires, J2 camera USB-A (room for the plug's moulding)
+        translate([pb_b([9, 0])[0], -1, pb_tz + 0.5]) cube([15, pb_wall + 2, 11.5]);
+        translate([pb_b([57.5, 0])[0] - 8.5, -1, pb_tz - 0.5]) cube([17, pb_wall + 2, 10]);
+        // +Y wall: J3 camera 5 V wires; notches at the rim for the J7 encoder and J8 home cables
+        translate([pb_b([95, 0])[0], pb_W - pb_wall - 1, pb_tz + 0.5]) cube([15, pb_wall + 2, 11.5]);
+        for (x = [23, 60.5]) translate([pb_b([x, 0])[0] - 5, pb_W - pb_wall - 1, pb_H - 8]) cube([10, pb_wall + 2, 9]);
+        // tube end: opening matching the tube's 16.5 x 32 tab notch (+0.5 a side)
+        translate([pb_L - pb_wall - 1, pb_W/2 - ms_slot_w/2 - 0.5, pb_H + pb_lid - ms_slot_h])
+            cube([pb_wall + 2, ms_slot_w + 1, ms_slot_h]);
+        // ear holes for an optional M3 into the tube wall (drill the tube 2.5)
+        translate([pb_L + pb_ear[0]/2 + 2, -50, pb_floor + pb_ear_h*0.75]) rotate([-90,0,0]) cylinder(d = 3.4, h = pb_W + 100, $fn = 24);
+    }
+}
+
+module pcb_lid() {
+    z0 = pb_H;                                      // lid underside
+    difference() {
+        union() {
+            translate([0, 0, z0 + pb_lid]) mirror([0,0,1]) pb_rbox(pb_L, pb_W, pb_lid, pb_ro);
+            // locating lip, along the side walls and the far end (not the tube end:
+            // the tab opening and the leaves are there)
+            lip_x0 = pb_wall + pb_post + 1;  lip_x1 = pb_L - pb_wall - 16;
+            for (y = [pb_wall + 0.3, pb_W - pb_wall - 0.3 - 1.6])
+                difference() {
+                    translate([lip_x0, y, z0 - 3]) cube([lip_x1 - lip_x0, 1.6, 3.01]);
+                    for (x = [23, 60.5]) translate([pb_b([x, 0])[0] - 6, y - 1, z0 - 4]) cube([12, 4, 5]);
+                }
+            translate([pb_wall + 0.3, pb_wall + pb_post + 1, z0 - 3]) cube([1.6, pb_in[1] - 2*pb_post - 2, 3.01]);
+            // bosses over the far posts
+            for (y = [pb_wall, pb_W - pb_wall - pb_post])
+                translate([pb_wall + 0.2, y + 0.2, z0 - pb_boss]) cube([pb_post - 0.4, pb_post - 0.4, pb_boss + 0.01]);
+            // tube-end leaves
+            for (s = [0, 1]) translate([pb_L - pb_wall - 12,
+                                       s ? pb_W - pb_wall - pb_pad - 0.2 - pb_leaf[1] : pb_wall + pb_pad + 0.2,
+                                       z0 - pb_leaf[2]]) cube([pb_leaf[0], pb_leaf[1], pb_leaf[2] + 0.01]);
+            // GPS antenna pocket: patch face-up against the lid, two snap nubs
+            translate(concat(pb_b([pb_ant[0], pb_ant[1]]), z0 - 5)) difference() {
+                translate([-pb_ant[2]/2 - 1.6, -pb_ant[2]/2 - 1.6, 0]) cube([pb_ant[2] + 3.2, pb_ant[2] + 3.2, 5.01]);
+                translate([-pb_ant[2]/2, -pb_ant[2]/2, -1]) cube([pb_ant[2], pb_ant[2], 7]);
+                translate([-2.5, pb_ant[2]/2 - 1, -1]) cube([5, 4, 7]);          // cable slot, toward the module
+            }
+            for (s = [-1, 1]) translate(concat(pb_b([pb_ant[0] + s*(pb_ant[2]/2), pb_ant[1]]), z0 - 4.6))
+                rotate([90, 0, 0]) cylinder(d = 0.8, h = 8, center = true, $fn = 12);
+            // GPS module rails: slide in from the +x end, rest on the ledges, parts up
+            for (s = [0, 1]) let(yb = pb_b([0, pb_gps[1] + (s ? pb_gps[3] + 0.3 : -0.3)])[1],
+                                 x0 = pb_b([pb_gps[0], 0])[0])
+                translate([x0, yb, z0]) mirror([0, s ? 0 : 1, 0]) {
+                    translate([0, 0, -8]) cube([pb_gps[2] + 1, 1.6, 8.01]);
+                    // ledge, 1.5 under the board's edge, with a 45-degree back
+                    hull() {
+                        translate([0, -1.5, -8]) cube([pb_gps[2] + 1, 1.5, 1]);
+                        translate([0, -0.01, -5.5]) cube([pb_gps[2] + 1, 0.01, 0.01]);
+                    }
+                    translate([pb_gps[2] + 0.4, -1.5, -7]) cube([0.6, 1.5, 0.6]);    // retaining bump
+                }
+            // far-end stop for the module
+            translate([pb_b([pb_gps[0], 0])[0] - 1.6, pb_b([0, pb_gps[1]])[1], z0 - 8]) cube([1.6, pb_gps[3], 8.01]);
+        }
+        // far screws: counterbore 0.2 below flush, clearance through lid and boss
+        for (y = [pb_wall, pb_W - pb_wall - pb_post]) translate([pb_wall + pb_post/2, y + pb_post/2, 0]) {
+            translate([0,0,z0 + pb_lid - pb_cb_h]) cylinder(d = pb_cb_d, h = pb_cb_h + 1, $fn = 32);
+            translate([0,0,z0 - pb_boss - 1]) cylinder(d = 3.4, h = pb_boss + pb_lid + 2, $fn = 24);
+        }
+        // leaf pilots, in line with the side-wall holes
+        for (s = [0, 1]) translate([pb_L - pb_wall - 7, s ? pb_W - pb_wall - pb_pad - 0.2 : pb_wall + pb_pad + 0.2, z0 - pb_leaf[2]/2])
+            rotate([s ? 90 : -90, 0, 0]) translate([0,0,-0.01]) cylinder(d = 2.6, h = pb_leaf[1] - 1, $fn = 24);
+        // OLED viewport, and a recess in the top for the clear panel glued over it
+        // (glue all round it and the window is sealed; there are no vents in the top)
+        let(a = pb_b([pb_win[0], pb_win[1]]), b = pb_b([pb_win[2], pb_win[3]]), m = pb_pane[0]) {
+            translate([a[0], a[1], z0 - 1]) cube([b[0] - a[0], b[1] - a[1], pb_lid + 2]);
+            translate([a[0] - m, a[1] - m, z0 + pb_lid - pb_pane[1]]) cube([b[0] - a[0] + 2*m, b[1] - a[1] + 2*m, 2]);
+        }
+        // contact label
+        let(x0 = pb_b([pb_win[2], 0])[0] + pb_pane[0])     // right edge of the panel recess
+        translate([(x0 + pb_L)/2, pb_W/2, z0 + pb_lid - pb_lbl_dep]) rotate(pb_lbl_rot)
+            linear_extrude(pb_lbl_dep + 1) for (i = [0 : len(pb_label) - 1])
+                translate([0, (len(pb_label) - 1)/2 * pb_lbl_gap - i*pb_lbl_gap - pb_lbl_sz/2, 0])
+                    text(pb_label[i], size = pb_lbl_sz, font = pb_lbl_fnt, halign = "center", valign = "baseline");
+    }
+}
+
+module pcb_box_view() {          // box, lid lifted 30, a dummy board and its tall modules
+    color("#c8ccd2") pcb_box();
+    color("#7fb2e5", 0.9) translate([0,0,30]) pcb_lid();
+    translate(concat(pb_b([0,0]), pb_bz)) {
+        color("#2f7d4f") cube([pb_brd[0], pb_brd[1], pb_pcb]);
+        color("#333") translate([43, 27.6, pb_pcb]) cube([48.6, 32.8, 13]);   // ESP32 + OLED
+        color("#555") translate([110, 7, pb_pcb]) cube([21.6, 21.8, 20]);     // TMC2209 + heatsink
+        color("#a33") translate([0, 15, pb_pcb]) cube([30, 55, 25.4]);        // power section, tallest measured
+    }
+}
+
 module output_shaft_assembly() {
     if (os_cut) difference() {
         os_stack();
@@ -927,6 +1266,13 @@ else if (part == "hubupper")       output_hub_upper();
 else if (part == "magnetcap")      magnet_cap();
 else if (part == "as5600bracket")  as5600_bracket();
 else if (part == "bracketwasher")  bracket_washer();
+else if (part == "goproadapter")   gopro_base_adapter();
+else if (part == "standtube")      motor_stand_tube();
+else if (part == "standbase")      motor_stand_base();
+else if (part == "stand")          { motor_stand_base(); translate([0,0,ms_base_t]) motor_stand_tube(); }
+else if (part == "pcbbox")         pcb_box();
+else if (part == "pcblid")         translate([0, pb_W, pb_H + pb_lid]) rotate([180,0,0]) pcb_lid();   // top on the bed
+else if (part == "pcbview")        pcb_box_view();
 else if (part == "bearinggauge")   bearing_gauge();
 else if (part == "baseplate")      baseplate();
 else if (part == "baseplatecut")   baseplate_2d();

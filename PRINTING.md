@@ -117,6 +117,7 @@ axis and turn with the wheel, and the camera load wants real bearings anyway.
 | `output_hub_lower.stl` | 1 | clamps the shaft, Ø21.5 register the wheel locates on (0.5 under the wheel's Ø22 bore, the post-under-hole rule; a Ø22 register printed 21.9 and would not go in) |
 | `hub_washer.stl` | 1 | Ø7.2 x 1.0, sits on the upper bearing's inner race |
 | `output_hub_upper.stl` | 1 | camera platform, 10 mm thick, pocket for a full 1/4"-20 nut |
+| `gopro_base_adapter.stl` | 1 | 1.25" x 0.35" disc over the hub's 1/4"-20 bolt, under the GoPro base mount; Ø6.6 hole for the 0.24" bolt. 15-20 % infill, 3 walls |
 | `magnet_cap.stl` | 1 | presses on the shaft end, 1.5 mm floor under the magnet |
 | `as5600_bracket.stl` | 1 | slides up the tower spigot until it stops on the clamp disc; PCB screws to its underside. Sleeve Ø22.5 over the Ø22 spigot (`os_bkt_fit` 0.5; 0.3 was tight) |
 
@@ -309,6 +310,53 @@ SendCutSend, cut at `backlash = 0.35`, 60 points per flank. Only needed if you
 decide to have the final wheel cut from .063″ aluminium instead of printing it.
 Ignore it otherwise.
 
+## Bench stand
+
+| File | Qty | What |
+|---|---|---|
+| `stand_motor_tube.stl` | 1 | square tube, 42.8 inside (slides over the 42.3 motor), 3.2 walls, 76.2 (3") long. Its top rim carries the plate; the motor only locates it. 16.5 wide x 32 deep notch at the top of the -X face (away from the gears) for the motor's connector tab. Print on its end as exported |
+| `stand_base.stl` | 1 | Ø170 x 5 disc with a 10 mm socket the tube drops into (0.25 a side). Glue it, or 4 x M3x12 cap screws up from underneath into the tube's corner bosses (counterbored, thread-forming into Ø2.7) |
+
+Square rather than round: a round tube clearing the motor's corners would be
+~66 across and hit the output tower's Ø41 disc at shaft 4, 52.5 mm away. The
+square one clears it by 7.6 and the AS5600 bracket by 13.
+
+## Controller box
+
+| File | Qty | What |
+|---|---|---|
+| `pcb_box.stl` | 1 | 165 x 110 x 37.6 box for the 150 x 100 board (28 above the board: tallest part measured 25.4). Small end against the motor tube's -X face. Its two full-height ears hug the tube's sides, gusseted to the end wall at the foot and mid-height. Glue, and/or an M3x8 through each ear into the tube wall (drill the tube 2.5). The end wall's opening lines up with the tube's tab notch. Board drops onto four pinned standoffs and four snap hooks catch it. Print open side up |
+| `pcb_lid.stl` | 1 | 3.6 lid, exported top-down for printing. Lid top sits flush with the plate's underside. No vents and no button hole in the top: nothing for rain or dew to get in by |
+
+- **Lid screws:** 2 x M3x12 socket caps at the far end, down into the corner posts.
+  The tube-end corners are under the plate, so there the lid has two leaves
+  hanging into the box, and 2 x M3x8 socket caps go in sideways through the walls.
+  All four sit in 3.2-deep counterbores, 0.2 below flush. The holes are modelled,
+  so there is nothing to drill.
+- **Openings:** -Y wall, J1 12 V wires and the J2 camera USB-A (sized for the
+  plug's moulding). +Y wall, J3 camera 5 V wires, plus notches at the rim for the
+  J7 encoder and J8 home cables. Lid: an OLED viewport over the display's
+  measured position (the USB half of the ideaspark module), with a 1.0-deep
+  recess round it in the top for the clear panel. Glue the panel all round and
+  the window is sealed.
+- **GPS:** inside, on the lid's underside, past the plate's edge. The aluminium
+  plate would block it anywhere under the plate. It is NOT over the power section
+  (parts up to 25.4). The patch antenna snaps face-up into a pocket over the
+  ESP32's WROOM half (~13 tall). The GY-NEO6MV2 board slides into rails over the
+  empty strip between the ESP32 and the bottom headers, parts toward the lid,
+  with J9 right below it.
+- **SW1 CONFIG and the ESP32's micro-USB:** reach them with the lid off. There
+  is no button hole in the top (sealed lid), and the USB port is 43 mm inside the
+  board edge, behind the regulator. Program over Wi-Fi.
+- **Edges:** 1/8" round-over outside. The bed-side edges (box bottom, lid top)
+  have a 45-degree foot so the first layers don't droop.
+- **Clearance:** the box bottom is 41.2 below the plate's underside. The stand's
+  socket collar is 66.2 below it.
+- **Still to confirm:** the DS3231 module was not in J6 when measured. A ZS-042
+  standing upright in it is ~46 tall and will NOT fit under the 28 mm
+  (`pb_tall`). The GY-NEO6MV2 sizes (`pb_ant`, `pb_gps`) are typical values;
+  measure yours.
+
 ## `out/docs/`
 
 | File | What |
@@ -331,6 +379,17 @@ Calibration gauges, the backlash test jig, and superseded exports. Nothing in
 there is part of the final build, and it is gitignored — but the gauges and the
 test plate are re-runnable tools, not rubbish. Rebuild them with
 `.\build.ps1 -Group calibration`.
+
+## `out/gcode/`
+
+One `.gcode` per printed STL, sliced by `cura_slice.py` through CuraEngine with
+whatever printer, quality, material and nozzle the **Cura GUI has active**
+(today: Ender-3 V3 SE, Dynamic Quality, generic PLA, 0.4). Change a setting in
+Cura and the next slice picks it up. `.\build.ps1` slices everything; `-Only
+<part>` re-slices just that part; `.\build.ps1 -Group gcode` slices without
+rebuilding. One-off overrides: `python cura_slice.py --set infill_sparse_density=15 gopro`.
+The lower tower half is flipped plate-face-down automatically (`FLIP` in the
+script). Gitignored like the STLs. The baseplate is skipped (it is cut, not printed).
 
 ## Print notes
 

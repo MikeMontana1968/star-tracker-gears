@@ -2,6 +2,8 @@
 # Regenerate with:  .\build.ps1
 out/*.stl
 out/**/*.stl
+# ...and their G-code, sliced from them by cura_slice.py
+out/gcode/
 
 # Disposable verification and superseded exports.
 out/_scratch/

@@ -16,7 +16,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('all', 'gears', 'encoder', 'calibration', 'docs')]
+    [ValidateSet('all', 'gears', 'encoder', 'calibration', 'docs', 'gcode')]
     [string] $Group = 'all',
     [string] $Only,
     [switch] $List,
@@ -82,6 +82,16 @@ $targets = @(
   # optional washers for the bracket's pocket, under the magnet (plastic does
   # not affect the field): a 2 mm ring round the magnet cap, or a thin solid disc
   @{ g='encoder'; f='as5600_washer_1.5mm_disc.stl'; p='bracketwasher'; d=@('bkt_washer_t=1.5', 'bkt_washer_id=0', 'bkt_washer_od=21.5') }
+  # camera end: 1.25" x 0.35" disc over the upper hub's 1/4"-20 bolt
+  @{ g='encoder'; f='gopro_base_adapter.stl'; p='goproadapter'; d=@() }
+  # bench stand: tube over the motor, plugs into the base (glue or 4 x M3x12 from below)
+  @{ g='gears'; f='stand_motor_tube.stl'; p='standtube'; d=@() }
+  @{ g='gears'; f='stand_base.stl';       p='standbase'; d=@() }
+  # controller box on the motor tube: box, lid (printed top-down)
+  @{ g='gears'; f='pcb_box.stl';     p='pcbbox';     d=@() }
+  @{ g='gears'; f='pcb_lid.stl';     p='pcblid';     d=@() }
+  # short fit-test of the tube (same section, notch and bosses), to try on the motor first
+  @{ g='calibration'; f='TEST_stand_motor_tube_45mm.stl'; p='standtube'; d=@('ms_h=45') }
   @{ g='gears'; f='SPACERS_shaft_0-4.stl';          p='spacers';    d=@("bore=$Bore") }
 
   # --- calibration and test rig, into _scratch --------------------------
@@ -127,11 +137,12 @@ $selected = $targets | Where-Object {
 # The PDF/DXF docs are built by python further down, not by OpenSCAD, so they
 # are not in $targets. Count them here or -Only on one of them throws.
 $pyDocs = @('baseplate_template.pdf', 'baseplate_cut.dxf',
-            'baseplate_assembly_guide.pdf', 'final_wheel_24h_dial.pdf')
+            'baseplate_assembly_guide.pdf', 'final_wheel_24h_dial.pdf', 'dial_arcs')
 $pyMatched = ($Group -eq 'all' -or $Group -eq 'docs') -and
              ((-not $Only) -or @($pyDocs | Where-Object { $_ -like "*$Only*" }).Count -gt 0)
 
-if (-not $selected -and -not $pyMatched) {
+$sliceAll = $Group -eq 'gcode' -or ($Group -eq 'all' -and -not $Only)
+if (-not $selected -and -not $pyMatched -and -not $sliceAll) {
     throw "No targets matched Group='$Group' Only='$Only'."
 }
 
@@ -204,6 +215,47 @@ if ($Group -eq 'all' -or $Group -eq 'docs') {
         try {
             $dialArgs = @('--bore', $OutBore, '--bolts', $OutBolts, '--bolt-r', $OutBoltR)
             python (Join-Path $root 'make_dial_pdf.py') @dialArgs | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host '   ok' -ForegroundColor Green
+            } else {
+                Write-Host '   FAILED' -ForegroundColor Red; $fail++
+            }
+        } finally { Pop-Location }
+    }
+}
+
+# ---- G-code: every printed STL through CuraEngine, out/gcode/ ---------------
+# cura_slice.py takes printer, quality, material and nozzle from whatever the
+# Cura GUI has active. Runs for -Group all / gcode, and after -Only <stl> so a
+# rebuilt part never sits next to stale G-code.
+$builtStl = @($selected | Where-Object { $_.f -like '*.stl' -and $_.f -notlike '_scratch/*' })
+if ($sliceAll -or ($Only -and $builtStl.Count -gt 0)) {
+    Write-Host '-> G-code (CuraEngine, active Cura profile)' -ForegroundColor Cyan
+    Push-Location $root
+    try {
+        # @() outside the if: a one-element result would otherwise unroll to a bare
+        # string, and splatting that passes nothing -- so every STL got re-sliced
+        $names = @()
+        if (-not $sliceAll) { $names = @($builtStl | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_.f) }) }
+        $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        python (Join-Path $root 'cura_slice.py') @names 2>&1 | ForEach-Object { "   $_" }
+        $code = $LASTEXITCODE
+        $ErrorActionPreference = $prev
+        if ($code -eq 0) {
+            Write-Host '   ok' -ForegroundColor Green
+        } else {
+            Write-Host '   FAILED' -ForegroundColor Red; $fail++
+        }
+    } finally { Pop-Location }
+}
+
+# ---- the same dial as laser-etch aluminium arcs (quarters and sixths) -------
+if ($Group -eq 'all' -or $Group -eq 'docs') {
+    if (-not $Only -or 'dial_arcs' -like "*$Only*") {
+        Write-Host '-> sidereal dial arcs (laser etch)' -ForegroundColor Cyan
+        Push-Location $root
+        try {
+            python (Join-Path $root 'make_dial_arcs.py') | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 Write-Host '   ok' -ForegroundColor Green
             } else {
