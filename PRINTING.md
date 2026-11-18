@@ -119,7 +119,7 @@ axis and turn with the wheel, and the camera load wants real bearings anyway.
 | `output_hub_upper.stl` | 1 | camera platform, 10 mm thick, pocket for a full 1/4"-20 nut |
 | `gopro_base_adapter.stl` | 1 | 1.25" x 0.35" disc over the hub's 1/4"-20 bolt, under the GoPro base mount; Ø6.6 hole for the 0.24" bolt. 15-20 % infill, 3 walls |
 | `magnet_cap.stl` | 1 | presses on the shaft end, 1.5 mm floor under the magnet |
-| `as5600_bracket.stl` | 1 | slides up the tower spigot until it stops on the clamp disc; PCB screws to its underside. Sleeve Ø22.5 over the Ø22 spigot (`os_bkt_fit` 0.5; 0.3 was tight) |
+| `as5600_bracket.stl` | 1 | slides up the tower spigot until it stops on the clamp disc. The breakout (23.5 square) glues into a 24.0 square recess in a square foot on the underside. Its top face bears on a 1.7 ledge only: the floor inside is open, so the chip, the 0603 parts and the header's solder stubs can't tilt it (a screwed-on board on a solid floor could). Sleeve Ø22.5 over the Ø22 spigot (`os_bkt_fit` 0.5; 0.3 was tight). Print foot down as exported; the ledge is a 1.7 overhang |
 
 Also needed: a **5 mm ground shaft cut to 55 mm** (not a nail — this one runs
 in bearings and carries the encoder), 2 x 625ZZ, a **diametrically** magnetised

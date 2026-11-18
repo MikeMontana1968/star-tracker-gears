@@ -82,6 +82,8 @@ $targets = @(
   # optional washers for the bracket's pocket, under the magnet (plastic does
   # not affect the field): a 2 mm ring round the magnet cap, or a thin solid disc
   @{ g='encoder'; f='as5600_washer_1.5mm_disc.stl'; p='bracketwasher'; d=@('bkt_washer_t=1.5', 'bkt_washer_id=0', 'bkt_washer_od=21.5') }
+  # holds the female Dupont housings on the AS5600's two rows together; glue them in
+  @{ g='encoder'; f='as5600_dupont_holder.stl'; p='dupontholder'; d=@() }
   # camera end: 1.25" x 0.35" disc over the upper hub's 1/4"-20 bolt
   @{ g='encoder'; f='gopro_base_adapter.stl'; p='goproadapter'; d=@() }
   # bench stand: tube over the motor, plugs into the base (glue or 4 x M3x12 from below)

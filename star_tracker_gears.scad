@@ -831,13 +831,32 @@ module magnet_cap() {
 // construction rather than by eye, and stops against the underside of the
 // tower's clamp disc, so the magnet gap is set by the parts too. Rev A had no
 // stop and could slide up far enough to close the gap.
+// The breakout (23.5 square, measured 2026-11-17) is glued into a square
+// recess in the underside, its top face against a narrow ledge at z -40 (the
+// old floor's underside, so the chip sits where it always did). Inside the
+// ledge the floor is open: the chip, the 0603 parts and the header's solder
+// stubs all stand proud of the board's top, and pressing them on a solid floor
+// is what tilted the screwed-on board. Only its bare 1.7 mm rim touches.
+bk_brd    = 23.5;                 // breakout, square
+bk_fit    = 0.5;                  // recess over the board (post-under-hole rule)
+bk_ledge  = 1.7;                  // rim of the board's top face that bears on the ledge
+bk_wall   = 2.0;                  // round the recess; the square foot outgrows the Ø30 body
 module as5600_bracket() {
+    rs = bk_brd + bk_fit;                         // recess
+    fs = rs + 2*bk_wall;                          // square foot
     difference() {
-        translate([0,0,-40]) cylinder(d = 30, h = 40 + os_zdisc(), $fn = 72);
+        union() {
+            translate([0,0,-40]) cylinder(d = 30, h = 40 + os_zdisc(), $fn = 72);
+            // square foot from the board's underside to the pocket floor, rounded corners
+            translate([0,0,-40 - 1.6]) hull() for (x=[-1,1], y=[-1,1])
+                translate([x*(fs/2 - 2), y*(fs/2 - 2), 0]) cylinder(r = 2, h = 1.6 + 1.6, $fn = 24);
+        }
         translate([0,0,-20])   cylinder(d = os_tower_od + os_bkt_fit, h = 20 + os_zdisc() + 1, $fn = 72);
         translate([0,0,-38.4]) cylinder(d = 24, h = 18.6, $fn = 72);
-        translate([0,0,-40.1]) cylinder(d = 14, h = 1.9, $fn = 48);
-        for (i=[-1,1]) translate([i*8.5, 0, -40.1]) cylinder(d = 2.7, h = 3, $fn = 24);
+        // board recess, flush with the foot's underside
+        translate([-rs/2, -rs/2, -40 - 1.6 - 1]) cube([rs, rs, 1.6 + 1]);
+        // floor open inside the ledge
+        translate([-(rs/2 - bk_ledge), -(rs/2 - bk_ledge), -40.1]) cube([rs - 2*bk_ledge, rs - 2*bk_ledge, 1.8]);
     }
 }
 
@@ -1200,6 +1219,43 @@ module pcb_box_view() {          // box, lid lifted 30, a dummy board and its ta
     }
 }
 
+// ---------------------------------------------------------------------
+//  DUPONT HOLDER -- turns the loose female Dupont housings on the AS5600
+//  breakout's pins into one keyed connector. The board (23.5 square, measured)
+//  has two parallel rows on opposite edges, centred on each other:
+//      3 pins  VCC OUT GND        and   4 pins  DIR SCL SDA GPO
+//  At 2.54 pitch the ~2.5 square housings touch, so each row is one slot the
+//  housings sit in side by side. Plug the housings onto the board FIRST, slide
+//  this over them, then glue: the board's pins set the exact spacing.
+//  Row spacing is ~13.5 off a photo (it may be 13.97 = 5.5 pitches), so the
+//  4-pin slot has dh_float of sideways play for the glue to take up.
+//  Keyed by a cut corner at the VCC end of the 3-pin slot.
+// ---------------------------------------------------------------------
+dh_rows   = [[3, 0], [4, 13.5]];  // [pins, row centre x]; rows run along y, centred
+dh_float  = 0.5;                  // the 4-pin slot's sideways play, each way
+dh_pitch  = 2.54;
+dh_fit    = 0.5;                  // slot over the housings (post-under-hole rule)
+dh_wall   = 1.6;                  // 4 lines at 0.4
+dh_t      = 5;
+
+module dupont_holder() {
+    sw   = dh_pitch + dh_fit;                                    // slot width, one housing
+    span = dh_rows[1][1] - dh_rows[0][1];
+    nmax = max([for (r = dh_rows) r[0]]);
+    L = span + sw + 2*dh_float + 2*dh_wall;                      // across the rows (x)
+    W = nmax*dh_pitch + dh_fit + 2*dh_wall;                      // along the rows (y)
+    x0 = dh_wall + sw/2;                                          // 3-pin row centre
+    difference() {
+        cube([L, W, dh_t]);
+        for (k = [0 : len(dh_rows) - 1]) let(n = dh_rows[k][0], f = k == 0 ? 0 : dh_float,
+                                            sl = n*dh_pitch + dh_fit)
+            translate([x0 + dh_rows[k][1] - sw/2 - f, W/2 - sl/2, -1]) cube([sw + 2*f, sl, dh_t + 2]);
+        // key: cut corner at the VCC end. Seen from the board's chip side, 3-pin row
+        // on the left (as in the 2026-11-17 photo), VCC is the top pin.
+        translate([0, W, dh_t/2]) rotate(45) cube([2.4, 2.4, dh_t + 2], center = true);
+    }
+}
+
 module output_shaft_assembly() {
     if (os_cut) difference() {
         os_stack();
@@ -1267,6 +1323,7 @@ else if (part == "magnetcap")      magnet_cap();
 else if (part == "as5600bracket")  as5600_bracket();
 else if (part == "bracketwasher")  bracket_washer();
 else if (part == "goproadapter")   gopro_base_adapter();
+else if (part == "dupontholder")   dupont_holder();
 else if (part == "standtube")      motor_stand_tube();
 else if (part == "standbase")      motor_stand_base();
 else if (part == "stand")          { motor_stand_base(); translate([0,0,ms_base_t]) motor_stand_tube(); }

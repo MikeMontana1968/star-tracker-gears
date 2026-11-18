@@ -68,14 +68,25 @@ MATERIAL_KEYS = {
 
 # ---- finding Cura -------------------------------------------------------
 def find_cura():
-    hits = sorted(glob.glob(r'C:\Program Files\UltiMaker Cura *\CuraEngine.exe'))
-    if not hits:
+    """Engine + resources + user config of the newest Cura that has actually been
+    run (has a cura.cfg). A freshly installed newer Cura has no config until it is
+    opened once, and its settings are the GUI's, so they are what decides."""
+    def vkey(v):
+        return tuple(int(x) for x in v.split('.'))
+    engines = {}
+    for e in glob.glob(r'C:\Program Files\UltiMaker Cura *\CuraEngine.exe'):
+        m = re.search(r'Cura (\d+\.\d+)', e)
+        if m:
+            engines[m.group(1)] = e
+    if not engines:
         raise SystemExit('CuraEngine.exe not found under C:\\Program Files\\UltiMaker Cura *')
-    eng = hits[-1]
-    root = os.path.dirname(eng)
-    ver = re.search(r'Cura (\d+\.\d+)', root).group(1)
-    cfg = os.path.join(os.environ['APPDATA'], 'cura', ver)
-    return eng, os.path.join(root, 'share', 'cura', 'resources'), cfg
+    base = os.path.join(os.environ['APPDATA'], 'cura')
+    used = [v for v in engines if os.path.exists(os.path.join(base, v, 'cura.cfg'))]
+    if not used:
+        raise SystemExit('no Cura config with a cura.cfg under %s; open Cura once' % base)
+    ver = max(used, key=vkey)
+    eng = engines[ver]
+    return eng, os.path.join(os.path.dirname(eng), 'share', 'cura', 'resources'), os.path.join(base, ver)
 
 
 def index_containers(res, cfg):
