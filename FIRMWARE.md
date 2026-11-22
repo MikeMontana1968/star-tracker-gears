@@ -5,8 +5,8 @@ carries the architecture, the decisions already made, the pin map as built, and
 the slice-by-slice build order. **HARDWARE.md §5 is superseded by §4 here** —
 that table predates the OLED board and the DS3231 interrupt line.
 
-**Status (2026-11-22): slices 0-5 done; the night FSM and the web UI run on the board**
-(see "The FSM on the board", "Slice 5 as built"). Slice 6 (GoPro) remains. The
+**Status (2026-11-22): slices 0-6 built; the night FSM, web UI and GoPro driver run on the board**
+(see "Slice 6 as built"). The GoPro driver still has to meet a real HERO6. The
 PlatformIO project is `firmware/` (`platformio.ini`, `src/main.cpp`,
 `include/config.h`, `lib/motion/`, `test/test_motion/`); the other folders
 under `firmware/` are arduino-cli bench sketches.
@@ -23,7 +23,7 @@ under `firmware/` are arduino-cli bench sketches.
 | 3 | `hal/` — DS3231, AS5600, TMC2209 UART, battery, OLED, deep sleep | modules on hand | **done** 2026-11-22; encoder map calibrated |
 | 4 | Schedule parse/validate + solar solver (host-tested) | — | **done** 2026-11-22; LittleFS storage on the board |
 | 5 | Web server, status JSON, static UI, config AP | slice 2 | **done** 2026-11-22 (see "Slice 5 as built"); phone check over Wi-Fi pending |
-| 6 | Real GoPro driver + `discover`; answers the 3 hardware unknowns | HERO6 | not started |
+| 6 | Real GoPro driver + `discover`; answers the 3 hardware unknowns | HERO6 | **built** 2026-11-22, host-tested; needs the HERO6 for the hardware checks (see "Slice 6 as built") |
 
 Slices 2 and 4 need no hardware at all and are unit-testable on the laptop.
 Start slice 0 and slice 2 in parallel if you want to move fast.
@@ -274,6 +274,48 @@ slice 1/3 bench console, `src/bench_main.cpp`, unchanged).
   plus the nights it resolves, skips with reasons), `GET /api/schedule/nights`,
   `DELETE /api/schedule`. The FSM now holds a forwarding schedule, so an upload
   or delete takes effect without a restart.
+
+### Slice 6 as built (2026-11-22) -- the GoPro HERO6
+
+- **`lib/cam/CamProfile`**: `/camera_profile.json` (D6: data, not code) --
+  Wi-Fi ssid/password, MAC (for WoL), the mode/shutter/sleep command paths,
+  `verify_mode` (status keys that must read the NightLapse mode back), the
+  settings to apply, which status keys mean recording / battery % / SD KB,
+  sleep-after-stop and timing. Validated with paths like the schedule.
+  `firmware/web/camera_profile.example.json` carries the community HERO5/6
+  values, **unverified on this camera**.
+- **`lib/cam/GoPro`**: the sequences over a small `Io` (host-tested against a
+  simulated HERO6, `test_cam`, 10 cases): `wake` (join -> already awake? ->
+  WoL x3 to 10.5.5.9 and .255 port 9 -> rail cycle on GPIO 32 and once more,
+  inside `wake_s`), `configure` (mode, every setting, then **read the status
+  back** and fail naming the setting that differs, or an SD under 50 MB),
+  `start`/`stop` (until the recording key reads 1/0; stop first **rejoins**
+  the AP, then sleeps the camera), `discover` (info, status and the whole
+  `/gp/gpControl` tree to LittleFS). Every loop checks cancel and its deadline.
+- **`src/EspCamera`**: the sequences run in a FreeRTOS task on **core 0**
+  (HTTPClient and the WiFi join block; the FSM only begin()s and poll()s).
+  The radio's STA mode joins the profile's ssid (`web::setStaCredentials`).
+  No profile -> every step fails at once and best_effort nights track.
+- **FSM**: `Cmd::Discover` (CONFIG_AP: radio STA, camera on, dump, back to AP;
+  cut off at `cam_total_ms`; HALT cancels it) and `Cmd::TestTrackCamera` (a
+  test track that runs the whole camera path, best effort). Host tests: 74 + 11.
+- **API**: `GET/PUT/DELETE /api/camera/profile` (GET masks the password; a
+  masked password on PUT keeps the stored one), `GET /api/camera/dump`
+  (files + model/firmware), raw files at `/camera/{info,status,dump}.json`
+  (Wi-Fi: streamed by WebServer; USB: the bridge uses the console `K <file>`
+  command). `camera` block in `/api/status`.
+- **UI**: phone page Camera card (status, Discover, Test track + camera);
+  Schedule Studio Camera profile card (ssid / password / MAC form -- the
+  password is typed by the user and never shown back -- profile JSON, and the
+  camera's own settings tree from the dump: click a value to put it in the
+  profile).
+- **On the board without a camera** (2026-11-22): a dummy profile -> discover
+  failed in ~30 s with "could not join the camera AP", radio back to AP,
+  rail off. Flash 84% of the app partition.
+- **Still to do with the HERO6 in hand** (the three unknowns, s9): discover
+  dump -> verify every profile id/value; does WoL wake it from sleep; does
+  its AP stay rejoinable mid-record (`test_track` + camera answers this);
+  standby draw on the rail.
 
 `firmware/sidereal_drive/sidereal_drive.ino` stays where it is as the reference
 artefact. Its accumulator migrates into `lib/motion/`; the sketch is not the

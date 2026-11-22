@@ -125,6 +125,32 @@ ul.errs{margin:6px 0;padding-left:18px} ul.errs li.e{color:var(--bad)} ul.errs l
       <div style="overflow-x:auto"><table id="preview"></table></div>
     </section>
 
+    <section class="card" id="camcard">
+      <h2>Camera profile</h2>
+      <div class="grid2">
+        <label>GoPro Wi-Fi name</label><input id="cssid" type="text" autocomplete="off">
+        <label>Wi-Fi password</label><input id="cpass" type="password" autocomplete="new-password" placeholder="type it here">
+        <label>Camera MAC</label><input id="cmac" type="text" placeholder="AA:BB:CC:DD:EE:FF (for wake-on-LAN)">
+      </div>
+      <div class="hint">From the camera: Connections → Camera Info. The password stays on the tracker; it is never shown back here.</div>
+      <div class="row">
+        <button id="camload">Load from device</button>
+        <button id="camexample">Start from the example</button>
+        <button id="camsave" class="primary">Save to device</button>
+      </div>
+      <textarea id="camjson" spellcheck="false" style="min-height:180px" placeholder="camera_profile.json"></textarea>
+      <div class="msg" id="cammsg"></div>
+      <ul class="errs" id="camerrs"></ul>
+      <h2 style="margin-top:12px">The camera's own settings (from discover)</h2>
+      <div class="row">
+        <button id="camdisc">Discover (joins the camera)</button>
+        <button id="camtree">Show settings</button>
+        <select id="cammode"></select>
+      </div>
+      <div class="hint">Click a value to put that setting into the profile. Current values (●) come from the camera's status at discover time.</div>
+      <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table id="camsets"></table></div>
+    </section>
+
     <section class="card">
       <h2>On the device now</h2>
       <div class="row"><button id="devnights">Refresh</button><span class="msg" id="devinfo"></span></div>
@@ -383,6 +409,91 @@ $("clk").onclick = async () => {
   if (!confirm("Set the tracker's clock from this PC?")) return;
   await api("POST", "/api/time", {utc: Math.round(Date.now() / 1000)}); heartbeat();
 };
+
+// ------------------------------------------------------------------ camera profile
+const MASK = "********";
+let CP = null;                                     // the profile being edited
+function cpToForm(){
+  $("camjson").value = CP ? JSON.stringify(CP, null, 2) : "";
+  $("cssid").value = CP && CP.wifi ? CP.wifi.ssid || "" : "";
+  $("cpass").value = "";
+  $("cpass").placeholder = CP && CP.wifi && CP.wifi.password === MASK ? "unchanged (stored on the tracker)" : "type it here";
+  $("cmac").value = CP && CP.mac || "";
+}
+function cpFromForm(){
+  try{ CP = JSON.parse($("camjson").value || "{}"); }catch(e){ say("cammsg", "profile JSON: " + e.message, "err"); return false; }
+  CP.wifi = CP.wifi || {};
+  CP.wifi.ssid = $("cssid").value.trim();
+  if ($("cpass").value) CP.wifi.password = $("cpass").value;
+  else if (!CP.wifi.password) CP.wifi.password = MASK;
+  if ($("cmac").value.trim()) CP.mac = $("cmac").value.trim(); else delete CP.mac;
+  return true;
+}
+$("camload").onclick = async () => {
+  const r = await api("GET", "/api/camera/profile");
+  if (r.code === 200) { CP = r.json; cpToForm(); say("cammsg", "loaded from the device", "ok"); }
+  else say("cammsg", (r.json && r.json.error) || `HTTP ${r.code}`, "err");
+};
+$("camexample").onclick = async () => {
+  try{ const r = await fetch("/camera_profile.example.json"); CP = await r.json(); cpToForm();
+    say("cammsg", "example loaded: UNVERIFIED ids -- check them against the camera's settings below", ""); }
+  catch(e){ say("cammsg", "example not found", "err"); }
+};
+$("camsave").onclick = async () => {
+  if (!cpFromForm()) return;
+  const r = await api("PUT", "/api/camera/profile", JSON.stringify(CP));
+  const j = r.json || {};
+  $("camerrs").innerHTML = (j.errors || []).map(e => `<li class="e">${esc(e)}</li>`).join("");
+  say("cammsg", r.code === 200 ? "saved on the tracker" : r.code === 422 ? "refused:" : (j.error || `HTTP ${r.code}`), r.code === 200 ? "ok" : "err");
+  if (r.code === 200) { $("cpass").value = ""; $("camload").onclick(); }
+};
+$("camdisc").onclick = async () => {
+  if (!confirm("Power the camera, join its Wi-Fi and dump its settings tree? (up to 2 minutes; the tracker must be in config mode)")) return;
+  const r = await api("POST", "/api/command", {cmd: "discover"});
+  say("cammsg", r.json ? (r.json.msg || r.json.error) : `HTTP ${r.code}`, r.code === 200 ? "" : "err");
+  if (r.code !== 200) return;
+  for (let i = 0; i < 70; i++) {                   // ~2.5 min
+    await new Promise(res => setTimeout(res, 2000));
+    const s = await api("GET", "/api/status");
+    const d = s.json && s.json.camera_discover;
+    if (d === "ok") { say("cammsg", "discover done", "ok"); $("camtree").onclick(); return; }
+    if (d === "failed") { say("cammsg", "discover failed: " + ((s.json.camera || {}).last_error || "?"), "err"); return; }
+  }
+};
+let TREE = null, CUR = {};
+$("camtree").onclick = async () => {
+  say("cammsg", "reading the dump from the tracker…");
+  try{
+    const [t, st] = await Promise.all([fetch("/camera/dump.json"), fetch("/camera/status.json")]);
+    if (!t.ok) { say("cammsg", "no dump on the tracker: run Discover", "err"); return; }
+    TREE = await t.json();
+    CUR = st.ok ? ((await st.json()).settings || {}) : {};
+  }catch(e){ say("cammsg", "dump unreadable: " + e.message, "err"); return; }
+  const modes = TREE.modes || [];
+  $("cammode").replaceChildren(...modes.map((m, i) => new Option(`${m.display_name} (mode ${m.value})`, i)));
+  const ml = modes.findIndex(m => /multi/i.test(m.display_name || ""));
+  if (ml >= 0) $("cammode").value = ml;
+  showMode();
+  say("cammsg", `${modes.length} modes in the camera's tree`, "ok");
+};
+function showMode(){
+  const m = (TREE.modes || [])[+$("cammode").value];
+  if (!m) return;
+  $("camsets").innerHTML = "<tr><th>id</th><th>setting</th><th>values</th></tr>" + (m.settings || []).map(s =>
+    `<tr><td>${s.id}</td><td>${esc(s.display_name || s.path_segment || "")}</td><td>` +
+    (s.options || []).map(o => `<button class="small" data-id="${s.id}" data-v="${o.value}" data-n="${esc(s.path_segment || s.display_name || "")}"` +
+      ` title="value ${o.value}">${String(CUR[s.id]) === String(o.value) ? "● " : ""}${esc(o.display_name)}</button>`).join(" ") + `</td></tr>`).join("");
+  document.querySelectorAll("#camsets button").forEach(b => b.onclick = () => {
+    if (!cpFromForm()) return;
+    CP.settings = CP.settings || [];
+    const id = +b.dataset.id, v = +b.dataset.v;
+    const e = CP.settings.find(x => x.id === id);
+    if (e) e.value = v; else CP.settings.push({name: b.dataset.n.replace(/\W+/g, "_").slice(0, 23) || ("s" + id), id, value: v});
+    const pass = $("cpass").value; cpToForm(); $("cpass").value = pass;
+    say("cammsg", `setting ${id} = ${v} in the profile (not saved yet)`, "");
+  });
+}
+$("cammode").onchange = showMode;
 
 render();
 heartbeat(); loadDevice();

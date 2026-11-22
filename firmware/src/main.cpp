@@ -15,6 +15,7 @@
 //               instead of deep sleeping -- turn it OFF for deployment)
 //    F          clear a fault, then restart
 //    A          restart as if the config button was pressed (CONFIG_AP: AP + web UI)
+//    K [file]   print a LittleFS file (default /camera_dump.json) between BEGIN/END FILE lines
 //    H <METHOD> <path>[?q] [body]   one request through the web API, e.g.
 //               H GET /api/status      H POST /api/command {"cmd":"goto","deg":5}
 //    Z          restart
@@ -54,7 +55,7 @@ static esp::Clock clk(ds3231);
 static esp::Motion *mot;
 static esp::Sensors sens(as5600, encmap);
 static esp::Gps gps;
-static esp::Camera cam;
+static esp::EspCamera camera;
 static esp::Store store;
 static esp::System sys_(ds3231, oled, clk);
 static app::ScheduleLimits limits;
@@ -152,6 +153,18 @@ static void command(String &line) {
     }
     case 'F': fsm->clearFault(); Serial.println("fault cleared; restarting"); Serial.flush(); delay(50); ESP.restart(); break;
     case 'Z': Serial.flush(); delay(50); ESP.restart(); break;
+    case 'K': {                                   // K <file>: print a LittleFS file between markers (USB bridge)
+      String path = arg.length() ? arg : String("/camera_dump.json");
+      File f = LittleFS.open(path, "r");
+      if (!f) { Serial.printf("FILE MISSING %s\n", path.c_str()); break; }
+      Serial.printf("BEGIN FILE %s %u\n", path.c_str(), (unsigned)f.size());
+      uint8_t buf[256];
+      while (f.available()) { size_t n = f.read(buf, sizeof buf); Serial.write(buf, n); }
+      f.close();
+      Serial.println();
+      Serial.println("END FILE");
+      break;
+    }
     case 'A': g_soft_wake = SOFT_BUTTON; Serial.println("restarting into CONFIG_AP"); Serial.flush(); delay(50); ESP.restart(); break;
     case 'H': {
       // H METHOD path [body]
@@ -239,15 +252,16 @@ void setup() {
   limits.travel_min_deg = TRAVEL_MIN_DEG;
   limits.travel_max_deg = TRAVEL_MAX_DEG;
   sstore.load(clk.utc(), Serial);
+  camera.begin();                               // camera profile + the core-0 camera task
   store.on_completed = [] { sstore.markGood(); };
 
   app::FsmConfig fc;
   fc.travel_min_deg = TRAVEL_MIN_DEG;
   fc.travel_max_deg = TRAVEL_MAX_DEG;
-  plat = new app::Platform{clk, *mot, sens, gps, cam, store, sstore.schedule(), sys_};
+  plat = new app::Platform{clk, *mot, sens, gps, camera, store, sstore.schedule(), sys_};
   fsm = new app::Fsm(*plat, fc);
 
-  host = new esp::EspHost(clk, *mot, sens, as5600, ds3231, gps, store, sstore, tmc);
+  host = new esp::EspHost(clk, *mot, sens, as5600, ds3231, gps, store, sstore, tmc, camera);
   api = new net::Api(*host, logring);
   api->attach(fsm);
   esp::web::begin(*api);

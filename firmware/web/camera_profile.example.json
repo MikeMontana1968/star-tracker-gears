@@ -1,0 +1,22 @@
+{
+  "_note": "HERO5/6 gpControl values as the community documents them (KonradIT/goprowifihack). UNVERIFIED on this camera: run 'discover' and check every id/value against /camera_dump.json before trusting a night to it. wifi + mac come from the camera's Connections > Camera Info screen; they are NOT in the repo.",
+  "model": "HERO6",
+  "wifi": { "ssid": "GP-your-camera", "password": "from-the-camera-menu" },
+  "mac": "00:00:00:00:00:00",
+  "commands": {
+    "mode": "/gp/gpControl/command/sub_mode?mode=2&sub_mode=2",
+    "shutter_on": "/gp/gpControl/command/shutter?p=1",
+    "shutter_off": "/gp/gpControl/command/shutter?p=0",
+    "sleep": "/gp/gpControl/command/system/sleep"
+  },
+  "verify_mode": { "mode_key": 43, "mode": 2, "submode_key": 44, "submode": 2 },
+  "settings": [
+    { "name": "protune",          "id": 21, "value": 1 },
+    { "name": "exposure_30s",     "id": 31, "value": 6 },
+    { "name": "interval_continuous", "id": 32, "value": 0 },
+    { "name": "iso_limit_800",    "id": 24, "value": 0 }
+  ],
+  "status_keys": { "recording": 8, "battery_pct": 70, "sd_free_kb": 54 },
+  "sleep_after_stop": true,
+  "timing": { "join_s": 20, "wake_s": 45, "http_timeout_ms": 2500 }
+}

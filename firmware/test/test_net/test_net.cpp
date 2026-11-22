@@ -274,6 +274,24 @@ void test_schedule_nights_and_delete(void) {
   TEST_ASSERT_EQUAL(404, g.call("GET", "/api/schedule/nights").code);
 }
 
+void test_camera_commands_and_profile_without_support(void) {
+  Rig g;
+  g.toConfig(T0 + H);
+  TEST_ASSERT_EQUAL(404, g.call("GET", "/api/camera/profile").code);
+  Response r = g.call("PUT", "/api/camera/profile", "{}");
+  TEST_ASSERT_EQUAL(422, r.code);
+  TEST_ASSERT_EQUAL(200, g.call("POST", "/api/command", "{\"cmd\":\"discover\"}").code);
+  JsonDocument d = g.json(g.call("GET", "/api/status"));
+  TEST_ASSERT_EQUAL_STRING("running", d["camera_discover"]);
+  TEST_ASSERT_EQUAL_STRING("sta", d["radio_mode"]);
+  g.s.run(T0 + H + 40);
+  d = g.json(g.call("GET", "/api/status"));
+  TEST_ASSERT_EQUAL_STRING("ok", d["camera_discover"]);
+  TEST_ASSERT_EQUAL(200, g.call("POST", "/api/command", "{\"cmd\":\"test_track\",\"minutes\":5,\"camera\":true}").code);
+  d = g.json(g.call("GET", "/api/status"));
+  TEST_ASSERT_EQUAL_STRING("best_effort", d["night"]["camera_policy"]);
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -291,5 +309,6 @@ int main(int, char **) {
   RUN_TEST(test_diag_over_the_api);
   RUN_TEST(test_schedule_check_previews_without_storing);
   RUN_TEST(test_schedule_nights_and_delete);
+  RUN_TEST(test_camera_commands_and_profile_without_support);
   return UNITY_END();
 }

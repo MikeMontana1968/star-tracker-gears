@@ -130,6 +130,20 @@ ul.list{margin:4px 0;padding-left:18px;font-size:13px}
   </section>
 
   <section class="card">
+    <h2>Camera</h2>
+    <div class="grid" id="cam"></div>
+    <div class="row">
+      <button id="discover">Discover camera</button>
+      <button id="testcam">Test track + camera</button>
+      <span class="conn">uses the minutes above</span>
+    </div>
+    <div class="conn">Discover joins the GoPro's Wi-Fi, so this page loses the tracker for up to 2 minutes; it reconnects by itself.
+      The camera profile (Wi-Fi name, password, settings) is edited in the Schedule Studio on a laptop.</div>
+    <div class="msg" id="cammsg"></div>
+    <div id="camfiles" class="conn"></div>
+  </section>
+
+  <section class="card">
     <h2>Diagnostics — motor &amp; gear train</h2>
     <div class="conn" style="margin-bottom:6px">Config mode only. HALT stops any of these. Sweeps and repeats start from park (0°) and end there.</div>
     <div class="row">
@@ -273,6 +287,19 @@ function render(){
   $("clearfault").disabled = !cfg || !s.fault_code;
   $("endnight").disabled = !active;
 
+  // camera
+  const c = s.camera || {};
+  $("cam").innerHTML = kv("profile", esc(c.profile || "—")) + kv("rail", c.powered ? "ON" : "off") +
+    kv("Wi-Fi", c.joined ? "joined" : "—") + kv("answering", c.reachable ? "yes" : "no") +
+    kv("recording", c.recording ? "YES" : "no") + kv("battery", c.battery_pct != null ? c.battery_pct + "%" : "—") +
+    kv("SD free", c.sd_free_mb != null ? (c.sd_free_mb / 1024).toFixed(1) + " GB" : "—") +
+    kv("last step", esc((c.last_step || "—") + (c.busy ? " (running)" : ""))) +
+    kv("wakes", `${c.wakes_by_wol ?? 0} WoL · ${c.wakes_by_rail ?? 0} rail`) +
+    kv("discover", esc(s.camera_discover || "—"));
+  if (c.last_error) say("cammsg", "last error: " + c.last_error, "err");
+  $("discover").disabled = !cfg || s.camera_discover === "running" || c.profile === "none";
+  $("testcam").disabled = !cfg || !!s.fault_code || c.profile === "none";
+
   // diagnostics
   const dg = s.diag, drun = !!(dg && dg.running);
   for (const id of ["wiggle","sweep","repeat"]) $(id).disabled = !cfg || drun || !!s.fault_code;
@@ -376,6 +403,24 @@ $("coils").onclick = async () => {
   say("diagmsg", r.json ? (r.json.msg || r.json.error) : `HTTP ${r.code}`, r.code === 200 ? "ok" : "err");
   poll();
 };
+$("discover").onclick = async () => {
+  if (!confirm("Join the camera and dump its settings? This page loses the tracker for up to 2 minutes.")) return;
+  const r = await api("POST", "/api/command", {cmd: "discover"});
+  say("cammsg", r.json ? (r.json.msg || r.json.error) : `HTTP ${r.code}`, r.code === 200 ? "" : "err");
+};
+$("testcam").onclick = async () => {
+  const m = parseFloat($("testmin").value);
+  if (!confirm(`Wake the camera, configure it, record while tracking ${m} min from park, then stop it?`)) return;
+  const r = await api("POST", "/api/command", {cmd: "test_track", minutes: m, camera: true});
+  say("cammsg", r.json ? (r.json.msg || r.json.error) : `HTTP ${r.code}`, r.code === 200 ? "ok" : "err");
+};
+async function loadCamFiles(){
+  const r = await api("GET", "/api/camera/dump");
+  const j = r.json || {};
+  $("camfiles").innerHTML = (j.files || []).length
+    ? `${esc(j.model || "?")} firmware ${esc(j.firmware || "?")} — ` + j.files.map(f => `<a href="${f.url}" style="color:var(--acc)">${esc(f.name)}</a> ${(f.bytes/1024).toFixed(0)} KB`).join(" · ")
+    : "no discover dump yet";
+}
 $("loadsched").onclick = loadSchedule;
 $("putsched").onclick = putSchedule;
 $("loadnights").onclick = loadNights;
@@ -448,7 +493,7 @@ function mock(method, path, body){
   return ok({ok: false, error: "no such endpoint"}, 404);
 }
 
-poll(); loadSchedule(); loadNights();
+poll(); loadSchedule(); loadNights(); loadCamFiles();
 setInterval(poll, 1000);
 </script>
 </body>

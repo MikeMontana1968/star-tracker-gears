@@ -55,6 +55,8 @@ void EspHost::status(JsonObject o) {
   JsonObject s = o["schedule"].to<JsonObject>();
   scheduleInfo(s);
 
+  cam_.status(o["camera"].to<JsonObject>());
+
   JsonObject r = o["radio"].to<JsonObject>();
   r["ssid"] = web::apOn() ? web::ssid() : "";
   r["clients"] = web::clients();
@@ -104,6 +106,8 @@ static WebServer server(80);
 static DNSServer dns;
 static net::Api *api_ = nullptr;
 static bool ap_ = false;
+static app::Radio mode_ = app::Radio::Off;
+static char sta_ssid_[33] = "", sta_pass_[65] = "";
 static char ssid_[24] = "";
 static const IPAddress AP_IP(192, 168, 4, 1);
 
@@ -144,6 +148,14 @@ static void handleUi() {
 static void handleOther() {
   String u = server.uri();
   if (u.startsWith("/api/")) { handleApi(); return; }
+  if (u.startsWith("/camera/") && u.endsWith(".json") && u.indexOf("..") < 0) {   // what discover saved
+    String path = "/camera_" + u.substring(8);
+    File f = LittleFS.open(path, "r");
+    if (!f) { server.send(404, "text/plain", "not found"); return; }
+    server.streamFile(f, "application/json");
+    f.close();
+    return;
+  }
   // captive-portal probes and anything else: send the phone to the UI
   server.sendHeader("Location", "http://192.168.4.1/");
   server.send(302, "text/plain", "");
@@ -160,13 +172,20 @@ void begin(net::Api &api) {
   WiFi.mode(WIFI_OFF);
 }
 
+void setStaCredentials(const char *ssid, const char *pass) {
+  strncpy(sta_ssid_, ssid ? ssid : "", sizeof sta_ssid_ - 1);
+  strncpy(sta_pass_, pass ? pass : "", sizeof sta_pass_ - 1);
+}
+
+// The only place the radio changes (the FSM's radioFor() decides). AP and STA
+// are never up together: the softAP would follow the GoPro's channel.
 void radio(app::Radio r) {
-  bool want_ap = r == app::Radio::Ap;
-  if (want_ap == ap_) {
-    if (r == app::Radio::Sta) Serial.println("radio: STA wanted (GoPro link, slice 6) -- left off");
-    return;
-  }
-  if (want_ap) {
+  if (r == mode_) return;
+  // tear down whatever is up
+  if (mode_ == app::Radio::Ap) { dns.stop(); server.stop(); WiFi.softAPdisconnect(true); ap_ = false; }
+  if (mode_ == app::Radio::Sta) { WiFi.disconnect(true); }
+  mode_ = r;
+  if (r == app::Radio::Ap) {
     WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(AP_IP, AP_IP, IPAddress(255, 255, 255, 0));
     bool ok = WiFi.softAP(ssid_, AP_PASS, AP_CHANNEL, 0, 4);
@@ -175,16 +194,17 @@ void radio(app::Radio r) {
     dns.start(53, "*", AP_IP);
     ap_ = true;
     Serial.printf("radio: AP %s '%s' on ch %d, http://192.168.4.1/\n", ok ? "up" : "FAILED", ssid_, AP_CHANNEL);
+  } else if (r == app::Radio::Sta) {
+    if (!sta_ssid_[0]) { WiFi.mode(WIFI_OFF); Serial.println("radio: STA wanted but no camera profile -- off"); return; }
+    WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
+    WiFi.begin(sta_ssid_, sta_pass_);
+    Serial.printf("radio: STA joining camera '%s'\n", sta_ssid_);
   } else {
-    dns.stop();
-    server.stop();
-    WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_OFF);
-    ap_ = false;
-    Serial.printf("radio: off%s\n", r == app::Radio::Sta ? " (STA is slice 6)" : "");
+    Serial.println("radio: off");
   }
 }
-
 void service() {
   if (!ap_) return;
   dns.processNextRequest();

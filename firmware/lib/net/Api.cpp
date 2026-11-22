@@ -62,6 +62,36 @@ Response Api::handle(const Request &r) {
   if (path == "/api/night/last")  return get ? nights(r, true) : error(405, "GET");
   if (path == "/api/night/list")  return get ? nights(r, false) : error(405, "GET");
   if (path == "/api/time")        return post ? setTime(r) : error(405, "POST");
+  if (path == "/api/camera/profile") {
+    if (get) {
+      std::string j;
+      if (!host_.cameraProfile(&j)) return error(404, "no camera profile on the device");
+      Response out; out.body = j; return out;
+    }
+    if (put || post) {
+      static Messages err;
+      err = Messages();
+      bool ok = host_.putCameraProfile(r.body, r.body_len, &err);
+      JsonDocument d;
+      d["ok"] = ok;
+      JsonArray e = d["errors"].to<JsonArray>();
+      for (int i = 0; i < err.n; i++) e.add(err.msg[i]);
+      Response out; out.code = ok ? 200 : 422;
+      serializeJson(d, out.body);
+      return out;
+    }
+    if (!strcmp(r.method, "DELETE")) {
+      if (!host_.deleteCameraProfile()) return error(409, "camera busy or no profile");
+      Response out; out.body = "{\"ok\":true,\"msg\":\"camera profile deleted: camera steps now fail at once\"}"; return out;
+    }
+    return error(405, "GET, PUT or DELETE");
+  }
+  if (path == "/api/camera/dump") {
+    if (!get) return error(405, "GET");
+    JsonDocument d;
+    host_.cameraFiles(d.to<JsonObject>());
+    Response out; serializeJson(d, out.body); return out;
+  }
   return error(404, "no such endpoint");
 }
 
@@ -103,6 +133,8 @@ Response Api::status() {
     d["night"] = nullptr;
   }
   d["coils"] = f.coils();
+  static const char *const dn[] = {"none", "running", "ok", "failed"};
+  d["camera_discover"] = dn[f.discoverState() & 3];
   const DiagState &g = f.diagState();
   if (g.kind != DiagKind::None) {
     JsonObject o = d["diag"].to<JsonObject>();
@@ -150,7 +182,8 @@ Response Api::command(const Request &r) {
   else if (!strcmp(c, "jog"))         res = fsm_->command(Cmd::Jog, deg);
   else if (!strcmp(c, "home"))        res = fsm_->command(Cmd::Home);
   else if (!strcmp(c, "clear_fault")) res = fsm_->command(Cmd::ClearFault);
-  else if (!strcmp(c, "test_track"))  res = fsm_->command(Cmd::TestTrack, minutes);
+  else if (!strcmp(c, "test_track"))  res = fsm_->command((in["camera"] | false) ? Cmd::TestTrackCamera : Cmd::TestTrack, minutes);
+  else if (!strcmp(c, "discover"))    res = fsm_->command(Cmd::Discover);
   else if (!strcmp(c, "sleep_now"))   res = fsm_->command(Cmd::SleepNow);
   else if (!strcmp(c, "coils"))       res = fsm_->command(Cmd::Coils, (in["on"] | false) ? 1 : 0);
   else if (!strcmp(c, "diag")) {

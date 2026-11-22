@@ -240,6 +240,15 @@ regenerate.
       ENC_RAW_START 1029 -> 1059 (zero moved with the re-shim); the FSM held a
       stale schedule reference (uploads/deletes now take effect at once, a sleeping
       bench board re-plans); guard trips print their numbers; DRV_STATUS in status.
+22. **Slice 6: GoPro HERO6 driver (2026-11-22)** -- built, host-tested (85 host
+    tests), on the board; see FIRMWARE.md "Slice 6 as built". Verified without
+    a camera: discover and a camera test track both fail cleanly (best effort:
+    the test still tracked on time and reported camera=fail). The board has NO
+    camera profile now. **Next, with the user and the HERO6:** Schedule Studio ->
+    Camera profile: the user types the camera's Wi-Fi name + password + MAC
+    (Connections > Camera Info; never typed by Claude) -> Save -> Discover ->
+    check/fix every setting id against the dump -> Test track + camera
+    (10 min) -> answers "does the AP stay rejoinable mid-record" and WoL.
 
 ## Module facts, measured and confirmed
 

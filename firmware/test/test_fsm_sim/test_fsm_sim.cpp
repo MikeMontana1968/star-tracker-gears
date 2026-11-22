@@ -593,6 +593,47 @@ void test_diag_halt_and_coils(void) {
   TEST_ASSERT_FALSE(t.fsm->command(Cmd::Coils, 0).ok);
 }
 
+// ---- slice 6: the camera from CONFIG_AP -----------------------------------------
+void test_discover_swaps_the_radio_and_back(void) {
+  Sim s;
+  toConfig(s, T0 + H);
+  size_t r0 = s.w.radios.size();
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::Discover).ok);
+  TEST_ASSERT_EQUAL(Radio::Sta, s.w.radio_now);
+  TEST_ASSERT_TRUE(s.w.cam.powered);
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::Discover).ok);       // one at a time
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::TestTrack, 5).ok);
+  s.run(T0 + H + 30);
+  TEST_ASSERT_EQUAL(2, s.fsm->discoverState());
+  TEST_ASSERT_EQUAL(Radio::Ap, s.w.radio_now);                // the phone gets its AP back
+  TEST_ASSERT_FALSE(s.w.cam.powered);
+  TEST_ASSERT_EQUAL(2, (int)(s.w.radios.size() - r0));        // STA, then AP: nothing else
+  // a camera that never answers: cut off at the sequence deadline, AP restored
+  Sim t;
+  t.w.cam.hang_step = (int)CamStep::Discover;
+  toConfig(t, T0 + H);
+  TEST_ASSERT_TRUE(t.fsm->command(Cmd::Discover).ok);
+  t.run(T0 + H + 200);
+  TEST_ASSERT_EQUAL(3, t.fsm->discoverState());
+  TEST_ASSERT_EQUAL(Radio::Ap, t.w.radio_now);
+  TEST_ASSERT_EQUAL(State::ConfigAp, t.fsm->state());
+}
+
+void test_test_track_with_the_camera(void) {
+  Sim s;
+  toConfig(s, T0 + H);
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::TestTrackCamera, 10).ok);
+  s.run(T0 + H + 30 * 60);
+  TEST_ASSERT_EQUAL(1, (int)s.w.reports.size());
+  const NightReport &r = s.w.reports[0];
+  TEST_ASSERT_TRUE(r.plan.test);
+  TEST_ASSERT_EQUAL(Outcome::Completed, r.outcome);
+  TEST_ASSERT_EQUAL(Op::Ok, r.camera);                        // woke, configured, recorded, stopped
+  TEST_ASSERT_EQUAL(4, (int)s.w.cam.done.size());
+  TEST_ASSERT_INT64_WITHIN(2, 600, r.track_stop_utc - r.track_start_utc);
+  TEST_ASSERT_FALSE(s.w.cam.powered);
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -629,5 +670,7 @@ int main(int, char **) {
   RUN_TEST(test_diag_repeat_measures_the_lash);
   RUN_TEST(test_diag_wiggle_and_sweep);
   RUN_TEST(test_diag_halt_and_coils);
+  RUN_TEST(test_discover_swaps_the_radio_and_back);
+  RUN_TEST(test_test_track_with_the_camera);
   return UNITY_END();
 }

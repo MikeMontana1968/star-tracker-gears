@@ -19,13 +19,15 @@
 #include <Arduino.h>
 #include "Api.h"
 #include "EspPlatform.h"
+#include "EspCamera.h"
 
 namespace esp {
 
 class EspHost : public net::Host {
  public:
-  EspHost(Clock &c, Motion &m, Sensors &s, As5600 &a, Ds3231 &r, Gps &g, Store &st, ScheduleStore &ss, Tmc2209 &t)
-      : clk_(c), mot_(m), sens_(s), as_(a), rtc_(r), gps_(g), store_(st), sstore_(ss), tmc_(t) {}
+  EspHost(Clock &c, Motion &m, Sensors &s, As5600 &a, Ds3231 &r, Gps &g, Store &st, ScheduleStore &ss, Tmc2209 &t,
+          EspCamera &cam)
+      : clk_(c), mot_(m), sens_(s), as_(a), rtc_(r), gps_(g), store_(st), sstore_(ss), tmc_(t), cam_(cam) {}
   int64_t utc() override { return clk_.utc(); }
   void status(JsonObject o) override;
   bool scheduleText(std::string *out) override;
@@ -38,14 +40,19 @@ class EspHost : public net::Host {
   }
   app::Schedule *currentSchedule() override { return sstore_.current(); }
   bool deleteSchedule() override { return sstore_.remove(); }
+  bool cameraProfile(std::string *json) override { return cam_.profileJson(json); }
+  bool putCameraProfile(const char *json, size_t len, app::Messages *err) override { return cam_.putProfile(json, len, err); }
+  void cameraFiles(JsonObject o) override { cam_.files(o); }
+  bool deleteCameraProfile() override { return cam_.removeProfile(); }
  private:
   Clock &clk_; Motion &mot_; Sensors &sens_; As5600 &as_; Ds3231 &rtc_; Gps &gps_;
-  Store &store_; ScheduleStore &sstore_; Tmc2209 &tmc_;
+  Store &store_; ScheduleStore &sstore_; Tmc2209 &tmc_; EspCamera &cam_;
 };
 
 namespace web {
 void begin(net::Api &api);
 void radio(app::Radio r);      // ISystem::radio lands here
+void setStaCredentials(const char *ssid, const char *pass);   // the camera's AP (profile)
 void service();                // every loop
 bool apOn();
 const char *ssid();

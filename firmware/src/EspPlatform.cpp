@@ -170,8 +170,6 @@ bool Gps::fix(int64_t *utc, double *lat, double *lon) {
   return true;
 }
 
-// ---- camera ----------------------------------------------------------------------
-void Camera::power(bool on) { board::camera(on); }
 
 // ---- store -----------------------------------------------------------------------
 bool Store::load(app::Persist *p) {

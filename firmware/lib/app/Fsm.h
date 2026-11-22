@@ -44,6 +44,8 @@ enum class Cmd : uint8_t {
   ClearFault,  // CONFIG_AP: the human says it is fixed
   TestTrack,   // CONFIG_AP: track arg minutes from park, no camera/GPS, AP up throughout
   SleepNow,    // CONFIG_AP: leave now (HOME -> IDLE -> sleep)
+  TestTrackCamera, // CONFIG_AP: as TestTrack, but the camera runs (best_effort): wake, config, record, stop
+  Discover,    // CONFIG_AP: join the camera, dump its settings tree (the AP drops meanwhile)
   Coils        // CONFIG_AP: arg 1 = driver enabled (holding), 0 = released
 };
 struct CmdResult { bool ok; const char *msg; };
@@ -129,6 +131,8 @@ class Fsm {
   CmdResult diag(DiagKind k, double deg = 0, int cycles = 1, double overshoot_deg = NAN, uint32_t slew_hz = 0);
   const DiagState &diagState() const { return diag_; }
   bool  coils() const { return coils_; }
+  // camera discover: 0 none yet, 1 running, 2 ok, 3 failed
+  uint8_t discoverState() const { return discover_; }
   void  touch();            // a web client is looking: CONFIG_AP's timeout restarts
   Radio radio() const { return radio_; }
   uint32_t stateMs() const { return inState(); }
@@ -179,6 +183,7 @@ class Fsm {
   uint64_t touch_ms_ = 0, last_due_ms_ = 0;
   bool    move_pending_ = false, move_failed_ = false;
   bool    coils_ = false;
+  uint8_t discover_ = 0;
   DiagState diag_;
   uint64_t diag_settle_ms_ = 0;
 

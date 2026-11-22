@@ -78,7 +78,8 @@ struct IGps {
   virtual ~IGps() {}
 };
 
-enum class CamStep : uint8_t { Wake, Config, Start, Stop };
+// Discover: wake + dump the camera's settings tree (CONFIG_AP only, slice 6)
+enum class CamStep : uint8_t { Wake, Config, Start, Stop, Discover };
 struct ICamera {
   virtual void power(bool on) = 0;           // GPIO 32 load switch
   virtual void begin(CamStep s) = 0;         // start one step...

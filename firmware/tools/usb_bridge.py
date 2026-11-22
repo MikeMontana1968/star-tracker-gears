@@ -58,6 +58,8 @@ class Board:
         self.lock = threading.Lock()
         self.replies = queue.Queue()
         self.console = []                 # recent non-reply lines
+        self.capture = None               # lines of a K file dump in progress
+        self.files = queue.Queue()
         self.ser = None
         self.error = None
         self.open()
@@ -97,11 +99,37 @@ class Board:
             while b"\n" in buf:
                 line, buf = buf.split(b"\n", 1)
                 text = line.decode("utf-8", "replace").rstrip("\r")
+                if self.capture is not None:
+                    if text == "END FILE":
+                        self.files.put("\n".join(self.capture))
+                        self.capture = None
+                    else:
+                        self.capture.append(text)
+                    continue
+                if text.startswith("BEGIN FILE "):
+                    self.capture = []
+                    continue
+                if text.startswith("FILE MISSING"):
+                    self.files.put(None)
+                    continue
                 if text.startswith("HTTP "):
                     self.replies.put(text)
                 elif text:
                     self.console.append(text)
                     del self.console[:-200]
+
+    def file(self, path, timeout=20.0):
+        """A LittleFS file from the board (console K command); None if missing."""
+        if self.ser is None:
+            return None
+        with self.lock:
+            while not self.files.empty():
+                self.files.get_nowait()
+            self.ser.write(("K %s\n" % path).encode("utf-8"))
+            try:
+                return self.files.get(timeout=timeout)
+            except queue.Empty:
+                return None
 
     def request(self, method, path_q, body, timeout=8.0):
         if self.ser is None:
@@ -161,12 +189,18 @@ def make_handler(board):
             if self.path.startswith("/bridge/info"):
                 return self._send(200, json.dumps({"port": board.port, "connected": board.ser is not None,
                                                    "error": board.error, "usb": True}))
+            if self.path.startswith("/camera/") and self.path.endswith(".json") and ".." not in self.path:
+                body = board.file("/camera_" + self.path[len("/camera/"):])
+                return self._send(200, body) if body is not None else self._send(404, '{"error":"not on the board: run discover"}')
             if self.path.startswith("/bridge/console"):
                 return self._send(200, json.dumps(board.console[-100:]))
             if self.path in ("/", "/index.html") or self.path.startswith("/?"):
                 return self._static("index.html")
             if self.path.startswith("/studio"):
                 return self._static("studio.html")
+            if self.path == "/camera_profile.example.json":
+                with open(os.path.join(WEB, "camera_profile.example.json"), "rb") as f:
+                    return self._send(200, f.read())
             self._send(404, "not found", "text/plain")
 
         def do_POST(self):

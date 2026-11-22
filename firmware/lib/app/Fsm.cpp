@@ -62,7 +62,7 @@ void Fsm::enter(State s, uint32_t deadline_ms) {
 // state requires"). AP and STA never together: the softAP would hop to the
 // GoPro's channel and drop every phone.
 Radio Fsm::radioFor(State s) const {
-  if (s == State::ConfigAp) return Radio::Ap;
+  if (s == State::ConfigAp) return discover_ == 1 ? Radio::Sta : Radio::Ap;   // discover joins the camera
   bool cam_seq = s >= State::CamPower && s <= State::CamStart;
   bool cam_stop = (s == State::CamStop || s == State::SafeStop) && night_.camera == Op::Ok;
   if (cam_seq || cam_stop) return Radio::Sta;                     // talking to the GoPro
@@ -255,6 +255,7 @@ void Fsm::endNightNow(const char *why) {
   touch_ms_ = 0;
   move_pending_ = false;
   if (diag_.running) diagEnd(false, "halted");
+  if (discover_ == 1) { discover_ = 3; }        // the camera was cancelled above
   enter(State::ConfigAp, c_.config_ap_ms);
 }
 
@@ -304,8 +305,22 @@ CmdResult Fsm::command(Cmd c, double arg) {
       log("fault cleared from the web UI");
       return {true, "fault cleared"};
 
-    case Cmd::TestTrack: {
+    case Cmd::Discover:
       if (!cfg) return {false, "only in CONFIG_AP"};
+      if (discover_ == 1) return {false, "already discovering"};
+      if (p_.motion.moving() || diag_.running) return {false, "still moving"};
+      discover_ = 1;
+      p_.camera.power(true);
+      setRadio(Radio::Sta);                 // the phone loses the AP until this ends
+      p_.camera.begin(CamStep::Discover);
+      cam_seq_ms_ = p_.clock.ms();
+      touch();
+      log("camera discover: joining the camera (the tracker's AP is down meanwhile)");
+      return {true, "discovering: the tracker's Wi-Fi drops for up to 2 minutes"};
+
+    case Cmd::TestTrack: case Cmd::TestTrackCamera: {
+      if (!cfg) return {false, "only in CONFIG_AP"};
+      if (discover_ == 1) return {false, "camera discover running"};
       if (fault_ != Fault::None) return {false, "clear the fault first"};
       if (p_.motion.moving()) return {false, "still moving"};
       if (!(arg >= 1 && arg <= 12 * 60)) return {false, "minutes must be 1..720"};
@@ -315,9 +330,14 @@ CmdResult Fsm::command(Cmd c, double arg) {
       pl.start_utc = now + 20;
       pl.stop_utc = pl.start_utc + (int64_t)(arg * 60);
       pl.start_deg = c_.park_deg;
-      pl.cam = CamPolicy::None;         // s3: straight repeatability of the drive
+      bool with_cam = c == Cmd::TestTrackCamera;
+      // s3: a plain test is straight repeatability of the drive; the camera
+      // variant runs the whole camera path, best effort, and needs the lead
+      // time for CAM_POWER..CAM_START before the start
+      pl.cam = with_cam ? CamPolicy::BestEffort : CamPolicy::None;
       pl.gps = GpsPolicy::None;
-      strncpy(pl.camera, "test_track", sizeof pl.camera - 1);
+      if (with_cam) { pl.start_utc = now + c_.cam_total_ms / 1000 + 30; pl.stop_utc = pl.start_utc + (int64_t)(arg * 60); }
+      strncpy(pl.camera, with_cam ? "test_camera" : "test_track", sizeof pl.camera - 1);
       move_pending_ = false;
       startNight(pl);
       return {true, "test track starting"};
@@ -452,6 +472,18 @@ void Fsm::doDiag() {
 
 // CONFIG_AP: the human is in charge, but a scheduled night still wins.
 void Fsm::doConfig() {
+  if (discover_ == 1) {
+    Op r = p_.camera.poll();
+    bool late = p_.clock.ms() - cam_seq_ms_ >= c_.cam_total_ms;
+    if (r == Op::Pending && !late) return;
+    if (r == Op::Pending) p_.camera.cancel();
+    discover_ = r == Op::Ok ? 2 : 3;
+    p_.camera.power(false);
+    setRadio(Radio::Ap);
+    touch();
+    log("camera discover %s", r == Op::Ok ? "done: /api/camera/dump" : late ? "timed out" : "failed");
+    return;
+  }
   if (diag_.running) {
     doDiag();
     if (diag_.running) {

@@ -8,8 +8,7 @@
 //             watchdog (any of them stops the move; the FSM sees it)
 //    sensors  AS5600 through the NVS encoder map; battery divider
 //    gps      NEO-6M on UART1 (RX 18 / TX 5, 9600), power on GPIO 17
-//    camera   no driver until slice 6: every step fails at once, so a
-//             best_effort night tracks without it
+//    camera   src/EspCamera (GoPro HERO6 over gpControl, in a core-0 task)
 //    store    Persist in NVS; night reports appended to LittleFS
 //             /nights.ndjson; the schedule on LittleFS, atomic writes,
 //             /schedule.good.json kept as the fallback
@@ -110,13 +109,7 @@ class Gps : public app::IGps {
   uint32_t last_rmc_ms_ = 0; uint32_t seen_rmc_ = 0;
 };
 
-class Camera : public app::ICamera {               // slice 6 replaces this
- public:
-  void power(bool on) override;
-  void begin(app::CamStep) override {}
-  app::Op poll() override { return app::Op::Fail; }
-  void cancel() override {}
-};
+// the camera is src/EspCamera.h (slice 6)
 
 class Store : public app::IStore {
  public:

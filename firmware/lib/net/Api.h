@@ -13,6 +13,7 @@
 //    GET  /api/schedule/nights?n=14   the nights the stored schedule resolves
 //    POST /api/command         {"cmd": halt | end_night | goto | jog | home |
 //                               clear_fault | test_track | sleep_now | extend |
+//                               discover | test_track {minutes, camera} |
 //                               coils {on} | diag {kind: wiggle|sweep|repeat,
 //                               deg, cycles, overshoot_deg},
 //                               "deg": n, "minutes": n}
@@ -20,6 +21,8 @@
 //    GET  /api/night/last      the last night report
 //    GET  /api/night/list?n=10 the last n reports, newest last
 //    POST /api/time            {"utc": seconds} sets the DS3231
+//    GET/PUT /api/camera/profile   the camera profile (s6); GET hides the password
+//    GET  /api/camera/dump     what discover saved (summary; the file itself streams from src/Net.cpp)
 //
 //  Every request counts as activity: CONFIG_AP stays up while a page polls.
 //  Refused commands are 409 with the FSM's reason, never a silent 200.
@@ -63,6 +66,15 @@ struct Host {
   virtual app::Schedule *checkSchedule(const char *json, size_t len, app::Messages *err, app::Messages *warn) = 0;
   virtual app::Schedule *currentSchedule() = 0;       // null: no valid schedule
   virtual bool deleteSchedule() = 0;                  // remove it (and the fallback)
+  // the camera profile (s6). get: the stored JSON with the Wi-Fi password
+  // replaced by "********"; put: validate + store (a "********" password keeps
+  // the stored one). Default: no camera support.
+  virtual bool cameraProfile(std::string *json) { (void)json; return false; }
+  virtual bool putCameraProfile(const char *json, size_t len, app::Messages *err) {
+    (void)json; (void)len; err->add("no camera support"); return false;
+  }
+  virtual void cameraFiles(JsonObject o) { (void)o; }  // what discover saved
+  virtual bool deleteCameraProfile() { return false; }
   // the last `n` night reports, one JSON object per line, oldest first
   virtual int  nights(int n, std::string *ndjson) = 0;
   virtual bool setTime(int64_t utc) = 0;
