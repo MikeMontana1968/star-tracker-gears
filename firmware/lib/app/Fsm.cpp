@@ -342,6 +342,15 @@ void Fsm::tick() {
         p_.clock.setUtc(gps_utc);
         night_.gps = Op::Ok;
         log("GPS fix after %u ms, RTC was %+lld s off", inState(), (long long)night_.rtc_drift_s);
+        // move it and the times follow (FIRMWARE.md s3): tonight from the fix
+        p_.schedule.setSite(lat, lon);
+        NightPlan np = p_.schedule.refresh(night_.plan);
+        double end = np.start_deg + (double)(np.stop_utc - np.start_utc) * SIDEREAL_DEG_PER_S;
+        if (np.valid && np.stop_utc > np.start_utc && np.start_deg >= c_.travel_min_deg && end <= c_.travel_max_deg) {
+          if (np.start_utc != night_.plan.start_utc || np.stop_utc != night_.plan.stop_utc)
+            log("site from GPS: night now %lld..%lld", (long long)np.start_utc, (long long)np.stop_utc);
+          night_.plan = np;
+        }
       } else if (timedOut()) {
         night_.gps = Op::Fail;
         night_.warnings++;

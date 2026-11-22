@@ -2,7 +2,9 @@
 // Every night here sleeps, wakes by alarm and reboots, so resume paths run
 // on every test, not just the brownout one.
 #include <unity.h>
+#include <string.h>
 #include "Sim.h"
+#include "Schedule.h"
 
 static const int64_t T0 = 1795305600;            // 2026-11-22 00:00:00Z
 static const int64_t H = 3600;
@@ -279,6 +281,59 @@ void test_position_moved_while_asleep_is_logged(void) {
   TEST_ASSERT_EQUAL(Outcome::Completed, s.w.reports.back().outcome);
 }
 
+// ---- with the real schedule (slice 4) ---------------------------------------
+static const char *SCHED =
+    "{\"version\":1,\"site\":{\"lat\":34.6,\"lon\":-120.4,\"tz_offset_min\":-480},"
+    "\"defaults\":{\"start\":{\"event\":\"dusk_astronomical\",\"offset_min\":10},"
+    "\"stop\":{\"event\":\"dawn_astronomical\",\"offset_min\":-10},\"start_angle_deg\":0.0,"
+    "\"camera\":\"nightlapse_30s_iso800\",\"camera_policy\":\"best_effort\"},"
+    "\"nights\":[{\"date\":\"2026-11-22\"},{\"date\":\"2026-11-23\",\"skip\":true}],"
+    "\"repeat_after_list\":true}";
+
+void test_real_schedule_three_dusk_to_dawn_nights(void) {
+  static ScheduleDoc doc; Messages err;
+  ScheduleLimits lim;
+  TEST_ASSERT_TRUE(parseSchedule(SCHED, strlen(SCHED), lim, T0, &doc, &err));
+  Schedule sched(doc, lim);
+  Sim s;
+  s.w.ext = &sched;
+  start(s);
+  s.run(T0 + 5 * 24 * H);
+  // local evenings 22nd, (23rd skipped), 24th, 25th; each dusk is ~01:30Z the next
+  // UTC day, so the 26th's starts after the run ends (27th 00:00Z)
+  TEST_ASSERT_EQUAL(3, (int)s.w.reports.size());
+  int32_t d22; parseDate("2026-11-22", &d22);
+  TEST_ASSERT_EQUAL_INT32(d22, s.w.reports[0].plan.day);
+  TEST_ASSERT_EQUAL_INT32(d22 + 2, s.w.reports[1].plan.day);
+  TEST_ASSERT_EQUAL_INT32(d22 + 3, s.w.reports[2].plan.day);
+  for (auto &r : s.w.reports) {
+    TEST_ASSERT_EQUAL(Outcome::Completed, r.outcome);
+    TEST_ASSERT_INT64_WITHIN(2, r.plan.start_utc, r.track_start_utc);
+    TEST_ASSERT_TRUE(r.plan.stop_utc - r.plan.start_utc > 10 * H);   // a long November night
+  }
+  // Skyfield: astronomical dusk 2026-11-22 at 1795400472; start = dusk + 10 min
+  TEST_ASSERT_INT64_WITHIN(60, 1795400472 + 600, s.w.reports[0].track_start_utc);
+}
+
+void test_gps_fix_moves_tonights_times(void) {
+  static ScheduleDoc doc; Messages err;
+  ScheduleLimits lim;
+  TEST_ASSERT_TRUE(parseSchedule(SCHED, strlen(SCHED), lim, T0, &doc, &err));
+  Schedule sched(doc, lim);
+  Sim s;
+  s.cfg.lead_s = 1800;            // wake early enough that an earlier start is still ahead
+  s.w.ext = &sched;
+  s.w.gps_lon = -118.4;           // the tracker was carried 2 deg east of the schedule's site
+  start(s);
+  s.run(T0 + 40 * H);                                  // the night ends ~12:00Z on the 23rd
+  TEST_ASSERT_EQUAL(1, (int)s.w.reports.size());
+  const NightReport &r = s.w.reports[0];
+  TEST_ASSERT_EQUAL(Op::Ok, r.gps);
+  // 4 min earlier per degree east: the night started ~8 min before the site's dusk
+  TEST_ASSERT_INT64_WITHIN(60, 1795400472 + 600 - 480, r.track_start_utc);
+  TEST_ASSERT_EQUAL(Outcome::Completed, r.outcome);
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -302,5 +357,7 @@ int main(int, char **) {
   RUN_TEST(test_night_across_year_end);
   RUN_TEST(test_encoder_dead_at_boot_is_a_fault);
   RUN_TEST(test_position_moved_while_asleep_is_logged);
+  RUN_TEST(test_real_schedule_three_dusk_to_dawn_nights);
+  RUN_TEST(test_gps_fix_moves_tonights_times);
   return UNITY_END();
 }

@@ -195,6 +195,11 @@ regenerate.
     scenarios, deep sleep simulated as a real reboot. 35 host tests total.
     Next: slice 4 (schedule + solar solver, host-tested), then an ESP32
     Platform so the FSM runs on the board.
+18. **Firmware slice 4 (schedule + solar) done (2026-11-22), host only.**
+    Solar solver within 2 s of Skyfield/DE421 at mid-latitudes; schedule JSON
+    with 4-layer validation, twilight fallback, GPS site refresh. 46 host
+    tests. Next: the ESP32 Platform (FSM on the board, schedule on LittleFS),
+    then slice 5 (web API) and 6 (GoPro).
 
 ## Module facts, measured and confirmed
 

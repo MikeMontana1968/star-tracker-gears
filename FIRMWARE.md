@@ -20,7 +20,7 @@ under `firmware/` are arduino-cli bench sketches.
 | 1 | `motion/` — step engine, position counter, both rate profiles | slice 0 | **done** 2026-11-21 (see below) |
 | 2 | `app/fsm` + fake camera + host-side simulator | — | **done** 2026-11-22 (host only; not yet on the device) |
 | 3 | `hal/` — DS3231, AS5600, TMC2209 UART, battery, OLED, deep sleep | modules on hand | **built 2026-11-22**; encoder-map sweep not yet run (see below) |
-| 4 | Schedule parse/validate + solar solver (host-tested) | — | not started |
+| 4 | Schedule parse/validate + solar solver (host-tested) | — | **done** 2026-11-22 (host; storage on the device pending) |
 | 5 | Web server, status JSON, static UI, config AP | slice 2 | not started |
 | 6 | Real GoPro driver + `discover`; answers the 3 hardware unknowns | HERO6 | not started |
 
@@ -130,6 +130,34 @@ the camera policy or the divergence threshold fails the matching test.
 Not yet: an ESP32 `Platform` over lib/motion + lib/hal (the bench console
 is still `main.cpp`), the real schedule (slice 4), CONFIG_AP's radio and the
 API (slice 5), the GoPro driver (slice 6).
+
+### Slice 4 as built (2026-11-22)
+
+- `lib/app/Solar` -- NOAA solar position, iterated at the event. Against
+  **Skyfield 1.54 / JPL DE421** (84 crossings: sunset, civil, nautical,
+  astronomical, evening and morning, solstices and equinox, at 34.6 N, Greenwich,
+  Sydney, Tromso, the equator): **worst mid-latitude error 2 s**; all 12
+  no-crossing cases (Greenwich June astronomical, Tromso midnight sun and polar
+  night) correctly report none. Regenerate the table with
+  `firmware/tools/twilight_ref.py <de421.bsp>`.
+- `lib/app/Schedule` -- the s5 JSON (format in the header), ArduinoJson 7.
+  Four validation layers, every error collected with a path
+  (`defaults.stop.event: unknown event 'dusk_astro'`); warnings (a listed night
+  with no darkness, a twilight fallback) do not fail the upload. The defaults'
+  envelope and 16 h checks scan the next 366 nights. Fallback astronomical ->
+  nautical -> civil -> skip, with `NightPlan.fallback` recording the levels.
+  "date" is the local date of the evening; `repeat_after_list` schedules every
+  date after the last listed one (gaps between listed dates stay unscheduled).
+- GPS: after a fix the FSM calls `setSite` + `refresh`, so tonight's times
+  follow the tracker (2 deg east = 8 min earlier, tested).
+- Two consequences worth knowing: the s5 example's `start_angle_deg: -90` is
+  refused by the current -2..182 envelope (angles here are from the start
+  position, 0 = parked); and `repeat_after_list` is refused at high latitude
+  where winter nights exceed 16 h or 182 deg (Tromso: ~19 h).
+- Tests: `test_schedule` (9) and two FSM scenarios driving the real schedule
+  (three dusk-to-dawn nights with a skip; GPS moving the times). 46 host tests.
+- Not yet: LittleFS storage (atomic write, `schedule.good.json` fallback) and
+  the upload endpoint -- both land with the ESP32 Platform / slice 5.
 
 `firmware/sidereal_drive/sidereal_drive.ino` stays where it is as the reference
 artefact. Its accumulator migrates into `lib/motion/`; the sketch is not the

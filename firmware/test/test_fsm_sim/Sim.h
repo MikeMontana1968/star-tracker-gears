@@ -93,10 +93,11 @@ struct World : IClock, IMotion, ISensors, IGps, IStore, ISchedule, ISystem {
 
   // ---- GPS: a fix arrives gps_fix_s after power-on, if gps_ok -------------
   bool gps_ok = true, gps_on = false; int64_t gps_on_ms = 0; int gps_fix_s = 35;
+  double gps_lat = 34.6, gps_lon = -120.4;
   void power(bool on) override { if (on && !gps_on) gps_on_ms = t_ms; gps_on = on; }
   bool fix(int64_t *u, double *lat, double *lon) override {
     if (!gps_on || !gps_ok || t_ms - gps_on_ms < gps_fix_s * 1000) return false;
-    *u = trueUtc(); *lat = 34.6; *lon = -120.4; return true;
+    *u = trueUtc(); *lat = gps_lat; *lon = gps_lon; return true;
   }
 
   // ---- camera: each step takes cam_step_s; one step can fail or hang -------
@@ -127,10 +128,14 @@ struct World : IClock, IMotion, ISensors, IGps, IStore, ISchedule, ISystem {
 
   // ---- schedule ------------------------------------------------------------------
   std::vector<NightPlan> nights;
+  ISchedule *ext = nullptr;      // a real Schedule, when a test wants one
   NightPlan next(int64_t after) override {
+    if (ext) return ext->next(after);
     for (auto &n : nights) if (n.stop_utc > after) return n;
     return NightPlan();
   }
+  void setSite(double lat, double lon) override { if (ext) ext->setSite(lat, lon); }
+  NightPlan refresh(const NightPlan &p) override { return ext ? ext->refresh(p) : p; }
 
   // ---- system ------------------------------------------------------------------
   bool sleeping = false; int64_t wake_utc = 0; int sleeps = 0;

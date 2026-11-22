@@ -29,6 +29,9 @@ struct NightPlan {
   double    start_deg = 0;                 // output angle at start_utc
   CamPolicy cam = CamPolicy::BestEffort;
   GpsPolicy gps = GpsPolicy::BestEffort;
+  int32_t   day = 0;                       // the night's local date, days since 1970 (its key)
+  uint8_t   fallback = 0;                  // twilight levels fallen back (astro -> nautical = 1)
+  char      camera[24] = {};               // camera profile name
 };
 
 struct IClock {
@@ -114,6 +117,10 @@ struct IStore {
 struct ISchedule {
   // the next night whose stop is after `after_utc` (invalid: nothing planned)
   virtual NightPlan next(int64_t after_utc) = 0;
+  // GPS position for the twilight sums (overrides the schedule's site), and
+  // re-resolve a night already chosen with it. Defaults: no-ops.
+  virtual void setSite(double lat, double lon) { (void)lat; (void)lon; }
+  virtual NightPlan refresh(const NightPlan &p) { return p; }
   virtual ~ISchedule() {}
 };
 
