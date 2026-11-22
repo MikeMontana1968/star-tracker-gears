@@ -60,3 +60,9 @@ constexpr int    JAM_MIN_COUNTS = 3;
 constexpr double SLIP_DEG_LINE = 4.0;
 constexpr double SLIP_DEG_MAP  = 2.0;
 constexpr int ENC_RAW_START  = 1029;
+
+// ---- radio / web UI (FIRMWARE.md s7, slice 5) -------------------------------
+// softAP "StarTracker-XXXX" (last MAC bytes). WPA2 needs >= 8 characters.
+// This repo is public: change AP_PASS before the tracker goes outdoors.
+#define AP_PASS "stjarnspar"
+constexpr int AP_CHANNEL = 6;

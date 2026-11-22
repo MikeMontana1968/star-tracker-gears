@@ -208,6 +208,16 @@ regenerate.
     The board now holds the test schedule (one night, finished) and sleeps
     with a 6 h recheck. Next: slice 5 (WiFi AP + web API/UI), slice 6
     (GoPro), a real dusk-to-dawn night outdoors with GPS.
+20. **Slice 5: Wi-Fi AP + web UI (2026-11-22).** Press the button (or `A` on
+    the console) -> CONFIG_AP -> softAP `StarTracker-2E74`, password
+    `AP_PASS` in config.h (**change it: the repo is public**), page at
+    http://192.168.4.1/ (captive portal opens it). Status, halt / end night,
+    jog / goto / home, test track, clear fault, set clock from the phone,
+    schedule upload with the error list, night reports, live log. API in
+    lib/net (host-tested, 64 host tests total); UI in firmware/web/index.html
+    (`?mock` works offline). Verified on the board over serial (`H`), incl. a
+    2-min test track. **Not yet verified: a phone actually joining the AP.**
+    Lash note in FIRMWARE.md "Slice 5 as built". Next: slice 6 (GoPro).
 
 ## Module facts, measured and confirmed
 

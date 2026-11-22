@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Star Tracker</title>
+<!-- FIRMWARE.md s7: static page, every dynamic from /api/status at 1 Hz.
+     Open web/index.html?mock in any browser to work on it with no board. -->
+<style>
+:root{--bg:#0b0d12;--card:#151922;--line:#262c3a;--fg:#e6e9ef;--dim:#8a93a6;--acc:#6aa8ff;
+--ok:#46c37b;--warn:#e8b339;--bad:#ff5b5b;--btn:#222a3a;--btnfg:#e6e9ef}
+:root[data-theme=red]{--bg:#000;--card:#0d0000;--line:#330000;--fg:#ff3b30;--dim:#a3221b;--acc:#ff3b30;
+--ok:#ff3b30;--warn:#ff3b30;--bad:#ff3b30;--btn:#1a0000;--btnfg:#ff3b30}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:10px 16px;
+background:var(--bg);border-bottom:1px solid var(--line)}
+header h1{font-size:16px;margin:0;flex:1}
+main{max-width:760px;margin:0 auto;padding:12px 16px 40px;display:grid;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-weight:600;font-size:13px;border:1px solid var(--line)}
+.st-TRACK,.st-WAIT_START{color:var(--ok)} .st-FAULT,.st-SAFE_STOP{color:var(--bad)} .st-CONFIG_AP{color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 14px}
+.kv{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding:2px 0}
+.kv span:first-child{color:var(--dim)} .kv span:last-child{font-variant-numeric:tabular-nums;text-align:right}
+.big{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
+button{background:var(--btn);color:var(--btnfg);border:1px solid var(--line);border-radius:8px;padding:9px 13px;
+font:inherit;font-weight:600;cursor:pointer;min-height:40px}
+button:disabled{opacity:.35;cursor:not-allowed}
+button.danger{border-color:var(--bad);color:var(--bad)}
+button.halt{background:var(--bad);color:#fff;border:0;width:100%;font-size:17px;min-height:52px}
+:root[data-theme=red] button.halt{background:#3a0000;color:#ff3b30;border:1px solid #ff3b30}
+input,textarea{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+input[type=number]{width:96px}
+textarea{width:100%;min-height:220px;font:12px/1.35 ui-monospace,Consolas,monospace}
+.msg{font-size:13px;min-height:1.3em;color:var(--dim)} .msg.err{color:var(--bad)} .msg.ok{color:var(--ok)}
+.banner{border:1px solid var(--bad);color:var(--bad);border-radius:8px;padding:8px 10px;margin-bottom:8px;display:none}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;background:var(--acc);width:0}
+#log{font:12px/1.35 ui-monospace,Consolas,monospace;max-height:260px;overflow:auto;white-space:pre-wrap;color:var(--dim)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
+th{color:var(--dim);font-weight:500}
+.conn{font-size:12px;color:var(--dim)} .conn.lost{color:var(--bad)}
+ul.list{margin:4px 0;padding-left:18px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Star Tracker</h1>
+  <span id="state" class="badge">…</span>
+  <button id="theme" title="dark / red light" style="min-height:32px;padding:4px 10px">◐</button>
+</header>
+<main>
+  <section class="card">
+    <div id="fault" class="banner"></div>
+    <div class="row" style="justify-content:space-between">
+      <div><div class="big" id="pos">—</div><div class="conn">output angle (step counter)</div></div>
+      <div style="text-align:right"><div class="big" id="clock">—</div><div class="conn" id="conn">connecting…</div></div>
+    </div>
+    <div class="grid">
+      <div class="kv"><span>in state</span><span id="state_s">—</span></div>
+      <div class="kv"><span>deadline</span><span id="deadline">—</span></div>
+      <div class="kv"><span>encoder</span><span id="enc">—</span></div>
+      <div class="kv"><span>enc − pos</span><span id="encerr">—</span></div>
+      <div class="kv"><span>battery</span><span id="vbat">—</span></div>
+      <div class="kv"><span>radio</span><span id="radio">—</span></div>
+      <div class="kv"><span>GPS</span><span id="gps">—</span></div>
+      <div class="kv"><span>RTC</span><span id="rtc">—</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 id="nighthead">Night</h2>
+    <div id="night">—</div>
+  </section>
+
+  <section class="card">
+    <h2>Control</h2>
+    <button class="halt" id="halt">HALT — motor off now</button>
+    <div class="row">
+      <button id="endnight" class="danger">End night (rewind)</button>
+      <button id="clearfault">Clear fault</button>
+      <button id="sleepnow">Leave config / sleep</button>
+    </div>
+    <div class="row" id="jogrow">
+      <button data-jog="-1">−1°</button><button data-jog="-0.1">−0.1°</button>
+      <button data-jog="0.1">+0.1°</button><button data-jog="1">+1°</button><button data-jog="10">+10°</button>
+      <button id="home">Home</button>
+    </div>
+    <div class="row">
+      <input id="gotodeg" type="number" step="0.1" value="0" aria-label="angle"> °
+      <button id="goto">Go to</button>
+      <span style="width:12px"></span>
+      <input id="testmin" type="number" min="1" max="720" value="10" aria-label="minutes"> min
+      <button id="testtrack">Test track</button>
+    </div>
+    <div class="row">
+      <button id="settime">Set clock from this phone</button>
+      <span class="conn" id="skew"></span>
+    </div>
+    <div class="msg" id="cmdmsg"></div>
+  </section>
+
+  <section class="card">
+    <h2>Schedule</h2>
+    <div class="grid" id="sched"></div>
+    <div class="row"><button id="loadsched">Load</button><button id="putsched">Validate &amp; upload</button></div>
+    <textarea id="schedtext" spellcheck="false" placeholder="schedule JSON (FIRMWARE.md s5)"></textarea>
+    <div class="msg" id="schedmsg"></div>
+    <ul class="list" id="schederr"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Nights</h2>
+    <div style="overflow-x:auto"><table id="nights"><tr><td>—</td></tr></table></div>
+    <div class="row"><button id="loadnights">Refresh</button></div>
+  </section>
+
+  <section class="card">
+    <h2>Log</h2>
+    <div id="log"></div>
+  </section>
+
+  <section class="card">
+    <h2>Hardware</h2>
+    <div class="grid" id="hw"></div>
+  </section>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const MOCK = /[?&]mock\b/.test(location.search) || location.protocol === "file:";
+let S = null, logNext = 0, lastOk = 0, busy = false;
+
+// ---------- theme (per-viewer convenience only) ----------
+function setTheme(t){ document.documentElement.dataset.theme = t; try{ localStorage.setItem("theme", t); }catch(e){} }
+try{ const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; }catch(e){}
+$("theme").onclick = () => setTheme(document.documentElement.dataset.theme === "red" ? "dark" : "red");
+
+// ---------- formatting ----------
+const pad = n => String(n).padStart(2, "0");
+function utc(t){ if (t == null) return "—"; const d = new Date(t * 1000);
+  return `${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}Z`; }
+function local(t){ if (t == null) return "—"; const d = new Date(t * 1000);
+  return d.toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"}); }
+function dur(s){ if (s == null) return "—"; s = Math.max(0, Math.round(s)); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  return h ? `${h}h ${pad(m)}m` : m ? `${m}m ${pad(x)}s` : `${x}s`; }
+const deg = (v, n = 3) => v == null ? "—" : `${v.toFixed(n)}°`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---------- transport ----------
+async function api(method, path, body){
+  if (MOCK) return mock(method, path, body);
+  const r = await fetch(path, {method, headers: body ? {"Content-Type":"application/json"} : {},
+                               body: body == null ? undefined : typeof body === "string" ? body : JSON.stringify(body)});
+  let j = null; try{ j = await r.json(); }catch(e){}
+  return {code: r.status, json: j};
+}
+
+function say(id, text, cls){ const e = $(id); e.textContent = text; e.className = "msg" + (cls ? " " + cls : ""); }
+
+async function cmd(c, extra){
+  if (c === "halt" || confirmFor(c)) {
+    const r = await api("POST", "/api/command", Object.assign({cmd: c}, extra || {}));
+    say("cmdmsg", r.json ? (r.json.msg || r.json.error) : `HTTP ${r.code}`, r.code === 200 ? "ok" : "err");
+    poll();
+  }
+}
+function confirmFor(c){
+  if (c === "end_night") return confirm("End the night now and rewind?");
+  if (c === "test_track") return confirm(`Track for ${$("testmin").value} min from park, no camera?`);
+  return true;
+}
+
+// ---------- status ----------
+async function poll(){
+  if (busy) return; busy = true;
+  try{
+    const r = await api("GET", "/api/status");
+    if (r.code === 200 && r.json){ S = r.json; lastOk = Date.now(); render(); if (S.log_next !== logNext) pollLog(); }
+  }catch(e){}
+  busy = false;
+  const age = (Date.now() - lastOk) / 1000;
+  $("conn").textContent = MOCK ? "mock data" : !lastOk ? "connecting…" : age < 3 ? "live" : `no answer ${Math.round(age)}s`;
+  $("conn").className = "conn" + (lastOk && age >= 3 ? " lost" : "");
+}
+
+function kv(k, v){ return `<div class="kv"><span>${k}</span><span>${v}</span></div>`; }
+
+function render(){
+  const s = S, st = s.state;
+  $("state").textContent = st; $("state").className = "badge st-" + st;
+  $("pos").textContent = deg(s.pos_deg);
+  $("clock").textContent = utc(s.rtc_utc).slice(6);
+  $("state_s").textContent = dur(s.state_s);
+  $("deadline").textContent = s.deadline_remaining_s == null ? "—" : dur(s.deadline_remaining_s);
+  $("enc").textContent = deg(s.encoder_deg);
+  $("encerr").textContent = deg(s.encoder_err_deg);
+  $("vbat").textContent = s.battery_v == null ? "—" : s.battery_v.toFixed(2) + " V";
+  $("radio").textContent = s.radio_mode + (s.radio && s.radio.clients ? ` · ${s.radio.clients} client${s.radio.clients>1?"s":""}` : "");
+  const g = s.gps || {};
+  $("gps").textContent = !g.powered ? "off" : g.fix ? `fix · ${g.sats} sats · hdop ${g.hdop}` : `searching · ${g.sats||0} sats`;
+  $("rtc").textContent = s.rtc_lost_power ? "LOST POWER" : s.rtc_temp_c != null ? `ok · ${s.rtc_temp_c.toFixed(1)} °C` : "ok";
+  const skew = s.rtc_utc - Date.now() / 1000;
+  $("skew").textContent = MOCK ? "" : `device is ${skew >= 0 ? "+" : ""}${skew.toFixed(0)} s vs this phone`;
+
+  const f = $("fault");
+  if (s.fault_code) { f.style.display = "block"; f.textContent = `FAULT: ${s.fault_text}. Check the train, then Clear fault.`; }
+  else if (s.move_failed) { f.style.display = "block"; f.textContent = "Last manual move stopped short (jam/slip guard). Look before moving again."; }
+  else f.style.display = "none";
+
+  // night
+  const n = s.night;
+  if (n) {
+    $("nighthead").textContent = n.test ? "Test track" : "Tonight";
+    const len = n.stop_utc - n.start_utc, el = n.tracking_elapsed_s;
+    const pct = el != null ? Math.min(100, 100 * el / len) : 0;
+    $("night").innerHTML =
+      `<div class="bar"><i style="width:${pct}%"></i></div>` +
+      `<div class="grid">` +
+      kv("window", `${local(n.start_utc)} → ${local(n.stop_utc)}`) +
+      kv("length", dur(len)) +
+      kv("elapsed", el != null ? dur(el) : "not tracking") +
+      kv("remaining", n.tracking_remaining_s != null ? dur(n.tracking_remaining_s) : "—") +
+      kv("expected", deg(n.expected_deg)) +
+      kv("max divergence", deg(n.max_div_deg)) +
+      kv("camera", `${n.camera} (${n.camera_policy})`) +
+      kv("GPS", n.gps + (n.gps === "ok" ? ` · RTC was ${n.rtc_drift_s >= 0 ? "+" : ""}${n.rtc_drift_s} s` : "")) +
+      kv("warnings", n.warnings) + kv("resumes", n.resumes) +
+      `</div>`;
+  } else {
+    const sc = s.schedule || {};
+    $("nighthead").textContent = "Next night";
+    $("night").innerHTML = sc.next_start_utc
+      ? `<div class="grid">${kv("start", local(sc.next_start_utc))}${kv("stop", local(sc.next_stop_utc))}` +
+        `${kv("length", dur(sc.next_stop_utc - sc.next_start_utc))}${kv("from", deg(sc.next_start_deg, 1))}</div>`
+      : `<span class="conn">nothing scheduled${sc.valid ? "" : " — no valid schedule loaded"}</span>`;
+  }
+
+  // controls by state (the FSM refuses anything else anyway: 409)
+  const cfg = st === "CONFIG_AP", active = !!n && !["CONFIG_AP","REWIND","CAM_STOP","SAFE_STOP","HOME","IDLE"].includes(st);
+  document.querySelectorAll("#jogrow button").forEach(b => b.disabled = !cfg);
+  for (const id of ["goto","testtrack","sleepnow"]) $(id).disabled = !cfg;
+  $("clearfault").disabled = !cfg || !s.fault_code;
+  $("endnight").disabled = !active;
+
+  // schedule summary
+  const sc = s.schedule || {};
+  $("sched").innerHTML = kv("valid", sc.valid ? "yes" : "NO") + kv("source", esc(sc.source || "—")) +
+    kv("next", sc.next_start_utc ? local(sc.next_start_utc) : "—");
+
+  // hardware
+  $("hw").innerHTML =
+    kv("encoder raw", s.encoder_raw) + kv("AGC", s.encoder_agc ?? "—") + kv("magnitude", s.encoder_magnitude ?? "—") +
+    kv("encoder map", s.encoder_map ? "calibrated" : "line fit") +
+    kv("servo error", (s.target_minus_actual_usteps ?? 0) + " u") + kv("driver UART", s.driver_uart ? "ok" : "MISSING") +
+    kv("last guard", esc(s.guard || "—")) + kv("stay-awake", s.stay_awake ? "ON (bench)" : "off") +
+    kv("uptime", dur(s.uptime_s)) + kv("free heap", s.free_heap != null ? (s.free_heap/1024).toFixed(0) + " KB" : "—") +
+    kv("LittleFS free", s.littlefs_free != null ? (s.littlefs_free/1024).toFixed(0) + " KB" : "—") +
+    kv("SSID", esc((s.radio && s.radio.ssid) || "—"));
+}
+
+async function pollLog(){
+  const r = await api("GET", `/api/log?since=${logNext}`);
+  if (r.code !== 200 || !r.json) return;
+  const box = $("log"), atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 4;
+  if (r.json.lost) box.insertAdjacentText("beforeend", `… ${r.json.lost} lines missed\n`);
+  for (const l of r.json.lines) box.insertAdjacentText("beforeend", `${utc(l.utc).slice(6)}  ${l.msg}\n`);
+  logNext = r.json.next;
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+
+async function loadSchedule(){
+  const r = await api("GET", "/api/schedule");
+  if (r.json && r.json.text) { try{ $("schedtext").value = JSON.stringify(JSON.parse(r.json.text), null, 2); }catch(e){ $("schedtext").value = r.json.text; } }
+  say("schedmsg", r.json && r.json.text ? `loaded ${r.json.source}` : "no schedule on the device");
+  $("schederr").innerHTML = "";
+}
+async function putSchedule(){
+  let body = $("schedtext").value;
+  try{ body = JSON.stringify(JSON.parse(body)); }catch(e){ say("schedmsg", "not JSON: " + e.message, "err"); return; }
+  const r = await api("PUT", "/api/schedule", body), j = r.json || {};
+  say("schedmsg", r.code === 200 ? "accepted — takes effect at the next IDLE" : r.code === 422 ? "refused" : `HTTP ${r.code}`,
+      r.code === 200 ? "ok" : "err");
+  $("schederr").innerHTML = (j.errors || []).map(e => `<li style="color:var(--bad)">${esc(e)}</li>`).join("") +
+                            (j.warnings || []).map(w => `<li>${esc(w)}</li>`).join("");
+  poll();
+}
+
+async function loadNights(){
+  const r = await api("GET", "/api/night/list?n=10");
+  const a = (r.json || []).slice().reverse();
+  $("nights").innerHTML = a.length ? "<tr><th>night</th><th>outcome</th><th>tracked</th><th>max div</th><th>min V</th><th>cam</th><th>gps</th></tr>" +
+    a.map(x => `<tr><td>${local(x.plan_start)}${x.test ? " (test)" : ""}</td><td>${esc(x.outcome)}${x.reason ? `<br><span class="conn">${esc(x.reason)}</span>` : ""}</td>` +
+      `<td>${x.track_start ? dur(x.track_stop - x.track_start) : "—"}</td><td>${deg(x.max_div_deg)}</td>` +
+      `<td>${x.min_battery_v < 90 ? x.min_battery_v.toFixed(2) : "—"}</td><td>${esc(x.camera)}</td><td>${esc(x.gps)}</td></tr>`).join("")
+    : "<tr><td class='conn'>no night reports yet</td></tr>";
+}
+
+// ---------- wiring ----------
+$("halt").onclick = () => cmd("halt");
+$("endnight").onclick = () => cmd("end_night");
+$("clearfault").onclick = () => cmd("clear_fault");
+$("sleepnow").onclick = () => cmd("sleep_now");
+$("home").onclick = () => cmd("home");
+$("goto").onclick = () => cmd("goto", {deg: parseFloat($("gotodeg").value)});
+$("testtrack").onclick = () => cmd("test_track", {minutes: parseFloat($("testmin").value)});
+document.querySelectorAll("[data-jog]").forEach(b => b.onclick = () => cmd("jog", {deg: parseFloat(b.dataset.jog)}));
+$("settime").onclick = async () => {
+  const r = await api("POST", "/api/time", {utc: Math.round(Date.now() / 1000)});
+  say("cmdmsg", r.code === 200 ? `clock set (was ${r.json.was_off_s >= 0 ? "+" : ""}${r.json.was_off_s} s off)` : (r.json && r.json.error) || `HTTP ${r.code}`,
+      r.code === 200 ? "ok" : "err");
+};
+$("loadsched").onclick = loadSchedule;
+$("putsched").onclick = putSchedule;
+$("loadnights").onclick = loadNights;
+
+// ---------- mock device (for ?mock or file://) ----------
+const M = { t0: Date.now(), state: "CONFIG_AP", pos: 0, target: null, fault: 0, log: [], night: null,
+  sched: '{"version":1,"site":{"lat":34.6,"lon":-120.4,"tz_min":-480},"defaults":{"start":{"event":"astronomical_dusk"},"stop":{"event":"astronomical_dawn"},"camera_policy":"best_effort"},"nights":[],"repeat_after_list":true}' };
+function mlog(m){ M.log.push({seq: M.log.length + 1, utc: Math.floor(Date.now()/1000), msg: `[${M.state}] ${m}`}); }
+mlog("button wake: config");
+function mock(method, path, body){
+  const now = Math.floor(Date.now() / 1000), b = typeof body === "string" ? JSON.parse(body || "{}") : body || {};
+  if (M.target != null) { const d = M.target - M.pos, s = 0.35; if (Math.abs(d) <= s) { M.pos = M.target; M.target = null; mlog(`manual move arrived, ${M.pos.toFixed(3)} deg`); } else M.pos += Math.sign(d) * s; }
+  if (M.night && M.state === "TRACK") { M.pos = (now - M.night.start_utc) * 360 / 86164.09; if (now >= M.night.stop_utc) { M.state = "REWIND"; M.target = 0; } }
+  if (M.state === "REWIND" && M.target == null) { M.state = "CONFIG_AP"; M.night = null; mlog("parked"); }
+  const ok = (j, code = 200) => Promise.resolve({code, json: j});
+  if (path === "/api/status") {
+    const n = M.night && Object.assign({}, M.night, M.state === "TRACK" ? {tracking_elapsed_s: now - M.night.start_utc, tracking_remaining_s: M.night.stop_utc - now, expected_deg: M.pos} : {});
+    return ok({state: M.state, state_s: Math.floor((Date.now()-M.t0)/1000), deadline_remaining_s: M.state === "CONFIG_AP" ? 600 : null,
+      fault_code: M.fault, fault_text: M.fault ? "divergence" : "none", move_failed: false, radio_mode: "ap", night: n, log_next: M.log.length + 1,
+      pos_deg: M.pos, encoder_deg: M.pos + 0.03, encoder_err_deg: 0.03, encoder_raw: 1029 + Math.round(M.pos * 11.38), encoder_agc: 44, encoder_magnitude: 2104,
+      encoder_map: true, target_minus_actual_usteps: 0, driver_uart: true, guard: "", rtc_utc: now, rtc_lost_power: false, rtc_temp_c: 18.25,
+      gps: {powered: false, fix: false, sats: 0, hdop: 99}, battery_v: 12.41,
+      schedule: {valid: true, source: "/schedule.json", next_start_utc: now + 5 * 3600, next_stop_utc: now + 16 * 3600, next_start_deg: 0, next_fallback: 0},
+      radio: {ssid: "StarTracker-A1B2", clients: 1}, stay_awake: true, uptime_s: Math.floor((Date.now()-M.t0)/1000), free_heap: 182000, littlefs_free: 1350000});
+  }
+  if (path.startsWith("/api/log")) { const since = +(path.split("since=")[1] || 0); return ok({next: M.log.length + 1, lost: 0, lines: M.log.filter(l => l.seq >= since)}); }
+  if (path === "/api/command") {
+    const cfg = M.state === "CONFIG_AP";
+    const no = e => ok({ok: false, error: e, state: M.state}, 409), yes = m => ok({ok: true, msg: m, state: M.state});
+    switch (b.cmd) {
+      case "halt": M.target = null; M.state = "CONFIG_AP"; M.night = null; mlog("HALT: halted from the web UI"); return yes("halted");
+      case "goto": case "jog": case "home": {
+        if (!cfg) return no("only in CONFIG_AP"); if (M.target != null) return no("already moving");
+        const to = b.cmd === "home" ? 0 : b.cmd === "goto" ? b.deg : M.pos + b.deg;
+        if (!(to >= -2 && to <= 182)) return no("outside the travel envelope");
+        M.target = to; mlog(`manual move to ${to.toFixed(3)} deg`); return yes("moving"); }
+      case "test_track": if (!cfg) return no("only in CONFIG_AP"); if (!(b.minutes >= 1 && b.minutes <= 720)) return no("minutes must be 1..720");
+        M.night = {test: true, start_utc: now, stop_utc: now + b.minutes * 60, start_deg: 0, camera_policy: "none", camera: "not_tried", gps: "not_tried", max_div_deg: 0.02, min_battery_v: 12.4, warnings: 0, resumes: 0, rtc_drift_s: 0};
+        M.state = "TRACK"; mlog("tracking from 0.000 deg"); return yes("test track starting");
+      case "end_night": if (!M.night) return no("no night in progress"); M.state = "REWIND"; M.target = 0; mlog("SAFE_STOP: ended from the web UI"); return yes("ending the night: rewinding");
+      case "clear_fault": if (!cfg) return no("only in CONFIG_AP"); M.fault = 0; return yes("fault cleared");
+      case "sleep_now": if (!cfg) return no("only in CONFIG_AP"); return yes("leaving config: home, then sleep");
+    }
+    return ok({ok: false, error: "unknown cmd"}, 400);
+  }
+  if (path === "/api/schedule" && method === "GET") return ok({valid: true, source: "/schedule.json", text: M.sched});
+  if (path === "/api/schedule") { const j = JSON.parse(body); if (!j.version) return ok({ok: false, errors: ["version: missing"], warnings: []}, 422); M.sched = body; return ok({ok: true, errors: [], warnings: ["2026-12-21: astronomical twilight never ends: fell back to nautical"]}); }
+  if (path.startsWith("/api/night/list")) return ok([
+    {day: 20414, plan_start: now - 86400, plan_stop: now - 50000, outcome: "completed", reason: "", track_start: now - 86400, track_stop: now - 50000, max_div_deg: 0.216, min_battery_v: 12.15, camera: "fail", gps: "ok"},
+    {day: 20415, plan_start: now - 4000, plan_stop: now - 3400, outcome: "completed", reason: "", track_start: now - 4000, track_stop: now - 3400, max_div_deg: 0.08, min_battery_v: 12.3, camera: "not_tried", gps: "not_tried", test: true}]);
+  if (path === "/api/time") return ok({ok: true, was_off_s: 0});
+  return ok({ok: false, error: "no such endpoint"}, 404);
+}
+
+poll(); loadSchedule(); loadNights();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

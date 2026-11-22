@@ -1,4 +1,4 @@
-﻿// =====================================================================
+// =====================================================================
 //  Sim -- a fake world for the night FSM (FIRMWARE.md s8: "the simulator
 //  is the thing to push hardest on"). One object fakes every Platform
 //  interface over a simulated true time; Sim::run() advances it in 1 s
@@ -141,6 +141,8 @@ struct World : IClock, IMotion, ISensors, IGps, IStore, ISchedule, ISystem {
   bool sleeping = false; int64_t wake_utc = 0; int sleeps = 0;
   bool verbose = false; std::vector<std::string> logs;
   void sleepUntil(int64_t w) override { sleeping = true; wake_utc = w; sleeps++; }
+  Radio radio_now = Radio::Off; std::vector<Radio> radios;
+  void radio(Radio r) override { radio_now = r; radios.push_back(r); }
   void log(const char *m) override {
     char buf[200];
     snprintf(buf, sizeof buf, "%lld  %s", (long long)trueUtc(), m);
@@ -176,6 +178,7 @@ struct Sim {
     w.sleeping = false;
     w.mode = World::M::Idle;      // a reset stops the driver; the counter is re-seeded
     w.enabled = false;
+    w.radio_now = Radio::Off;    // a reboot drops the radio too
     boots++;
     fsm.reset(new Fsm(plat, cfg));
     fsm->begin(why);

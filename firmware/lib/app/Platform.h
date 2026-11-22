@@ -1,4 +1,4 @@
-﻿// =====================================================================
+// =====================================================================
 //  Platform -- everything the night FSM touches, as small interfaces
 //  (FIRMWARE.md s3). The ESP32 implements them over lib/motion + lib/hal;
 //  the host simulator (test/test_fsm_sim) fakes them with a clock it can
@@ -20,6 +20,8 @@ enum class CamPolicy : uint8_t { None, BestEffort, Required };
 enum class GpsPolicy : uint8_t { None, BestEffort };
 enum class Op : uint8_t { Pending, Ok, Fail };
 enum class Wake : uint8_t { PowerOn, Alarm, Button };
+// what the radio must be doing; the FSM's state table decides (FIRMWARE.md s3)
+enum class Radio : uint8_t { Off, Ap, Sta };
 
 // One night as the schedule resolves it (slice 4 computes these from
 // twilight; tests hand them in directly).
@@ -32,6 +34,7 @@ struct NightPlan {
   int32_t   day = 0;                       // the night's local date, days since 1970 (its key)
   uint8_t   fallback = 0;                  // twilight levels fallen back (astro -> nautical = 1)
   char      camera[24] = {};               // camera profile name
+  bool      test = false;                  // a bench test_track, not a schedule night
 };
 
 struct IClock {
@@ -105,7 +108,7 @@ struct Persist {
   double      pos_deg = 0;            // where the step counter was
   int64_t     last_done_stop_utc = 0; // stop time of the last finished/skipped night
   uint32_t    boot_count = 0;
-  static constexpr uint32_t MAGIC = 0x46534D32;   // "FSM2"
+  static constexpr uint32_t MAGIC = 0x46534D33;   // "FSM3"
 };
 struct IStore {
   virtual bool load(Persist *p) = 0;
@@ -129,6 +132,8 @@ struct ISystem {
   // on the device. The simulator records it and reboots the FSM.
   virtual void sleepUntil(int64_t wake_utc) = 0;
   virtual void log(const char *msg) = 0;
+  // bring the radio to this mode (only the FSM's enter() calls it). Default: no radio.
+  virtual void radio(Radio r) { (void)r; }
   virtual ~ISystem() {}
 };
 

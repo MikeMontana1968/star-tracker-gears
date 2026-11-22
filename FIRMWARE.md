@@ -5,8 +5,8 @@ carries the architecture, the decisions already made, the pin map as built, and
 the slice-by-slice build order. **HARDWARE.md §5 is superseded by §4 here** —
 that table predates the OLED board and the DS3231 interrupt line.
 
-**Status (2026-11-22): slices 0-4 done; the night FSM runs on the board**
-(see "The FSM on the board"). Slices 5 (web) and 6 (GoPro) remain. The
+**Status (2026-11-22): slices 0-5 done; the night FSM and the web UI run on the board**
+(see "The FSM on the board", "Slice 5 as built"). Slice 6 (GoPro) remains. The
 PlatformIO project is `firmware/` (`platformio.ini`, `src/main.cpp`,
 `include/config.h`, `lib/motion/`, `test/test_motion/`); the other folders
 under `firmware/` are arduino-cli bench sketches.
@@ -19,10 +19,10 @@ under `firmware/` are arduino-cli bench sketches.
 |---|---|---|---|
 | 0 | Board bring-up: verify the actual pinout, PlatformIO env | — | **done** 2026-11-21 |
 | 1 | `motion/` — step engine, position counter, both rate profiles | slice 0 | **done** 2026-11-21 (see below) |
-| 2 | `app/fsm` + fake camera + host-side simulator | — | **done** 2026-11-22 (host only; not yet on the device) |
-| 3 | `hal/` — DS3231, AS5600, TMC2209 UART, battery, OLED, deep sleep | modules on hand | **built 2026-11-22**; encoder-map sweep not yet run (see below) |
-| 4 | Schedule parse/validate + solar solver (host-tested) | — | **done** 2026-11-22 (host; storage on the device pending) |
-| 5 | Web server, status JSON, static UI, config AP | slice 2 | not started |
+| 2 | `app/fsm` + fake camera + host-side simulator | — | **done** 2026-11-22; runs on the board (see "The FSM on the board") |
+| 3 | `hal/` — DS3231, AS5600, TMC2209 UART, battery, OLED, deep sleep | modules on hand | **done** 2026-11-22; encoder map calibrated |
+| 4 | Schedule parse/validate + solar solver (host-tested) | — | **done** 2026-11-22; LittleFS storage on the board |
+| 5 | Web server, status JSON, static UI, config AP | slice 2 | **done** 2026-11-22 (see "Slice 5 as built"); phone check over Wi-Fi pending |
 | 6 | Real GoPro driver + `discover`; answers the 3 hardware unknowns | HERO6 | not started |
 
 Slices 2 and 4 need no hardware at all and are unit-testable on the laptop.
@@ -195,6 +195,59 @@ slice 1/3 bench console, `src/bench_main.cpp`, unchanged).
   from 05:35:00 exactly -> stop at 05:45:00 at 2.512 deg (2.51 planned) ->
   REWIND (11 s) -> report -> IDLE, re-armed 6 h ahead. Max encoder divergence
   0.216 deg (lash + map), min battery 12.15 V.
+
+### Slice 5 as built (2026-11-22)
+
+- **Radio is a state attribute** (s3). `Fsm::radioFor()` is the one table and
+  `enter()` the one caller of `ISystem::radio()`: CONFIG_AP -> AP; a bench
+  test track -> AP for the whole run; WAIT_START/TRACK -> AP when
+  `ap_during_track` (D8, default on); CAM_* and a CAM_STOP/SAFE_STOP with a
+  running camera -> STA (slice 6; until then STA leaves the radio off);
+  everything else, and sleep, off. Never AP and STA together.
+- **CONFIG_AP**: every API request counts as activity, so a polling page keeps
+  it up; 10 min of silence -> HOME -> IDLE. **A scheduled night still wins**:
+  when tonight's wake time arrives CONFIG_AP hands over to HOME even with a
+  phone attached. The button mid-night resumes the night instead of opening
+  config.
+- **`Fsm::command()`** -- `halt` (anywhere: motor stops now, night written up as
+  stopped, CONFIG_AP), `end_night` (a night in progress: SAFE_STOP -> rewind),
+  and in CONFIG_AP only: `goto`/`jog` (inside the envelope), `home`,
+  `clear_fault`, `test_track` (N min from park, camera + GPS policy none, AP up,
+  back to CONFIG_AP after; never consumes a real night), `sleep_now`. Anything
+  else is refused with a reason; the API returns it as **409**.
+- **`lib/net/Api`** is the s7 API as a pure function of a request (routing,
+  JSON, command mapping) over a `net::Host` the device implements; host-tested
+  against the simulator (`test_net`, 9 cases). `LogRing` keeps the last 64 log
+  lines with sequence numbers for `/api/log?since=N` (lines lost while a client
+  was away are counted, not skipped).
+- **`src/Net.cpp`**: softAP `StarTracker-XXXX` (WPA2, `AP_PASS` in config.h --
+  **the repo is public: change it before the tracker goes outdoors**), channel
+  6, 192.168.4.1, captive-portal DNS so a phone opens the page itself, the
+  synchronous WebServer in `loop()` (a slow request can delay the FSM tick,
+  never a step). `EspHost` fills the hardware half of the status struct,
+  including AS5600 AGC/magnitude/magnet and the servo error.
+- **The UI** is `firmware/web/index.html`: one static page, vanilla JS, 1 Hz
+  polling, dark and red-light themes, controls enabled by state. It is gzipped
+  into the firmware at build time (`tools/embed_ui.py`, ~8 KB) rather than put
+  on LittleFS, because `uploadfs` would erase the schedule and night log.
+  Open `web/index.html?mock` in any browser to work on it with no board.
+- Console: `A` restarts as if the button was pressed (CONFIG_AP); `H <METHOD>
+  <path> [body]` runs one request through the same Api -- every endpoint was
+  exercised on the board this way.
+- **Hardware, 2026-11-22**: AP up as `StarTracker-2E74`; goto/jog/home,
+  409 refusals, log, night list, schedule all answered; a 2-minute test track
+  over the API ran PREFLIGHT -> ORIENT -> TRACK -> park -> report (`"test":true`)
+  -> back to CONFIG_AP with the AP still up. Flash is now 79% of the 1.25 MB app
+  partition; slice 6's HTTP client should fit, but a bigger app partition
+  would mean repartitioning (which wipes LittleFS).
+- **Lash seen on the way**: after a boot that seeds the counter from the
+  encoder with the train relaxed, the first reversal showed a standing ~0.5
+  deg encoder-vs-counter offset; re-seeded forward-loaded, forward moves land
+  within one encoder count and `home` ends 0.06-0.17 deg short (lash left
+  after the 0.44 deg overshoot). `repeat_test` should settle `BACKLASH_UNITS`.
+  The "position moved while asleep" warning (threshold 0.5) can fire on that
+  relaxed-train offset alone.
+- Not yet: `repeat_test`, `discover`, `/api/camera/dump`, the GoPro STA (slice 6).
 
 `firmware/sidereal_drive/sidereal_drive.ino` stays where it is as the reference
 artefact. Its accumulator migrates into `lib/motion/`; the sketch is not the

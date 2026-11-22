@@ -1,4 +1,4 @@
-﻿#include "EspPlatform.h"
+#include "EspPlatform.h"
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <esp_timer.h>
@@ -81,6 +81,7 @@ bool Motion::tracking() { MotionLock l; return eng_.mode() == Mode::Track; }
 bool Motion::arrived() { MotionLock l; return eng_.mode() == Mode::Idle && eng_.lastStop() == Stop::Arrived; }
 bool Motion::limitHit() { MotionLock l; return eng_.lastStop() == Stop::Limit; }
 double Motion::positionDeg() { MotionLock l; return unitsToDeg(eng_.position()); }
+int64_t Motion::servoError() { MotionLock l; return eng_.mode() == motion::Mode::Track ? eng_.target() - eng_.position() : 0; }
 void Motion::drive() { driverPin(enabled_ || moving()); }
 
 void Motion::service(Sensors &s) {
@@ -198,11 +199,11 @@ void Store::report(const app::NightReport &r) {
            "{\"day\":%ld,\"plan_start\":%lld,\"plan_stop\":%lld,\"start_deg\":%.3f,\"outcome\":\"%s\","
            "\"reason\":\"%s\",\"track_start\":%lld,\"track_stop\":%lld,\"max_div_deg\":%.3f,"
            "\"min_battery_v\":%.2f,\"camera\":\"%s\",\"gps\":\"%s\",\"rtc_drift_s\":%lld,"
-           "\"warnings\":%u,\"resumes\":%u,\"fallback\":%u}",
+           "\"warnings\":%u,\"resumes\":%u,\"fallback\":%u,\"test\":%s}",
            (long)r.plan.day, (long long)r.plan.start_utc, (long long)r.plan.stop_utc, r.plan.start_deg,
            outcomeName(r.outcome), r.reason, (long long)r.track_start_utc, (long long)r.track_stop_utc,
            r.max_div_deg, r.min_battery_v, opName(r.camera), opName(r.gps), (long long)r.rtc_drift_s,
-           r.warnings, r.resumes, r.plan.fallback);
+           r.warnings, r.resumes, r.plan.fallback, r.plan.test ? "true" : "false");
   File f = LittleFS.open("/nights.ndjson", "a");
   if (f) {
     f.println(line);
@@ -212,6 +213,22 @@ void Store::report(const app::NightReport &r) {
   }
   Serial.printf("NIGHT REPORT %s\n", line);
   if (r.outcome == app::Outcome::Completed && on_completed) on_completed();
+}
+
+int Store::tail(int last_n, String *out) {
+  *out = "";
+  File f = LittleFS.open("/nights.ndjson", "r");
+  if (!f) return 0;
+  int total = 0;
+  while (f.available()) if (f.read() == '\n') total++;
+  f.seek(0);
+  int line = 0, got = 0;
+  while (f.available()) {
+    String s = f.readStringUntil('\n');
+    if (++line > total - last_n) { *out += s; *out += '\n'; got++; }
+  }
+  f.close();
+  return got;
 }
 
 void Store::printReports(Print &out, int last_n) {
@@ -249,6 +266,7 @@ void System::setStayAwake(bool on) {
 void System::log(const char *msg) {
   Serial.printf("%lld %s\n", (long long)clock_.utc(), msg);
   strncpy(last_, msg, sizeof last_ - 1);
+  if (on_log) on_log(clock_.utc(), msg);
 }
 
 void System::sleepUntil(int64_t wake) {
@@ -326,6 +344,11 @@ bool ScheduleStore::upload(const char *json, size_t len, int64_t now_utc, app::M
   valid_ = true;
   source_ = "/schedule.json";
   return true;
+}
+
+bool ScheduleStore::text(String *out) {
+  if (!valid_) return false;
+  return readFile(source_, out);
 }
 
 void ScheduleStore::markGood() {

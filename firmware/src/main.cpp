@@ -1,4 +1,4 @@
-﻿// =====================================================================
+// =====================================================================
 //  Star tracker firmware -- the night FSM (lib/app) on the Rev C board
 //  through EspPlatform, with a small serial console. The motion/hardware
 //  bench console is the other build: pio run -e esp32-bench.
@@ -14,6 +14,9 @@
 //    B          toggle stay-awake (bench default ON: the board waits on USB
 //               instead of deep sleeping -- turn it OFF for deployment)
 //    F          clear a fault, then restart
+//    A          restart as if the config button was pressed (CONFIG_AP: AP + web UI)
+//    H <METHOD> <path>[?q] [body]   one request through the web API, e.g.
+//               H GET /api/status      H POST /api/command {"cmd":"goto","deg":5}
 //    Z          restart
 // =====================================================================
 
@@ -28,6 +31,7 @@
 #include "StepTimer.h"
 #include "Board.h"
 #include "EspPlatform.h"
+#include "Net.h"
 
 using namespace motion;
 
@@ -57,6 +61,9 @@ static app::ScheduleLimits limits;
 static esp::ScheduleStore sstore(limits);
 static app::Platform *plat;
 static app::Fsm *fsm;
+static net::LogRing logring;
+static esp::EspHost *host;
+static net::Api *api;
 
 static void loadMap() {
   Preferences p;
@@ -145,7 +152,21 @@ static void command(String &line) {
     }
     case 'F': fsm->clearFault(); Serial.println("fault cleared; restarting"); Serial.flush(); delay(50); ESP.restart(); break;
     case 'Z': Serial.flush(); delay(50); ESP.restart(); break;
-    default: Serial.println("commands: s n U<json> T<unix> r[n] g B F Z"); break;
+    case 'A': g_soft_wake = SOFT_BUTTON; Serial.println("restarting into CONFIG_AP"); Serial.flush(); delay(50); ESP.restart(); break;
+    case 'H': {
+      // H METHOD path [body]
+      int sp1 = arg.indexOf(' ');
+      String method = sp1 < 0 ? arg : arg.substring(0, sp1);
+      String rest = sp1 < 0 ? String() : arg.substring(sp1 + 1);
+      int sp2 = rest.indexOf(' ');
+      String path = sp2 < 0 ? rest : rest.substring(0, sp2);
+      String body = sp2 < 0 ? String() : rest.substring(sp2 + 1);
+      method.toUpperCase();
+      net::Response r = esp::web::call(method.c_str(), path.c_str(), body.c_str());
+      Serial.printf("HTTP %d %s\n", r.code, r.body.c_str());
+      break;
+    }
+    default: Serial.println("commands: s n U<json> T<unix> r[n] g B F A Z  H <METHOD> <path> [body]"); break;
   }
 }
 
@@ -167,7 +188,8 @@ static void display() {
   snprintf(l[3], 22, "pos %8.3f", mot->positionDeg());
   snprintf(l[4], 22, "enc %8.3f", e);
   snprintf(l[5], 22, "%.2fV %s", sens.batteryV(), fsm->fault() != app::Fault::None ? "FAULT" : "");
-  snprintf(l[6], 22, "%s", esp::System::stayAwake() ? "STAY-AWAKE (bench)" : "");
+  if (esp::web::apOn()) snprintf(l[6], 22, "AP %s %d", esp::web::ssid() + 12, esp::web::clients());
+  else snprintf(l[6], 22, "%s", esp::System::stayAwake() ? "STAY-AWAKE (bench)" : "");
   snprintf(l[7], 22, "%.21s", sys_.lastLog());
   const char *lines[8] = {l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7]};
   oled.lines(lines);
@@ -224,6 +246,13 @@ void setup() {
   plat = new app::Platform{clk, *mot, sens, gps, cam, store, sstore.schedule(), sys_};
   fsm = new app::Fsm(*plat, fc);
 
+  host = new esp::EspHost(clk, *mot, sens, as5600, ds3231, gps, store, sstore);
+  api = new net::Api(*host, logring);
+  api->attach(fsm);
+  esp::web::begin(*api);
+  sys_.on_radio = esp::web::radio;                // before begin(): CONFIG_AP brings the AP up
+  sys_.on_log = [](int64_t t, const char *m) { logring.add(t, m); };
+
   Serial.printf("wake: %s   driver uart %s   encoder map %s   %s\n",
                 why == app::Wake::Alarm ? "alarm" : why == app::Wake::Button ? "button" : "power-on/reset",
                 uart_ok ? "ok" : "MISSING", encmap.valid() ? "loaded" : "none",
@@ -242,6 +271,7 @@ void loop() {
 
   gps.service();
   mot->service(sens);
+  esp::web::service();
   if (sys_.asleep()) {
     if (board::wakeLow() && !(ds3231.alarmFired())) g_soft_wake = SOFT_BUTTON;
     else g_soft_wake = SOFT_ALARM;

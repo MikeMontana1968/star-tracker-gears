@@ -54,7 +54,39 @@ void Fsm::enter(State s, uint32_t deadline_ms) {
   entered_ms_ = p_.clock.ms();
   deadline_ms_ = deadline_ms;
   cam_started_ = false;
+  setRadio(radioFor(s));
   persist();
+}
+
+// The one radio table (FIRMWARE.md s3: "the state table declares what each
+// state requires"). AP and STA never together: the softAP would hop to the
+// GoPro's channel and drop every phone.
+Radio Fsm::radioFor(State s) const {
+  if (s == State::ConfigAp) return Radio::Ap;
+  bool cam_seq = s >= State::CamPower && s <= State::CamStart;
+  bool cam_stop = (s == State::CamStop || s == State::SafeStop) && night_.camera == Op::Ok;
+  if (cam_seq || cam_stop) return Radio::Sta;                     // talking to the GoPro
+  bool winding_down = s == State::CamStop || s == State::SafeStop || s == State::Rewind;
+  if (night_active_ && night_.plan.test && (activeState(s) || winding_down)) return Radio::Ap;  // bench: watch it
+  if (c_.ap_during_track && (s == State::WaitStart || s == State::Track)) return Radio::Ap;
+  return Radio::Off;
+}
+
+void Fsm::setRadio(Radio r) {
+  if (r == radio_) return;
+  radio_ = r;
+  p_.sys.radio(r);
+}
+
+uint32_t Fsm::deadlineLeftMs() const {
+  if (!deadline_ms_) return 0;
+  uint64_t base = state_ == State::ConfigAp && touch_ms_ > entered_ms_ ? touch_ms_ : entered_ms_;
+  uint64_t el = p_.clock.ms() - base;
+  return el >= deadline_ms_ ? 1 : (uint32_t)(deadline_ms_ - el);
+}
+
+void Fsm::touch() {
+  if (state_ == State::ConfigAp) touch_ms_ = p_.clock.ms();
 }
 
 void Fsm::persist() {
@@ -71,13 +103,18 @@ void Fsm::persist() {
 }
 
 uint32_t Fsm::inState() const { return (uint32_t)(p_.clock.ms() - entered_ms_); }
-bool Fsm::timedOut() const { return deadline_ms_ && inState() >= deadline_ms_; }
+bool Fsm::timedOut() const {
+  if (!deadline_ms_) return false;
+  uint64_t base = state_ == State::ConfigAp && touch_ms_ > entered_ms_ ? touch_ms_ : entered_ms_;
+  return p_.clock.ms() - base >= deadline_ms_;
+}
 
 void Fsm::sleep(int64_t wake_utc) {
   p_.motion.stop();
   p_.motion.enable(false);
   p_.camera.power(false);
   p_.gps.power(false);
+  setRadio(Radio::Off);
   persist();
   asleep_ = true;
   log("sleep, wake %s %lld", wake_utc ? "at" : "on button only", (long long)wake_utc);
@@ -119,7 +156,11 @@ void Fsm::begin(Wake why) {
     if (night_active_) night_.warnings++;
   }
 
-  if (why == Wake::Button) { enter(State::ConfigAp, c_.config_ap_ms); return; }
+  // the button opens CONFIG_AP -- except mid-night, where the night resumes
+  // (TRACK brings the AP up itself when ap_during_track)
+  bool mid_night = night_active_ && (activeState(prior) || prior == State::CamStop ||
+                                     prior == State::SafeStop || prior == State::Rewind);
+  if (why == Wake::Button && !mid_night) { enter(State::ConfigAp, c_.config_ap_ms); return; }
   if (fault_ != Fault::None) { toFault(fault_, "fault persists across boot"); return; }
 
   int64_t now = p_.clock.utc();
@@ -174,9 +215,11 @@ void Fsm::skipNight(const char *why) {
 
 void Fsm::finishNight() {
   p_.store.report(night_);
-  last_done_stop_utc_ = night_.plan.stop_utc;
+  bool test = night_.plan.test;
+  if (!test) last_done_stop_utc_ = night_.plan.stop_utc;   // a test never uses up a real night
   night_active_ = false;
-  enter(State::Idle);
+  if (test) { touch_ms_ = 0; enter(State::ConfigAp, c_.config_ap_ms); }   // back to the human
+  else enter(State::Idle);
 }
 
 void Fsm::toFault(Fault f, const char *why) {
@@ -187,10 +230,120 @@ void Fsm::toFault(Fault f, const char *why) {
     night_.outcome = Outcome::Faulted;
     setReason(why);
     p_.store.report(night_);
-    last_done_stop_utc_ = night_.plan.stop_utc;
+    if (!night_.plan.test) last_done_stop_utc_ = night_.plan.stop_utc;
     night_active_ = false;
   }
   enter(State::Fault);
+}
+
+// Halt: the motor stops now, whatever it was doing; a night in progress is
+// written up as stopped and the FSM waits in CONFIG_AP for the human.
+void Fsm::endNightNow(const char *why) {
+  p_.motion.stop();
+  p_.camera.cancel();
+  p_.gps.power(false);
+  log("HALT: %s", why);
+  if (night_active_) {
+    night_.outcome = Outcome::SafeStopped;
+    if (!night_.track_stop_utc && night_.track_start_utc) night_.track_stop_utc = p_.clock.utc();
+    setReason(why);
+    p_.store.report(night_);
+    if (!night_.plan.test) last_done_stop_utc_ = night_.plan.stop_utc;
+    night_active_ = false;
+  }
+  p_.camera.power(false);
+  touch_ms_ = 0;
+  move_pending_ = false;
+  enter(State::ConfigAp, c_.config_ap_ms);
+}
+
+CmdResult Fsm::command(Cmd c, double arg) {
+  if (asleep_) return {false, "asleep"};
+  bool cfg = state_ == State::ConfigAp;
+  switch (c) {
+    case Cmd::Halt:
+      endNightNow("halted from the web UI");
+      return {true, "halted"};
+
+    case Cmd::EndNight:
+      if (!night_active_ || !activeState(state_)) return {false, "no night in progress"};
+      p_.gps.power(false);
+      if (state_ >= State::CamPower && state_ <= State::CamStart) { p_.camera.cancel(); p_.camera.power(false); }
+      safeStop("ended from the web UI");
+      return {true, "ending the night: rewinding"};
+
+    case Cmd::Goto: case Cmd::Jog: case Cmd::Home: {
+      if (!cfg) return {false, "only in CONFIG_AP"};
+      if (p_.motion.moving()) return {false, "already moving"};
+      double to = c == Cmd::Home ? c_.park_deg : c == Cmd::Goto ? arg : p_.motion.positionDeg() + arg;
+      if (!(to >= c_.travel_min_deg && to <= c_.travel_max_deg)) return {false, "outside the travel envelope"};
+      p_.motion.enable(true);
+      if (!p_.motion.moveTo(to)) return {false, "move refused"};
+      move_pending_ = true; move_failed_ = false;
+      touch();
+      log("manual move to %.3f deg", to);
+      return {true, "moving"};
+    }
+
+    case Cmd::ClearFault:
+      if (!cfg) return {false, "only in CONFIG_AP"};
+      clearFault();
+      log("fault cleared from the web UI");
+      return {true, "fault cleared"};
+
+    case Cmd::TestTrack: {
+      if (!cfg) return {false, "only in CONFIG_AP"};
+      if (fault_ != Fault::None) return {false, "clear the fault first"};
+      if (p_.motion.moving()) return {false, "still moving"};
+      if (!(arg >= 1 && arg <= 12 * 60)) return {false, "minutes must be 1..720"};
+      int64_t now = p_.clock.utc();
+      NightPlan pl;
+      pl.valid = true; pl.test = true;
+      pl.start_utc = now + 20;
+      pl.stop_utc = pl.start_utc + (int64_t)(arg * 60);
+      pl.start_deg = c_.park_deg;
+      pl.cam = CamPolicy::None;         // s3: straight repeatability of the drive
+      pl.gps = GpsPolicy::None;
+      strncpy(pl.camera, "test_track", sizeof pl.camera - 1);
+      move_pending_ = false;
+      startNight(pl);
+      return {true, "test track starting"};
+    }
+
+    case Cmd::SleepNow:
+      if (!cfg) return {false, "only in CONFIG_AP"};
+      if (p_.motion.moving()) return {false, "still moving"};
+      if (fault_ != Fault::None) { toFault(fault_, "fault still set after config"); return {true, "fault: sleeping until the button"}; }
+      enter(State::Home, c_.home_ms);
+      return {true, "leaving config: home, then sleep"};
+  }
+  return {false, "unknown command"};
+}
+
+// CONFIG_AP: the human is in charge, but a scheduled night still wins.
+void Fsm::doConfig() {
+  if (move_pending_ && !p_.motion.moving()) {
+    move_pending_ = false;
+    move_failed_ = !p_.motion.arrived();
+    log(move_failed_ ? "manual move stopped short (guard: look before moving again)" : "manual move arrived, %.3f deg",
+        p_.motion.positionDeg());
+  }
+  uint64_t ms = p_.clock.ms();
+  if (fault_ == Fault::None && !p_.motion.moving() && ms - last_due_ms_ >= 10000) {
+    last_due_ms_ = ms;
+    int64_t now = p_.clock.utc();
+    int64_t after = now > last_done_stop_utc_ ? now : last_done_stop_utc_;
+    NightPlan plan = p_.schedule.next(after);
+    if (plan.valid && plan.start_utc - c_.lead_s <= now) {
+      log("a scheduled night is due: leaving config");
+      enter(State::Home, c_.home_ms);
+      return;
+    }
+  }
+  if (timedOut() && !p_.motion.moving()) {
+    if (fault_ != Fault::None) toFault(fault_, "fault still set after config");
+    else enter(State::Home, c_.home_ms);
+  }
 }
 
 void Fsm::safeStop(const char *why, Fault f) {
@@ -299,11 +452,8 @@ void Fsm::tick() {
       doIdle();
       break;
 
-    case State::ConfigAp:                                  // radio lands in slice 5
-      if (timedOut()) {
-        if (fault_ != Fault::None) toFault(fault_, "fault still set after config");
-        else enter(State::Home, c_.home_ms);
-      }
+    case State::ConfigAp:
+      doConfig();
       break;
 
     case State::Preflight: {

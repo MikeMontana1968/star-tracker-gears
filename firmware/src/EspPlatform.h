@@ -64,6 +64,7 @@ class Motion : public app::IMotion {
   // call every loop: guards, watchdog, EN
   void   service(class Sensors &s);
   const char *lastGuard() const { return guard_; }
+  int64_t servoError();                           // target - position, 1/32 units (s7)
   bool   uartOk() const { return uart_ok_; }
  private:
   bool useMicrosteps(uint16_t u);
@@ -117,6 +118,7 @@ class Store : public app::IStore {
   void save(const app::Persist &p) override;
   void report(const app::NightReport &r) override;
   void printReports(Print &out, int last_n);
+  int  tail(int last_n, String *out);              // the last n report lines
   void (*on_completed)() = nullptr;                // e.g. promote the schedule to "good"
  private:
   app::Persist last_{};
@@ -128,6 +130,9 @@ class System : public app::ISystem {
   System(Ds3231 &rtc, Oled &oled, Clock &clock) : rtc_(rtc), oled_(oled), clock_(clock) {}
   void sleepUntil(int64_t wake_utc) override;
   void log(const char *msg) override;
+  void radio(app::Radio r) override { if (on_radio) on_radio(r); }
+  void (*on_radio)(app::Radio) = nullptr;          // src/Net.cpp
+  void (*on_log)(int64_t utc, const char *msg) = nullptr;   // the web log ring
   // stay-awake bench mode: the loop calls this while "asleep"
   void serviceSleep();
   bool asleep() const { return asleep_; }
@@ -152,6 +157,7 @@ class ScheduleStore {
   app::ISchedule &schedule() { return valid_ ? (app::ISchedule &)sched_ : (app::ISchedule &)none_; }
   bool valid() const { return valid_; }
   const char *source() const { return source_; }
+  bool text(String *out);                          // the schedule file in use
  private:
   struct None : app::ISchedule { app::NightPlan next(int64_t) override { return app::NightPlan(); } } none_;
   app::ScheduleLimits lim_;

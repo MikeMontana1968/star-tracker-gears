@@ -334,6 +334,173 @@ void test_gps_fix_moves_tonights_times(void) {
   TEST_ASSERT_EQUAL(Outcome::Completed, r.outcome);
 }
 
+// ---- slice 5: CONFIG_AP, the radio table, web commands ---------------------
+// boot with nothing scheduled, then press the button at `at`
+static void toConfig(Sim &s, int64_t at) {
+  start(s);
+  s.run(at - 60);
+  s.button_at_ms = at * 1000;
+  s.run(at + 2);
+}
+
+// run to `until`, a client touching every `every_s` seconds
+static void runTouching(Sim &s, int64_t until, int every_s = 30) {
+  while (s.w.trueUtc() < until) {
+    int64_t nxt = s.w.trueUtc() + every_s;
+    s.run(nxt < until ? nxt : until);
+    if (s.fsm && !s.w.sleeping) s.fsm->touch();
+  }
+}
+
+void test_config_ap_brings_the_ap_up_and_activity_keeps_it(void) {
+  Sim s;
+  toConfig(s, T0 + 1 * H);
+  TEST_ASSERT_EQUAL(State::ConfigAp, s.fsm->state());
+  TEST_ASSERT_EQUAL(Radio::Ap, s.w.radio_now);
+  runTouching(s, T0 + 2 * H);                         // an hour of a phone polling
+  TEST_ASSERT_EQUAL(State::ConfigAp, s.fsm->state());
+  TEST_ASSERT_TRUE(s.fsm->deadlineLeftMs() > 9 * 60000);
+  s.run(T0 + 2 * H + 11 * 60);                        // the phone goes away: 10 min later, out
+  TEST_ASSERT_TRUE(s.w.sleeping);
+  TEST_ASSERT_EQUAL(Radio::Off, s.w.radio_now);
+}
+
+void test_config_ap_gives_way_to_a_scheduled_night(void) {
+  Sim s;
+  NightPlan n = night(T0 + 3 * H, T0 + 9 * H);
+  s.w.nights.push_back(n);
+  start(s);
+  s.run(T0 + 1 * H);
+  s.button_at_ms = (T0 + 1 * H) * 1000;               // wake for config before the night
+  runTouching(s, T0 + 10 * H);                        // ...and a phone left connected all night
+  TEST_ASSERT_EQUAL(1, (int)s.w.reports.size());
+  const NightReport &r = s.w.reports[0];
+  TEST_ASSERT_EQUAL(Outcome::Completed, r.outcome);
+  TEST_ASSERT_INT64_WITHIN(2, n.start_utc, r.track_start_utc);
+}
+
+void test_radio_table_over_a_night(void) {
+  for (int ap = 0; ap < 2; ap++) {
+    Sim s;
+    s.cfg.ap_during_track = ap;
+    s.w.nights.push_back(night(T0 + 3 * H, T0 + 9 * H));
+    start(s);
+    s.run(T0 + 2 * H);
+    TEST_ASSERT_EQUAL(0, (int)s.w.radios.size());     // HOME/IDLE never touch the radio
+    s.run(T0 + 3 * H - 5);                             // camera done, waiting for the start
+    TEST_ASSERT_EQUAL(Radio::Sta, s.w.radios[0]);      // the camera sequence: STA
+    TEST_ASSERT_EQUAL(ap ? Radio::Ap : Radio::Off, s.w.radio_now);
+    s.run(T0 + 5 * H);
+    TEST_ASSERT_EQUAL(ap ? Radio::Ap : Radio::Off, s.w.radio_now);  // D8
+    s.run(T0 + 10 * H);
+    TEST_ASSERT_EQUAL(Radio::Off, s.w.radio_now);
+    // camera STA -> (AP while tracking) -> camera-stop STA -> off for the rewind
+    Radio want[4] = {Radio::Sta, ap ? Radio::Ap : Radio::Off, Radio::Sta, Radio::Off};
+    TEST_ASSERT_EQUAL(4, (int)s.w.radios.size());
+    for (int i = 0; i < 4; i++) TEST_ASSERT_EQUAL(want[i], s.w.radios[i]);
+  }
+}
+
+void test_config_commands_move_inside_the_envelope_only(void) {
+  Sim s;
+  toConfig(s, T0 + 1 * H);
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::Goto, 10).ok);
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::Goto, 20).ok);        // already moving
+  s.run(T0 + 1 * H + 60);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 10.0, s.w.step_deg);
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::Jog, -3).ok);
+  s.run(T0 + 1 * H + 120);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 7.0, s.w.step_deg);
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::Goto, 190).ok);       // past the envelope
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::Jog, -9.5).ok);       // 7 - 9.5 = -2.5 < -2
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::Goto, NAN).ok);
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::EndNight).ok);        // no night
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::Home).ok);
+  s.run(T0 + 1 * H + 180);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 0.0, s.w.step_deg);
+  TEST_ASSERT_FALSE(s.fsm->moveFailed());
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::SleepNow).ok);
+  s.run(T0 + 1 * H + 190);
+  TEST_ASSERT_TRUE(s.w.sleeping);
+}
+
+void test_config_commands_are_refused_outside_config(void) {
+  Sim s;
+  s.w.nights.push_back(night(T0 + 3 * H, T0 + 9 * H));
+  start(s);
+  s.run(T0 + 4 * H);
+  TEST_ASSERT_EQUAL(State::Track, s.fsm->state());
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::Goto, 10).ok);
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::TestTrack, 10).ok);
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::ClearFault).ok);
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::SleepNow).ok);
+  TEST_ASSERT_EQUAL(State::Track, s.fsm->state());
+}
+
+void test_test_track_runs_with_the_ap_up_and_leaves_tonight_alone(void) {
+  Sim s;
+  NightPlan n = night(T0 + 6 * H, T0 + 10 * H);
+  s.w.nights.push_back(n);
+  start(s);
+  s.run(T0 + 1 * H);
+  s.button_at_ms = (T0 + 1 * H) * 1000;
+  s.run(T0 + 1 * H + 5);
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::TestTrack, 0).ok);
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::TestTrack, 30).ok);
+  size_t r0 = s.w.radios.size();
+  s.run(T0 + 1 * H + 15 * 60);
+  TEST_ASSERT_EQUAL(State::Track, s.fsm->state());
+  s.run(T0 + 1 * H + 40 * 60);                        // 30 min + rewind
+  TEST_ASSERT_EQUAL(1, (int)s.w.reports.size());
+  const NightReport &t = s.w.reports[0];
+  TEST_ASSERT_TRUE(t.plan.test);
+  TEST_ASSERT_EQUAL(Outcome::Completed, t.outcome);
+  TEST_ASSERT_INT64_WITHIN(2, 30 * 60, t.track_stop_utc - t.track_start_utc);
+  TEST_ASSERT_EQUAL(State::ConfigAp, s.fsm->state());  // back to the human
+  for (size_t i = r0; i < s.w.radios.size(); i++) TEST_ASSERT_EQUAL(Radio::Ap, s.w.radios[i]);
+  TEST_ASSERT_EQUAL(Radio::Ap, s.w.radio_now);
+  TEST_ASSERT_EQUAL(0, (int)s.w.cam.done.size());     // no camera, no GPS
+  TEST_ASSERT_FALSE(s.w.gps_on);
+  TEST_ASSERT_DOUBLE_WITHIN(0.01, 0.0, s.w.true_deg);
+  s.run(T0 + 11 * H);                                 // the real night still happens
+  TEST_ASSERT_EQUAL(2, (int)s.w.reports.size());
+  TEST_ASSERT_FALSE(s.w.reports[1].plan.test);
+  TEST_ASSERT_EQUAL(Outcome::Completed, s.w.reports[1].outcome);
+}
+
+void test_end_night_rewinds_and_halt_stops_dead(void) {
+  {
+    Sim s;
+    s.w.nights.push_back(night(T0 + 3 * H, T0 + 9 * H));
+    start(s);
+    s.run(T0 + 4 * H);
+    TEST_ASSERT_TRUE(s.fsm->command(Cmd::EndNight).ok);
+    s.run(T0 + 5 * H);
+    const NightReport &r = s.w.reports.at(0);
+    TEST_ASSERT_EQUAL(Outcome::SafeStopped, r.outcome);
+    TEST_ASSERT_EQUAL_STRING("ended from the web UI", r.reason);
+    TEST_ASSERT_DOUBLE_WITHIN(0.01, 0.0, s.w.true_deg);   // rewound
+    TEST_ASSERT_TRUE(s.w.sleeping);
+    TEST_ASSERT_EQUAL(Fault::None, s.fsm->fault());
+  }
+  {
+    Sim s;
+    s.w.nights.push_back(night(T0 + 3 * H, T0 + 9 * H));
+    start(s);
+    s.run(T0 + 4 * H);
+    double at = s.w.step_deg;
+    TEST_ASSERT_TRUE(s.fsm->command(Cmd::Halt).ok);
+    s.run(T0 + 4 * H + 60);
+    TEST_ASSERT_EQUAL(State::ConfigAp, s.fsm->state());
+    TEST_ASSERT_DOUBLE_WITHIN(1e-9, at, s.w.step_deg);      // not one step after the halt
+    TEST_ASSERT_EQUAL(Outcome::SafeStopped, s.w.reports.at(0).outcome);
+    TEST_ASSERT_FALSE(s.w.cam.powered);
+    TEST_ASSERT_TRUE(s.fsm->command(Cmd::Home).ok);          // the human brings it home
+    s.run(T0 + 4 * H + 600);
+    TEST_ASSERT_DOUBLE_WITHIN(0.01, 0.0, s.w.true_deg);
+  }
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -359,5 +526,12 @@ int main(int, char **) {
   RUN_TEST(test_position_moved_while_asleep_is_logged);
   RUN_TEST(test_real_schedule_three_dusk_to_dawn_nights);
   RUN_TEST(test_gps_fix_moves_tonights_times);
+  RUN_TEST(test_config_ap_brings_the_ap_up_and_activity_keeps_it);
+  RUN_TEST(test_config_ap_gives_way_to_a_scheduled_night);
+  RUN_TEST(test_radio_table_over_a_night);
+  RUN_TEST(test_config_commands_move_inside_the_envelope_only);
+  RUN_TEST(test_config_commands_are_refused_outside_config);
+  RUN_TEST(test_test_track_runs_with_the_ap_up_and_leaves_tonight_alone);
+  RUN_TEST(test_end_night_rewinds_and_halt_stops_dead);
   return UNITY_END();
 }

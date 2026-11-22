@@ -33,3 +33,6 @@ hardware/star_tracker_ctrl/*-backups/
 .history/
 
 firmware/.pio/
+
+# generated at build time by firmware/tools/embed_ui.py
+firmware/include/ui_gz.h
