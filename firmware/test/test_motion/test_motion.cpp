@@ -191,6 +191,22 @@ void test_stop_is_immediate(void) {
   TEST_ASSERT_EQUAL(Stop::Commanded, e.lastStop());
 }
 
+void test_tracking_from_past_origin_catches_up(void) {
+  // resume: the night started 5 min ago at 0; we are at 0.5 deg after a slew
+  StepEngine e(cfg());
+  e.setPosition(degToUnits(0.5));
+  e.moveToForward(degToUnits(0.5) & ~3LL);
+  run(e, 100000000ULL);
+  uint64_t t0 = now_us - 300ULL * 1000000;
+  TEST_ASSERT_TRUE(e.startTrackingAt(0, t0, now_us));
+  // 5 min of sidereal = 1.2534 deg, so the engine is ~0.75 deg behind; at the
+  // 1600 p/s cap (6400 units/s) that is ~4.3 s of catch-up
+  for (int i = 0; i < 20000 * 10; i++) { now_us += 50; e.tick(now_us); }
+  int64_t want = StepEngine::siderealUnits(now_us - t0);
+  TEST_ASSERT_TRUE(want - e.position() >= 0 && want - e.position() < 4);
+  TEST_ASSERT_FALSE(e.startTrackingAt(0, now_us + 1, now_us));   // origin in the future
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -207,5 +223,6 @@ int main(int, char **) {
   RUN_TEST(test_tracking_stops_at_envelope);
   RUN_TEST(test_canonical_units_with_1_32);
   RUN_TEST(test_stop_is_immediate);
+  RUN_TEST(test_tracking_from_past_origin_catches_up);
   return UNITY_END();
 }

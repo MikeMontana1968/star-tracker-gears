@@ -189,8 +189,12 @@ regenerate.
     added after real binds. Gear wobble (6.0 bores on #12 screws) currently
     tamed with spacers/washers/jam nuts -- 5.7 bore or bushings is the real
     fix. Camera/GPS switches metered (J3 5.0 V; J9.2 4.79 V loaded): slice 3
-    complete. Details: FIRMWARE.md "Slice 3 as built". Next: slice 2 (FSM +
-    host simulator) or 4 (schedule + solar solver), both hardware-free.
+    complete. Details: FIRMWARE.md "Slice 3 as built".
+17. **Firmware slice 2 (night FSM + simulator) done (2026-11-22), host only.**
+    lib/app/Platform.h (interfaces) + Fsm; test/test_fsm_sim with 18 night
+    scenarios, deep sleep simulated as a real reboot. 35 host tests total.
+    Next: slice 4 (schedule + solar solver, host-tested), then an ESP32
+    Platform so the FSM runs on the board.
 
 ## Module facts, measured and confirmed
 

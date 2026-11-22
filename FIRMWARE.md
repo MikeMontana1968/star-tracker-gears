@@ -18,7 +18,7 @@ under `firmware/` are arduino-cli bench sketches.
 |---|---|---|---|
 | 0 | Board bring-up: verify the actual pinout, PlatformIO env | — | **done** 2026-11-21 |
 | 1 | `motion/` — step engine, position counter, both rate profiles | slice 0 | **done** 2026-11-21 (see below) |
-| 2 | `app/fsm` + fake camera + host-side simulator | — | not started |
+| 2 | `app/fsm` + fake camera + host-side simulator | — | **done** 2026-11-22 (host only; not yet on the device) |
 | 3 | `hal/` — DS3231, AS5600, TMC2209 UART, battery, OLED, deep sleep | modules on hand | **built 2026-11-22**; encoder-map sweep not yet run (see below) |
 | 4 | Schedule parse/validate + solar solver (host-tested) | — | not started |
 | 5 | Web server, status JSON, static UI, config AP | slice 2 | not started |
@@ -94,6 +94,42 @@ on command (with no load C7 bleeds slowly through LED2 below ~1.8 V --
 normal); GPS J9.2 4.95 V unloaded, **4.79 V with the NEO-6M attached**, 0 V
 at boot. (A first reading of 2.96 V was a GPS wiring fault, since fixed.)
 **Slice 3 complete.**
+
+### Slice 2 as built (2026-11-22)
+
+`lib/app/Platform.h` -- the FSM's whole world as small interfaces (clock,
+motion, sensors, GPS, camera, store, schedule, system). Nothing blocks:
+camera and GPS steps are started and polled, every wait is a deadline the
+FSM checks itself. `lib/app/Fsm` -- the s3 state machine, pure C++, plus a
+WAIT_START state (oriented and recording before the start time). Tracking
+uses the night's own origin (`startTrackingAt`: start angle at start time),
+so a late start or a resume lands on the sky, not where the shaft happens
+to be.
+
+**Deep sleep is a reboot, in the simulator too.** `test/test_fsm_sim/Sim.h`
+fakes every interface over a simulated clock and destroys/rebuilds the FSM
+from the persisted record at every wake, so each simulated night exercises
+the resume path. The model keeps the step counter and the true shaft angle
+separate, so a jam is a real divergence.
+
+18 scenarios, ~2.7 s: a good night (asleep until start - 10 min, on the
+sidereal line mid-night, parked, camera and GPS off after); three nights in
+a row; camera failing at wake / config / start / hanging -> night still
+completes (D2); camera `required` + failure -> skipped, parked; camera
+`none` never touched; brownout mid-track -> resumes on the sky, camera state
+and the night's start time kept; brownout mid-rewind -> finishes it;
+envelope violation -> refused without moving; battery low -> SAFE_STOP, camera
+stopped then unpowered, rewound; jam -> FAULT at 2.0-2.2 deg, no blind
+rewind, button-only wake, later nights not attempted; button wake from fault
+-> CONFIG_AP -> back to FAULT; no GPS fix -> RTC kept, tracks; GPS corrects a
+7 s RTC error and reports it; RTC lost power + no GPS -> skipped; power-on 3 h
+late -> starts on the sky; a night across the year end; dead encoder at boot
+-> FAULT; position moved while asleep -> logged. Mutation-checked: breaking
+the camera policy or the divergence threshold fails the matching test.
+
+Not yet: an ESP32 `Platform` over lib/motion + lib/hal (the bench console
+is still `main.cpp`), the real schedule (slice 4), CONFIG_AP's radio and the
+API (slice 5), the GoPro driver (slice 6).
 
 `firmware/sidereal_drive/sidereal_drive.ino` stays where it is as the reference
 artefact. Its accumulator migrates into `lib/motion/`; the sketch is not the
@@ -790,7 +826,10 @@ watching. Cases that belong in it from day one:
       switched 5 V feed on GPIO 17
 - [ ] **Solder the PPS flying lead** at the module's PPS LED — its 4-pin header
       does not bring TIMEPULSE out (§1)
-- [ ] Mount the antenna where it can see sky; the IP54 box will not pass it
+- [ ] Mount the antenna where it can see sky: ceramic face UP in the PCB-box
+      lid pocket (printed PLA/PETG passes L1; no CF/metal-filled filament,
+      metallic paint or plates over it). u.FL: press straight down, lift
+      straight up, ~30 mating cycles
 - [ ] Implement `TIME_SYNC` and watch `rtc_drift_s` for a few nights before
       deciding the clock needs any correction at all
 

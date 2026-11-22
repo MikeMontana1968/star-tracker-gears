@@ -71,6 +71,10 @@ class StepEngine {
   // Track from the current position at rate_x times sidereal. Only from
   // Idle and only after a forward arrival (backlash taken up).
   bool startTracking(uint64_t now_us, uint32_t rate_x = 1);
+  // Track the line target = origin + sidereal(now - t0_us). t0 may be in the
+  // past (resume after a reboot, late start): the engine catches up at the
+  // capped rate. Same preconditions as startTracking.
+  bool startTrackingAt(int64_t origin_units, uint64_t t0_us, uint64_t now_us);
   void stop();                                // immediate, -> Idle
   void setSlewMax(uint32_t hz);
   // Units per pulse after the driver's MRES changed (1/8 -> 4, 1/32 -> 1).

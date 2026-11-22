@@ -67,6 +67,15 @@ bool StepEngine::startTracking(uint64_t now_us, uint32_t rate_x) {
   return true;
 }
 
+bool StepEngine::startTrackingAt(int64_t origin_units, uint64_t t0_us, uint64_t now_us) {
+  if (t0_us > now_us) return false;
+  if (!startTracking(t0_us, 1)) return false;
+  track_origin_ = origin_units;
+  track_target_ = origin_units + siderealUnits(now_us - t0_us, 1);
+  if (track_target_ > c_.max_units) track_target_ = c_.max_units;
+  return true;
+}
+
 void StepEngine::stop() {
   if (mode_ == Mode::Idle) return;
   mode_ = Mode::Idle;
