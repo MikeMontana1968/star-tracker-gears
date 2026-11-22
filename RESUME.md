@@ -172,6 +172,25 @@ regenerate.
     before an exposure run.
     Bench sketches: first_spin, tmc_probe, driver_hold, driver_lines,
     driver_off, spin_dir.
+15. **Firmware slice 1 (motion) done (2026-11-21).** PlatformIO project in
+    firmware/ (lib/motion StepEngine + StepTimer, 11 host tests pass, bench
+    console in src/main.cpp: s/g/t/r/x/z/v/e). Bench: 30x tracking exact,
+    rewind with backlash overshoot arrives forward, no lost steps over ~500k
+    pulses at 3200 p/s. AS5600 ~3% locally non-linear (magnet eccentricity)
+    -- step count is the position. Details: FIRMWARE.md "Slice 1 as built".
+    Next: slice 3 (TMC2209 UART -> MRES 1/32 for tracking, AS5600 map, RTC,
+    OLED) or slice 2 (FSM + simulator, no hardware).
+16. **Firmware slice 3 (hal) built (2026-11-22).** TMC2209 UART (1/8 slew,
+    1/32 track), driver-reset watchdog, AS5600, DS3231 + alarm, deep sleep
+    with RTC wake, battery, OLED, all on the bench console (i/T/A/S/b/k/n/c).
+    **Keep the bench supply limit at >= 500 mA**: at 0.4 A every move start
+    browned the TMC2209 out (it resets to 1/8). Encoder map swept and saved
+    (map within +-12' of the step count); OLED confirmed; jam + slip guards
+    added after real binds. Gear wobble (6.0 bores on #12 screws) currently
+    tamed with spacers/washers/jam nuts -- 5.7 bore or bushings is the real
+    fix. Camera/GPS switches metered (J3 5.0 V; J9.2 4.79 V loaded): slice 3
+    complete. Details: FIRMWARE.md "Slice 3 as built". Next: slice 2 (FSM +
+    host simulator) or 4 (schedule + solar solver), both hardware-free.
 
 ## Module facts, measured and confirmed
 

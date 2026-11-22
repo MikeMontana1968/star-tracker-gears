@@ -31,3 +31,5 @@ hardware/star_tracker_ctrl/*-backups/
 # KiCad lock files
 *.lck
 .history/
+
+firmware/.pio/

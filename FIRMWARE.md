@@ -5,7 +5,10 @@ carries the architecture, the decisions already made, the pin map as built, and
 the slice-by-slice build order. **HARDWARE.md §5 is superseded by §4 here** —
 that table predates the OLED board and the DS3231 interrupt line.
 
-**Status: nothing written yet beyond the timing core.** Slice 0 is next.
+**Status (2026-11-21): slice 1 (motion) is built and bench-verified.** The
+PlatformIO project is `firmware/` (`platformio.ini`, `src/main.cpp`,
+`include/config.h`, `lib/motion/`, `test/test_motion/`); the other folders
+under `firmware/` are arduino-cli bench sketches.
 
 ---
 
@@ -13,16 +16,84 @@ that table predates the OLED board and the DS3231 interrupt line.
 
 | Slice | What | Blocked on | State |
 |---|---|---|---|
-| 0 | Board bring-up: verify the actual pinout, PlatformIO env | — | **next** |
-| 1 | `motion/` — step engine, position counter, both rate profiles | slice 0 | not started |
+| 0 | Board bring-up: verify the actual pinout, PlatformIO env | — | **done** 2026-11-21 |
+| 1 | `motion/` — step engine, position counter, both rate profiles | slice 0 | **done** 2026-11-21 (see below) |
 | 2 | `app/fsm` + fake camera + host-side simulator | — | not started |
-| 3 | `hal/` — DS3231, AS5600, TMC2209 UART, battery, OLED, deep sleep | modules on hand | not started |
+| 3 | `hal/` — DS3231, AS5600, TMC2209 UART, battery, OLED, deep sleep | modules on hand | **built 2026-11-22**; encoder-map sweep not yet run (see below) |
 | 4 | Schedule parse/validate + solar solver (host-tested) | — | not started |
 | 5 | Web server, status JSON, static UI, config AP | slice 2 | not started |
 | 6 | Real GoPro driver + `discover`; answers the 3 hardware unknowns | HERO6 | not started |
 
 Slices 2 and 4 need no hardware at all and are unit-testable on the laptop.
 Start slice 0 and slice 2 in parallel if you want to move fast.
+
+### Slice 1 as built
+
+- `StepEngine` (pure C++, host-tested: `pio test -e native`, 11 cases) holds
+  the canonical 1/32 position counter, the exact sidereal target
+  (`q*U + r*U/S`, no overflow), a trapezoid slew, `moveToForward` with the
+  backlash overshoot, and the travel envelope. Tracking refuses to start
+  until a forward arrival has taken the lash up; the bench `t` command does
+  that pre-roll itself. Catch-up after a stall is capped at 1600 pulses/s.
+- `StepTimer`: 20 kHz hardware-timer ISR on core 1, one spinlock
+  (`MotionLock`) for commands. Builds on Arduino-ESP32 2.x and 3.x.
+- Still standalone 1/8 (MS1/MS2 at GND): one pulse = 4 units. MRES 1/32 for
+  tracking waits for the TMC2209 UART driver in slice 3.
+- **Bench results:** 30x tracking ran at 0.1254 deg/s (0.1253 predicted),
+  position within one pulse of target throughout. A 25.3 deg rewind and the
+  return forward (~500k pulses) came back to the same encoder count +-1:
+  **no lost steps at 3200 pulses/s.** A full 180 deg rewind at that rate is
+  ~9.7 min.
+- **The AS5600 is non-linear by ~3% locally** (enc-pos grew to 84 arcmin over
+  a 25 deg sweep, repeatably). That is magnet eccentricity, not slip. The step
+  counter is the position; the encoder seeds it at boot (+-~1.5 deg) and
+  answers "is it turning?". A raw-vs-position map from one full sweep would
+  tighten the seed -- slice 3.
+
+### Slice 3 as built (2026-11-22)
+
+`lib/hal/`: `Tmc2209`, `As5600`, `Ds3231`, `Board` (load switches, VBAT,
+LED, wake, deep sleep), `Oled`, plus two pure, host-tested pieces:
+`CivilTime` (UTC calendar, Hinnant) and `EncoderMap`. Host tests: 16 cases
+across `test_motion` and `test_hal`.
+
+| Part | Bench result |
+|---|---|
+| TMC2209 UART | answers at address 0 with JP3 fitted. GCONF 0x1C1 (UART owns PDN, MRES from register, VREF still scales current), IRUN 31 / IHOLD 16. **1/8 for slews, 1/32 for tracking**, switched while idle and verified by CHOPCONF read-back. 10x tracking at 1/32: on target, enc-pos within 4'. |
+| Driver watchdog | GSTAT.reset polled at 1 Hz and **confirmed against GCONF** (a real reset returns it to 0x101 and IFCNT to 0) before acting: re-apply config, stop motion, re-seed from the encoder. Caught several real resets -- see the supply note. |
+| AS5600 | raw / AGC 46 / magnitude 2100 / magnet flags. |
+| DS3231 | set from the PC (`T <unix>`), UTC; temperature; OSF; alarm 1 pulls WAKE low on time. |
+| Deep sleep | `S 12`: slept, RTC alarm woke it 12 s later, wake cause reported as alarm, flag cleared. TMC EN held high through sleep (RTC GPIO hold). |
+| Battery | 12.3 V on the bench supply (R14/R15 = 118/18). |
+| OLED | 8-line status page at 2 Hz -- not yet eyeballed. |
+
+> **Bench supply current limit: 500 mA minimum.** At 0.4 A (and at 0.03 A)
+> the start of every move pulled VM below the TMC2209's ~5.5 V reset: the
+> UART went silent for 5-22 s and the chip came back at its defaults (MRES
+> 1/8, so any pulses counted at 1/32 were wrong). At 500 mA a minute of
+> 10x tracking ran with no resets. The driver limits the coil current
+> itself; the supply limit only has to pass the move-start surge.
+
+**Encoder map (2026-11-22):** `c` swept -1.5..181.5 deg forward in 1 deg
+steps (184 points, ~11 min, NVS). 2049 counts over 183 deg = 11.20/deg vs
+11.38 ideal: the eccentricity is ~1.6% over this half-turn. Checked after a
+full rewind at 0, 0.75, 45.5, 90.25, 135.75, 179 deg: encoder (via the map)
+within **-12 .. +10 arcmin** of the step counter (the straight line was off
+by 84' over 25 deg). Two full round trips, no lost steps.
+
+**Jam + slip guards** (added after the first sweep ground against over-tight
+nuts and teeth skipped 25.8 deg unseen): any move stops if the encoder moves
+< 3 counts per 1 deg commanded (jam), or if encoder-minus-position drifts
+> 2 deg (map) / 4 deg (line) within one move (slip). Both fired correctly
+on real binds before the gear train got spacers, wide washers and jam nuts.
+The gear wobble behind those binds: stage gears on #12 screws (~5.5 mm) in
+6.0 mm printed bores -- a 5.7 mm bore or bushings is the proper fix.
+
+OLED status page confirmed. Load switches metered: camera J3 5.0 V on, off
+on command (with no load C7 bleeds slowly through LED2 below ~1.8 V --
+normal); GPS J9.2 4.95 V unloaded, **4.79 V with the NEO-6M attached**, 0 V
+at boot. (A first reading of 2.96 V was a GPS wiring fault, since fixed.)
+**Slice 3 complete.**
 
 `firmware/sidereal_drive/sidereal_drive.ino` stays where it is as the reference
 artefact. Its accumulator migrates into `lib/motion/`; the sketch is not the
