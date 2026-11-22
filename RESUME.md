@@ -159,9 +159,15 @@ regenerate.
     version 0x21 at address 0, IOIN follows EN/STEP/DIR, MSCNT advances 128
     per 100 steps (1/8), DRV_STATUS no faults, CS_ACTUAL 31, StealthChop. JP3
     fitted (harmless on this module). VREF set 0.50 V (~350 mA). Motor turns
-    both ways. Still to do: rerun first_spin WITH the gear train installed so
-    the AS5600 confirms microstep mode and the tracking DIR.
-    Bench sketches: first_spin, tmc_probe, driver_hold, driver_lines, driver_off.
+    both ways. **Direction observed (firmware/spin_dir, viewed top-down onto
+    the plate, motor below): DIR LOW = motor CLOCKWISE, DIR HIGH = CCW.** Four
+    single-mesh stages = even reversals, so the output follows the motor:
+    **tracking (output CW from the camera end) = DIR LOW** (predicted; the
+    AS5600 raw should count UP during the DIR LOW leg). Still to do: rerun
+    first_spin WITH the gear train installed to confirm that and the
+    microstep mode.
+    Bench sketches: first_spin, tmc_probe, driver_hold, driver_lines,
+    driver_off, spin_dir.
 
 ## Module facts, measured and confirmed
 
