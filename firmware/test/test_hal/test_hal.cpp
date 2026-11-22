@@ -3,6 +3,8 @@
 #include <math.h>
 #include "CivilTime.h"
 #include "EncoderMap.h"
+#include "Nmea.h"
+#include <stdio.h>
 
 void test_civil_epoch_and_known_dates(void) {
   TEST_ASSERT_EQUAL_INT64(0, toUnix({1970, 1, 1, 0, 0, 0}));
@@ -76,6 +78,48 @@ void test_map_invalid_until_filled(void) {
   TEST_ASSERT_FALSE(m.toUnits(1029, &u));
 }
 
+static void feed(Nmea &g, const char *s) { while (*s) g.feed(*s++); g.feed('\r'); g.feed('\n'); }
+
+void test_nmea_rmc_gga(void) {
+  Nmea g;
+  // the classic NMEA reference sentences (real checksums)
+  feed(g, "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A");
+  feed(g, "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47");
+  const Nmea::Fix &f = g.fix();
+  TEST_ASSERT_TRUE(f.rmc_ok);
+  TEST_ASSERT_EQUAL_INT64(toUnix({1994, 3, 23, 12, 35, 19}), f.utc);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 48 + 7.038 / 60, f.lat);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 11 + 31.0 / 60, f.lon);
+  TEST_ASSERT_EQUAL(1, f.quality);
+  TEST_ASSERT_EQUAL(8, f.sats);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-9, 0.9, f.hdop);
+  TEST_ASSERT_TRUE(g.usable());
+}
+
+void test_nmea_rejects_bad_checksum_and_void_fix(void) {
+  Nmea g;
+  feed(g, "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6B");   // one off
+  TEST_ASSERT_EQUAL(1, (int)g.fix().bad_checksum);
+  TEST_ASSERT_FALSE(g.fix().rmc_ok);
+  // status V (no fix) from a GPS still searching; checksum computed for it
+  const char *body = "GPRMC,031500.00,V,,,,,,,221126,,,N";
+  uint8_t sum = 0; for (const char *p = body; *p; p++) sum ^= (uint8_t)*p;
+  char line[96]; snprintf(line, sizeof line, "$%s*%02X", body, sum);
+  feed(g, line);
+  TEST_ASSERT_FALSE(g.fix().rmc_ok);
+  TEST_ASSERT_FALSE(g.usable());
+  // west / south hemispheres, GN talker
+  const char *b2 = "GNRMC,031500.00,A,3436.000,N,12024.000,W,0.0,0.0,221126,,,A";
+  sum = 0; for (const char *p = b2; *p; p++) sum ^= (uint8_t)*p;
+  snprintf(line, sizeof line, "$%s*%02X", b2, sum);
+  feed(g, line);
+  TEST_ASSERT_TRUE(g.fix().rmc_ok);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 34.6, g.fix().lat);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, -120.4, g.fix().lon);
+  TEST_ASSERT_EQUAL_INT64(toUnix({2026, 11, 22, 3, 15, 0}), g.fix().utc);
+  TEST_ASSERT_FALSE(g.usable());                     // no GGA yet: quality unknown
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -86,5 +130,7 @@ int main(int, char **) {
   RUN_TEST(test_map_corrects_eccentricity);
   RUN_TEST(test_map_unwraps_across_4095);
   RUN_TEST(test_map_invalid_until_filled);
+  RUN_TEST(test_nmea_rmc_gga);
+  RUN_TEST(test_nmea_rejects_bad_checksum_and_void_fix);
   return UNITY_END();
 }

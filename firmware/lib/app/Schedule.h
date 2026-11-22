@@ -110,6 +110,7 @@ class Schedule : public ISchedule {
   Schedule(const ScheduleDoc &doc, const ScheduleLimits &lim) : d_(doc), lim_(lim), lat_(doc.lat), lon_(doc.lon) {}
   NightPlan next(int64_t after_utc) override;
   void      setSite(double lat, double lon) override { lat_ = lat; lon_ = lon; }
+  void      reload() { lat_ = d_.lat; lon_ = d_.lon; }   // after the doc it refers to changed
   NightPlan refresh(const NightPlan &p) override;
 
   // One local date -> a plan. false with *why when that date has no night.

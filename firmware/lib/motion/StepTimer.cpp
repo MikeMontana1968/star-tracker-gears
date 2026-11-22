@@ -11,8 +11,10 @@ static int s_step = -1, s_dir = -1, s_fwd_level = LOW;
 static int s_dir_now = -1;
 static hw_timer_t *s_timer = nullptr;
 
+uint64_t engineNowUs() { return (uint64_t)esp_timer_get_time() + TIMER_EPOCH_US; }
+
 static void IRAM_ATTR onTick() {
-  uint64_t now = (uint64_t)esp_timer_get_time();
+  uint64_t now = (uint64_t)esp_timer_get_time() + TIMER_EPOCH_US;
   portENTER_CRITICAL_ISR(&StepTimer::mux);
   Pulse p = s_eng->tick(now);
   portEXIT_CRITICAL_ISR(&StepTimer::mux);

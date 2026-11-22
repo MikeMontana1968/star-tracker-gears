@@ -200,6 +200,14 @@ regenerate.
     with 4-layer validation, twilight fallback, GPS site refresh. 46 host
     tests. Next: the ESP32 Platform (FSM on the board, schedule on LittleFS),
     then slice 5 (web API) and 6 (GoPro).
+19. **The FSM runs on the board (2026-11-22).** src/EspPlatform + main.cpp
+    (`pio run -e esp32-oled`); bench console is `-e esp32-bench`. A 10-min
+    test night ran end to end on the hardware (tracked 05:35-05:45Z to 2.512
+    deg, rewound, reported). Serial console `s n U<json> T<unix> r g B F Z`.
+    **Stay-awake is ON by default (bench): `B` turns it off for deployment.**
+    The board now holds the test schedule (one night, finished) and sleeps
+    with a 6 h recheck. Next: slice 5 (WiFi AP + web API/UI), slice 6
+    (GoPro), a real dusk-to-dawn night outdoors with GPS.
 
 ## Module facts, measured and confirmed
 

@@ -17,6 +17,12 @@
 
 namespace motion {
 
+// The engine's timebase: esp_timer (which restarts at 0 every boot) plus a
+// fixed epoch, so a night origin hours before this boot -- a resume, a late
+// start -- is still a positive time. 1e13 us is ~115 days of headroom.
+constexpr uint64_t TIMER_EPOCH_US = 10000000000000ULL;
+uint64_t engineNowUs();
+
 class StepTimer {
  public:
   // dir_forward_level: the DIR pin level that turns the output in the

@@ -1,4 +1,4 @@
-#include "Schedule.h"
+﻿#include "Schedule.h"
 #include <ArduinoJson.h>
 #include <math.h>
 #include <stdarg.h>
@@ -130,8 +130,8 @@ static bool parseCamera(JsonVariantConst v, const char *path, const ScheduleLimi
 // ---- parse + validate ---------------------------------------------------------
 bool parseSchedule(const char *json, size_t len, const ScheduleLimits &lim, int64_t now_utc,
                    ScheduleDoc *d, Messages *err, Messages *warn) {
-  Messages scratch;
-  if (!warn) warn = &scratch;
+  static Messages scratch;                     // 1.5 KB: off the (ESP32) stack
+  if (!warn) { scratch = Messages(); warn = &scratch; }
   *d = ScheduleDoc();
 
   // ---- layer 1: parse ----

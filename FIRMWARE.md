@@ -5,7 +5,8 @@ carries the architecture, the decisions already made, the pin map as built, and
 the slice-by-slice build order. **HARDWARE.md §5 is superseded by §4 here** —
 that table predates the OLED board and the DS3231 interrupt line.
 
-**Status (2026-11-21): slice 1 (motion) is built and bench-verified.** The
+**Status (2026-11-22): slices 0-4 done; the night FSM runs on the board**
+(see "The FSM on the board"). Slices 5 (web) and 6 (GoPro) remain. The
 PlatformIO project is `firmware/` (`platformio.ini`, `src/main.cpp`,
 `include/config.h`, `lib/motion/`, `test/test_motion/`); the other folders
 under `firmware/` are arduino-cli bench sketches.
@@ -158,6 +159,42 @@ API (slice 5), the GoPro driver (slice 6).
   (three dusk-to-dawn nights with a skip; GPS moving the times). 46 host tests.
 - Not yet: LittleFS storage (atomic write, `schedule.good.json` fallback) and
   the upload endpoint -- both land with the ESP32 Platform / slice 5.
+
+### The FSM on the board (2026-11-22)
+
+`src/EspPlatform.{h,cpp}` implements every `app::Platform` interface over
+lib/motion + lib/hal; `src/main.cpp` boots the FSM. Builds:
+`pio run -e esp32-oled` (the tracker) and `pio run -e esp32-bench` (the
+slice 1/3 bench console, `src/bench_main.cpp`, unchanged).
+
+- **Clock** DS3231 read every 10 s, carried on `millis()` between (ms resolution
+  for the tracking origin). **Motion** 1/8 slews, 1/32 tracking, jam + slip
+  guards and the driver-reset watchdog in `service()` -- a guard stop shows the
+  FSM a move that ended short, so ORIENT/REWIND fault and TRACK safe-stops.
+  The engine's timebase is `esp_timer + 1e13 us` (`engineNowUs()`), because
+  esp_timer restarts at 0 every boot and a resumed night's origin is hours
+  before it. **GPS** `lib/hal/Nmea.h` (RMC + GGA, checksums, host-tested) on
+  UART1 18/5 at 9600; a fix needs RMC 'A', GGA quality >= 1, >= 4 sats, HDOP
+  <= 5, and only sentences since this power-on count. **Camera** no driver
+  until slice 6: every step fails at once, so best_effort nights track.
+  **Store** Persist in NVS (written only when it changes); night reports as
+  NDJSON in LittleFS `/nights.ndjson` (rotated at 32 KB). **Schedule**
+  LittleFS `/schedule.json`, validated at every boot, `/schedule.good.json`
+  promoted after each completed night and used if the live one is rejected;
+  uploads validate first, then write tmp -> rename.
+- **Stay-awake** (NVS, **default ON for the bench**): `sleepUntil` holds in
+  place on USB and restarts at the wake time (or on WAKE low) instead of deep
+  sleeping; the next boot cannot tell the difference. **Turn it off with `B`
+  before deployment** -- the OLED shows `STAY-AWAKE (bench)` while it is on.
+- Console: `s n U<json> T<unix> r[n] g B F Z` (see main.cpp).
+- The loop task runs with a 16 KB stack (`SET_LOOP_TASK_STACK_SIZE`), and the
+  1.5 KB validation message lists are static: the first hardware upload
+  overflowed the default 8 KB.
+- **Hardware night, 2026-11-22 05:35-05:45Z** (fixed-UTC test night, camera and
+  GPS policy none): IDLE -> PREFLIGHT -> ORIENT -> WAIT_START -> TRACK at 1/32
+  from 05:35:00 exactly -> stop at 05:45:00 at 2.512 deg (2.51 planned) ->
+  REWIND (11 s) -> report -> IDLE, re-armed 6 h ahead. Max encoder divergence
+  0.216 deg (lash + map), min battery 12.15 V.
 
 `firmware/sidereal_drive/sidereal_drive.ino` stays where it is as the reference
 artefact. Its accumulator migrates into `lib/motion/`; the sketch is not the
