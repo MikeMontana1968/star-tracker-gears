@@ -140,6 +140,28 @@ regenerate.
     `STAR TRACKER CTRL  REV D  -  MikeMontana@Gmail.com` (or two lines if
     space is tight), size about 1.2 mm, in a clear area away from pads. Check
     the DRC silk-overlap list after regenerating.
+13. **Add a ground-island check to the board build (2026-11-21).** First motor
+    spin: no supply current, and the TMC2209's logic floated ~8 V above the
+    12 V supply's minus, which read as 8-11 V on EN, VIO and VREF. Suspected a
+    GND island at J31. The DESIGN IS FINE: a copper-connectivity check of the
+    saved zone fills (fill polygons + tracks per layer, joined by vias and
+    through-hole pads) puts all 54 GND pads in ONE piece, J1.2, J31.2/8 and
+    C11.2 included, and kicad-cli DRC (as saved, and with --refill-zones)
+    reports 0 unconnected. The fault was physical: the supply's minus not
+    reaching board ground (the board was grounded only through USB). Keep the
+    check for Rev D: run it after fill_zones as an island test, since "0
+    unconnected" counts ratsnest, not copper pieces. Script kept at
+    hardware/check_gnd_islands.py.
+14. **Motor bring-up result (2026-11-21).** After the 12 V ground was fixed the
+    motor held torque but would not step and the UART was silent: the TMC2209
+    module (DIG TREE TECH v1.3, both pin-4/5 labelled "pdn") was not seated
+    fully in its socket. Reseated, firmware/tmc_probe (read-only UART) reads
+    version 0x21 at address 0, IOIN follows EN/STEP/DIR, MSCNT advances 128
+    per 100 steps (1/8), DRV_STATUS no faults, CS_ACTUAL 31, StealthChop. JP3
+    fitted (harmless on this module). VREF set 0.50 V (~350 mA). Motor turns
+    both ways. Still to do: rerun first_spin WITH the gear train installed so
+    the AS5600 confirms microstep mode and the tracking DIR.
+    Bench sketches: first_spin, tmc_probe, driver_hold, driver_lines, driver_off.
 
 ## Module facts, measured and confirmed
 
