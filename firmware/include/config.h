@@ -30,7 +30,10 @@ constexpr unsigned TICK_HZ = 20000;
 // ran clean. FIRMWARE.md hopes for 6.7 kHz; raise with `v` on the bench
 // and only adopt a figure that survives a full rewind.
 constexpr unsigned SLEW_START_HZ = 400;
-constexpr unsigned SLEW_MAX_HZ   = 3200;
+// 2026-11-22 calibration (docs/calibration/): 60 deg rewinds at 3200 came home
+// +0.56 / -0.11 deg off; at 2000 and 1200 exactly on. 2000 until the bearing
+// build is calibrated. A 180 deg rewind is then ~15.5 min.
+constexpr unsigned SLEW_MAX_HZ   = 2000;
 constexpr unsigned SLEW_ACCEL    = 3200;
 constexpr unsigned TRACK_CATCHUP_HZ = 1600;
 
@@ -59,7 +62,10 @@ constexpr int    JAM_MIN_COUNTS = 3;
 // lash adds 0.35 at a reversal. Added after teeth skipped 25.8 deg unseen.
 constexpr double SLIP_DEG_LINE = 4.0;
 constexpr double SLIP_DEG_MAP  = 2.0;
-constexpr int ENC_RAW_START  = 1029;
+// 1029 at the 2026-11-21 calibration; 1059 after the gears were re-shimmed (the map,
+// which is what the firmware uses, already reads 0 deg at ~1059 -- 2026-11-22 diag).
+// Only the no-map fallback line uses this.
+constexpr int ENC_RAW_START  = 1059;
 
 // ---- radio / web UI (FIRMWARE.md s7, slice 5) -------------------------------
 // softAP "StarTracker-XXXX" (last MAC bytes). WPA2 needs >= 8 characters.

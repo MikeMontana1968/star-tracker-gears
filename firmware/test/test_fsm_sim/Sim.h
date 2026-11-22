@@ -46,11 +46,23 @@ struct World : IClock, IMotion, ISensors, IGps, IStore, ISchedule, ISystem {
   double  min_deg = -2, max_deg = 182;
   int64_t jam_at_ms = -1;        // from this true time the output stops following
   double  max_true_deg_seen = -1e9;
+  double  in_deg = 0;             // the gear train's input side (steps, minus any jam)
+  double  lash_deg = 0;           // backlash at the output
+  double  overshoot_deg = 0;      // the engine's forward-arrival overshoot (0: plain slews)
+  double  final_target = 0; bool has_final = false;
+  void   setOvershootDeg(double d) override { overshoot_deg = d; }
+  double overshootDeg() override { return overshoot_deg; }
+  uint32_t slew_hz = 3200;
+  void     setSlewHz(uint32_t hz) override { slew_dps = 0.3516 * hz / 3200.0; slew_hz = hz; }
+  uint32_t slewHz() override { return slew_hz; }
 
   bool setPosition(double d) override { if (mode != M::Idle) return false; step_deg = d; return true; }
   bool moveTo(double d) override {
     if (mode != M::Idle || d < min_deg || d > max_deg) return false;
-    mode = M::Slew; slew_target = d; arrived_ = false; moves++; return true;
+    mode = M::Slew; arrived_ = false; moves++;
+    if (d < step_deg && overshoot_deg > 0) { slew_target = d - overshoot_deg; final_target = d; has_final = true; }
+    else { slew_target = d; has_final = false; }
+    return true;
   }
   bool startTracking(double origin, int64_t origin_utc) override {
     if (mode != M::Idle) return false;
@@ -70,7 +82,11 @@ struct World : IClock, IMotion, ISensors, IGps, IStore, ISchedule, ISystem {
     double dt = dt_ms / 1000.0, before = step_deg;
     if (mode == M::Slew) {
       double d = slew_target - step_deg, s = slew_dps * dt;
-      if (fabs(d) <= s) { step_deg = slew_target; mode = M::Idle; arrived_ = true; }
+      if (fabs(d) <= s) {
+        step_deg = slew_target;
+        if (has_final) { slew_target = final_target; has_final = false; }   // the forward approach
+        else { mode = M::Idle; arrived_ = true; }
+      }
       else step_deg += d > 0 ? s : -s;
     } else if (mode == M::Track) {
       double want = track_origin + (t_ms + dt_ms - track_origin_true_ms) / 1000.0 * SID_DEG_S;
@@ -80,7 +96,13 @@ struct World : IClock, IMotion, ISensors, IGps, IStore, ISchedule, ISystem {
       if (step_deg >= max_deg - 1e-9) { mode = M::Idle; limit_ = true; }
     }
     bool jammed = jam_at_ms >= 0 && t_ms >= jam_at_ms;
-    if (!jammed) true_deg += step_deg - before;
+    double dlt = jammed ? 0 : step_deg - before;
+    in_deg += dlt;
+    if (lash_deg <= 0) true_deg += dlt;                // tests may set true_deg directly
+    else if (dlt != 0) {                                // the output follows through a dead band
+      if (in_deg - true_deg > lash_deg / 2) true_deg = in_deg - lash_deg / 2;
+      else if (true_deg - in_deg > lash_deg / 2) true_deg = in_deg + lash_deg / 2;
+    }
     if (true_deg > max_true_deg_seen) max_true_deg_seen = true_deg;
   }
 

@@ -24,6 +24,7 @@
 // =====================================================================
 #pragma once
 #include <stdint.h>
+#include <math.h>
 #include "Platform.h"
 
 namespace app {
@@ -42,9 +43,37 @@ enum class Cmd : uint8_t {
   Home,        // CONFIG_AP: move to the park position
   ClearFault,  // CONFIG_AP: the human says it is fixed
   TestTrack,   // CONFIG_AP: track arg minutes from park, no camera/GPS, AP up throughout
-  SleepNow     // CONFIG_AP: leave now (HOME -> IDLE -> sleep)
+  SleepNow,    // CONFIG_AP: leave now (HOME -> IDLE -> sleep)
+  Coils        // CONFIG_AP: arg 1 = driver enabled (holding), 0 = released
 };
 struct CmdResult { bool ok; const char *msg; };
+
+// CONFIG_AP motor diagnostics: a list of moves, the encoder read after each
+// (settled), and the numbers that come out of it. Waypoints are
+//   base, then (base + out, base) x cycles
+// Wiggle: base = here, out = +-2, 1 cycle.  Sweep: base = park, 1 cycle.
+// Repeat (FIRMWARE.md s3 repeat_test): base = park, N cycles -> the return
+// error at park in arcsec (mean, sigma, max) -- the number that sets
+// BACKLASH_UNITS. Errors are relative to the first reading at base, so the
+// encoder's absolute offset (lash state at boot) drops out.
+enum class DiagKind : uint8_t { None, Wiggle, Sweep, Repeat };
+struct DiagState {
+  static constexpr int MAX = 20;
+  DiagKind kind = DiagKind::None;
+  bool   running = false, ok = false;
+  double base = 0, out = 0;
+  int    cycles = 0, wp = 0;           // wp: -1 = priming (base - 1, then forward to base), 0 = base reading
+  double overshoot = 0, saved_overshoot = 0;   // the overshoot used / the one to restore
+  bool   override_os = false;
+  uint32_t slew_hz = 0, saved_slew_hz = 0;      // 0: not overridden
+  double ref_enc = 0;                  // encoder at base before the first cycle
+  int    n_ret = 0, n_out = 0;
+  double ret_err_deg[MAX] = {};        // encoder at base minus ref, per cycle
+  double out_err_deg[MAX] = {};        // (encoder out - ref) - out, per cycle
+  double ret_mean_as = 0, ret_sd_as = 0, ret_max_as = 0, out_mean_deg = 0;
+  char   msg[64] = {};
+};
+const char *diagName(DiagKind k);
 
 enum class Fault : uint8_t {
   None, EncoderAtBoot, EncoderLost, Divergence, OrientFailed, RewindFailed, HomeFailed
@@ -61,13 +90,13 @@ struct FsmConfig {
 
   uint32_t preflight_ms = 10000;
   uint32_t sync_ms = 120000;         // GPS fix
-  uint32_t orient_ms = 6 * 60000;
+  uint32_t orient_ms = 20 * 60000;   // a resume may slew most of the travel: 180 deg at 2000/s = 15.5 min
   uint32_t cam_power_ms = 3000;      // rail settle before waking the camera
   uint32_t cam_total_ms = 150000;    // the whole CAM_POWER..CAM_START sequence
   uint32_t cam_stop_ms = 30000;
   uint32_t safe_cam_ms = 15000;      // SAFE_STOP's camera stop: short, it may be what hung
-  uint32_t rewind_ms = 12 * 60000;   // a 180 deg rewind measured 9.7 min
-  uint32_t home_ms = 12 * 60000;
+  uint32_t rewind_ms = 20 * 60000;   // 180 deg: 9.7 min at 3200/s, ~15.5 at 2000/s
+  uint32_t home_ms = 20 * 60000;
   uint32_t config_ap_ms = 10 * 60000;   // CONFIG_AP with no client activity
   bool     ap_during_track = true;      // D8: on while debugging (~1.2 Wh a night)
 
@@ -94,6 +123,12 @@ class Fsm {
   const NightReport &night() const { return night_; }
   void  clearFault();       // the config UI's "I fixed it"
   CmdResult command(Cmd c, double arg = 0);
+  // overshoot_deg: the forward-arrival overshoot for this run only (NaN: keep).
+  // 0 makes every return a plain reverse arrival, so the return error IS the lash.
+  // slew_hz: top slew speed for this run only (0: keep).
+  CmdResult diag(DiagKind k, double deg = 0, int cycles = 1, double overshoot_deg = NAN, uint32_t slew_hz = 0);
+  const DiagState &diagState() const { return diag_; }
+  bool  coils() const { return coils_; }
   void  touch();            // a web client is looking: CONFIG_AP's timeout restarts
   Radio radio() const { return radio_; }
   uint32_t stateMs() const { return inState(); }
@@ -123,6 +158,8 @@ class Fsm {
   void endNightNow(const char *why);
   void doIdle();
   void doConfig();
+  void doDiag();
+  void diagEnd(bool ok, const char *msg);
   void doTrack();
 
   Platform &p_;
@@ -141,6 +178,9 @@ class Fsm {
   Radio   radio_ = Radio::Off;
   uint64_t touch_ms_ = 0, last_due_ms_ = 0;
   bool    move_pending_ = false, move_failed_ = false;
+  bool    coils_ = false;
+  DiagState diag_;
+  uint64_t diag_settle_ms_ = 0;
 
   // TRACK monitors
   double  div_offset_ = 0;

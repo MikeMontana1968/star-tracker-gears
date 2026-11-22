@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Schedule Studio</title>
+<!-- Compose, check and send the tracker's night schedule (FIRMWARE.md s5).
+     Served by tools/usb_bridge.py on the laptop; every /api call goes to the
+     board over USB. Validation and the night preview are done BY THE BOARD
+     (POST /api/schedule/check), so what you see is what it will do. -->
+<style>
+:root{--bg:#0b0d12;--card:#151922;--line:#262c3a;--fg:#e6e9ef;--dim:#8a93a6;--acc:#6aa8ff;
+--ok:#46c37b;--warn:#e8b339;--bad:#ff5b5b;--btn:#222a3a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:3;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:10px 16px;
+background:var(--bg);border-bottom:1px solid var(--line)}
+header h1{font-size:16px;margin:0}
+header a{color:var(--acc)}
+.pill{padding:2px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--dim)}
+.pill.ok{color:var(--ok);border-color:var(--ok)} .pill.bad{color:var(--bad);border-color:var(--bad)}
+main{max-width:1180px;margin:0 auto;padding:14px 16px 60px;display:grid;gap:14px;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:0 0 10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
+label{color:var(--dim);font-size:13px}
+input,select,textarea{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font:inherit}
+input[type=number]{width:90px} input[type=date]{width:150px} input[type=datetime-local]{width:200px}
+textarea{width:100%;min-height:260px;font:12px/1.35 ui-monospace,Consolas,monospace}
+button{background:var(--btn);color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:7px 12px;font:inherit;font-weight:600;cursor:pointer}
+button:hover{border-color:var(--acc)} button.primary{background:var(--acc);color:#0b0d12;border:0}
+button.danger{color:var(--bad);border-color:var(--bad)} button:disabled{opacity:.4;cursor:not-allowed}
+button.small{padding:3px 8px;font-size:12px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;font-variant-numeric:tabular-nums}
+th{color:var(--dim);font-weight:500;font-size:12px}
+.grid2{display:grid;grid-template-columns:130px 1fr;gap:6px 10px;align-items:center}
+.msg{min-height:1.4em;font-size:13px;color:var(--dim)} .msg.ok{color:var(--ok)} .msg.err{color:var(--bad)}
+ul.errs{margin:6px 0;padding-left:18px} ul.errs li.e{color:var(--bad)} ul.errs li.w{color:var(--warn)}
+.skip td{color:var(--dim)} .tag{font-size:11px;padding:1px 6px;border-radius:6px;border:1px solid var(--line);color:var(--dim)}
+.tag.fb{color:var(--warn);border-color:var(--warn)}
+.tabs{display:flex;gap:6px;margin-bottom:8px} .tabs button.on{border-color:var(--acc);color:var(--acc)}
+.span2{grid-column:1/-1}
+.hint{font-size:12px;color:var(--dim)}
+.ov{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>Schedule Studio</h1>
+  <span id="link" class="pill">bridge …</span>
+  <span id="dev" class="pill">device …</span>
+  <span id="clk" class="pill">clock …</span>
+  <span style="flex:1"></span>
+  <a href="/" target="_blank">Tracker console ↗</a>
+</header>
+
+<main>
+  <!-- ================= editor ================= -->
+  <section class="card">
+    <h2>Compose</h2>
+    <div class="row">
+      <button id="new">New</button>
+      <button id="open">Open file…</button><input id="file" type="file" accept=".json,application/json" hidden>
+      <button id="save">Save to file</button>
+      <button id="fromdev">Load from device</button>
+      <span class="msg" id="libmsg"></span>
+    </div>
+
+    <div class="tabs"><button id="tform" class="on">Form</button><button id="tjson">JSON</button></div>
+
+    <div id="form">
+      <div class="grid2">
+        <label>Site lat / lon</label>
+        <div class="row" style="margin:0"><input id="lat" type="number" step="0.0001" min="-90" max="90"> <input id="lon" type="number" step="0.0001" min="-180" max="180">
+          <span class="hint">GPS overrides this each night when it gets a fix</span></div>
+        <label>Time zone</label>
+        <div class="row" style="margin:0"><input id="tz" type="number" step="15" min="-720" max="840"> min from UTC
+          <button class="small" id="tzpc">this PC</button><span class="hint" id="tzhint"></span></div>
+        <label>Start</label>
+        <div class="row ov" style="margin:0" id="dstart"></div>
+        <label>Stop</label>
+        <div class="row ov" style="margin:0" id="dstop"></div>
+        <label>Start angle</label>
+        <div class="row" style="margin:0"><input id="angle" type="number" step="0.5" min="-2" max="182"> ° from park (0)</div>
+        <label>Camera profile</label>
+        <div class="row" style="margin:0"><input id="camera" type="text" style="width:220px"></div>
+        <label>Camera policy</label>
+        <div class="row" style="margin:0"><select id="cpol"></select>
+          <label>GPS</label><select id="gpol"><option>best_effort</option><option>none</option></select></div>
+        <label>After the list</label>
+        <div class="row" style="margin:0"><label style="color:var(--fg)"><input id="repeat" type="checkbox"> repeat every night after the last listed date</label></div>
+      </div>
+
+      <h2 style="margin-top:16px">Nights</h2>
+      <div class="hint">“Date” is the local date of the evening. A listed night uses the defaults above unless you override it.</div>
+      <div style="overflow-x:auto"><table id="nights"></table></div>
+      <div class="row">
+        <button id="addone">+ Night</button>
+        from <input id="rfrom" type="date"> to <input id="rto" type="date"> <button id="addrange">+ Range</button>
+        <button id="sortn" class="small">Sort</button>
+        <button id="clearn" class="small danger">Clear list</button>
+      </div>
+    </div>
+
+    <div id="jsonv" hidden>
+      <textarea id="json" spellcheck="false"></textarea>
+      <div class="row"><button id="applyjson">Apply JSON to form</button><span class="msg" id="jsonmsg"></span></div>
+    </div>
+  </section>
+
+  <!-- ================= device ================= -->
+  <section style="display:grid;gap:14px;align-content:start">
+    <section class="card">
+      <h2>Check on the device</h2>
+      <div class="row">
+        <button id="check" class="primary">Validate &amp; preview</button>
+        <button id="upload">Send to device</button>
+        <button id="del" class="danger">Delete device schedule</button>
+      </div>
+      <div class="msg" id="devmsg"></div>
+      <ul class="errs" id="errs"></ul>
+      <div class="hint" id="prevhead"></div>
+      <div style="overflow-x:auto"><table id="preview"></table></div>
+    </section>
+
+    <section class="card">
+      <h2>On the device now</h2>
+      <div class="row"><button id="devnights">Refresh</button><span class="msg" id="devinfo"></span></div>
+      <div style="overflow-x:auto"><table id="devprev"></table></div>
+    </section>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const EVENTS = ["sunset","dusk_civil","dusk_nautical","dusk_astronomical","sunrise","dawn_civil","dawn_nautical","dawn_astronomical"];
+const EV_LABEL = {sunset:"sunset", dusk_civil:"civil dusk", dusk_nautical:"nautical dusk", dusk_astronomical:"astronomical dusk",
+  sunrise:"sunrise", dawn_civil:"civil dawn", dawn_nautical:"nautical dawn", dawn_astronomical:"astronomical dawn"};
+const POLICIES = ["best_effort","none","required"];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pad = n => String(n).padStart(2, "0");
+
+// ------------------------------------------------------------------ model
+function blank(){
+  return {version: 1, site: {lat: 34.6, lon: -120.4, tz_offset_min: -new Date().getTimezoneOffset()},
+    defaults: {start: {event: "dusk_astronomical", offset_min: 10}, stop: {event: "dawn_astronomical", offset_min: -10},
+      start_angle_deg: 0, camera: "nightlapse_30s_iso800", camera_policy: "best_effort", gps_policy: "best_effort"},
+    nights: [], repeat_after_list: true};
+}
+let S = blank();
+try{ const d = localStorage.getItem("studio.draft"); if (d) S = JSON.parse(d); }catch(e){}
+function saveDraft(){ try{ localStorage.setItem("studio.draft", JSON.stringify(S)); }catch(e){} }
+
+// ------------------------------------------------------------------ transport
+async function api(method, path, body){
+  try{
+    const r = await fetch(path, {method, headers: body ? {"Content-Type": "application/json"} : {},
+      body: body == null ? undefined : typeof body === "string" ? body : JSON.stringify(body)});
+    let j = null; try{ j = await r.json(); }catch(e){}
+    return {code: r.status, json: j};
+  }catch(e){ return {code: 0, json: {error: "bridge not running: start tools\\Start-ScheduleStudio.ps1"}}; }
+}
+function say(id, text, cls){ const e = $(id); e.textContent = text; e.className = "msg" + (cls ? " " + cls : ""); }
+
+// ------------------------------------------------------------------ time spec widgets
+// {event, offset_min} | {utc}
+function timeSpecEditor(spec, onChange, allowDefault){
+  const wrap = document.createElement("span"); wrap.className = "ov";
+  const mode = document.createElement("select");
+  if (allowDefault) mode.add(new Option("default", "default"));
+  mode.add(new Option("event", "event")); mode.add(new Option("UTC time", "utc"));
+  const ev = document.createElement("select"); EVENTS.forEach(e => ev.add(new Option(EV_LABEL[e], e)));
+  const off = document.createElement("input"); off.type = "number"; off.step = "1"; off.min = "-180"; off.max = "180"; off.style.width = "70px"; off.title = "offset, minutes";
+  const offl = document.createElement("span"); offl.className = "hint"; offl.textContent = "min";
+  const utc = document.createElement("input"); utc.type = "datetime-local"; utc.title = "UTC";
+  const utcl = document.createElement("span"); utcl.className = "hint"; utcl.textContent = "UTC";
+  function show(){
+    const m = mode.value;
+    ev.hidden = off.hidden = offl.hidden = m !== "event";
+    utc.hidden = utcl.hidden = m !== "utc";
+  }
+  if (!spec) mode.value = allowDefault ? "default" : "event";
+  else if (spec.utc) { mode.value = "utc"; utc.value = spec.utc.replace(/Z$/, "").slice(0, 16); }
+  else { mode.value = "event"; ev.value = spec.event || "dusk_astronomical"; off.value = spec.offset_min || 0; }
+  if (!ev.value) ev.value = "dusk_astronomical";
+  if (off.value === "") off.value = 0;
+  function emit(){
+    show();
+    const m = mode.value;
+    if (m === "default") onChange(undefined);
+    else if (m === "utc") onChange(utc.value ? {utc: utc.value.slice(0, 16) + ":00Z"} : undefined);
+    else { const o = parseInt(off.value || "0", 10); onChange(o ? {event: ev.value, offset_min: o} : {event: ev.value}); }
+  }
+  [mode, ev, off, utc].forEach(x => x.onchange = emit);
+  wrap.append(mode, ev, off, offl, utc, utcl); show();
+  return wrap;
+}
+
+// ------------------------------------------------------------------ render the form from S
+function render(){
+  $("lat").value = S.site.lat; $("lon").value = S.site.lon; $("tz").value = S.site.tz_offset_min;
+  $("tzhint").textContent = `UTC${S.site.tz_offset_min >= 0 ? "+" : "−"}${Math.floor(Math.abs(S.site.tz_offset_min)/60)}:${pad(Math.abs(S.site.tz_offset_min)%60)}`;
+  const d = S.defaults;
+  $("dstart").replaceChildren(timeSpecEditor(d.start, v => { d.start = v; changed(false); }, false));
+  $("dstop").replaceChildren(timeSpecEditor(d.stop, v => { d.stop = v; changed(false); }, false));
+  $("angle").value = d.start_angle_deg ?? 0;
+  $("camera").value = d.camera || "";
+  $("cpol").replaceChildren(...POLICIES.map(p => new Option(p, p))); $("cpol").value = d.camera_policy || "best_effort";
+  $("gpol").value = d.gps_policy || "best_effort";
+  $("repeat").checked = !!S.repeat_after_list;
+  renderNights();
+  $("json").value = JSON.stringify(S, null, 2);
+}
+
+function renderNights(){
+  const t = $("nights");
+  t.replaceChildren();
+  const hr = t.insertRow();
+  hr.innerHTML = "<th>date</th><th>night</th><th>start</th><th>stop</th><th>angle °</th><th>camera</th><th></th>";
+  S.nights.forEach((n, i) => {
+    const r = t.insertRow();
+    if (n.skip) r.className = "skip";
+    const date = document.createElement("input"); date.type = "date"; date.value = n.date || "";
+    date.onchange = () => { n.date = date.value; changed(false); };
+    const kind = document.createElement("select"); ["track","skip"].forEach(k => kind.add(new Option(k, k)));
+    kind.value = n.skip ? "skip" : "track";
+    kind.onchange = () => { if (kind.value === "skip") { n.skip = true; delete n.start; delete n.stop; delete n.start_angle_deg; delete n.camera_policy; } else delete n.skip; changed(true); };
+    const ang = document.createElement("input"); ang.type = "number"; ang.step = "0.5"; ang.placeholder = "default"; ang.style.width = "80px";
+    if (n.start_angle_deg != null) ang.value = n.start_angle_deg;
+    ang.onchange = () => { if (ang.value === "") delete n.start_angle_deg; else n.start_angle_deg = parseFloat(ang.value); changed(false); };
+    const cp = document.createElement("select"); cp.add(new Option("default", "")); POLICIES.forEach(p => cp.add(new Option(p, p)));
+    cp.value = n.camera_policy || "";
+    cp.onchange = () => { if (!cp.value) delete n.camera_policy; else n.camera_policy = cp.value; changed(false); };
+    const del = document.createElement("button"); del.className = "small danger"; del.textContent = "✕"; del.title = "delete this night";
+    del.onclick = () => { S.nights.splice(i, 1); changed(true); };
+    const cells = [date, kind,
+      n.skip ? "—" : timeSpecEditor(n.start, v => { if (v) n.start = v; else delete n.start; changed(false); }, true),
+      n.skip ? "—" : timeSpecEditor(n.stop, v => { if (v) n.stop = v; else delete n.stop; changed(false); }, true),
+      n.skip ? "—" : ang, n.skip ? "—" : cp, del];
+    cells.forEach(c => { const td = r.insertCell(); if (typeof c === "string") td.textContent = c; else td.append(c); });
+  });
+  if (!S.nights.length) { const r = t.insertRow(); const c = r.insertCell(); c.colSpan = 7; c.className = "hint";
+    c.textContent = S.repeat_after_list ? "No listed nights: with “repeat” on, every night from today uses the defaults." : "No nights listed and repeat is off: nothing will run."; }
+}
+
+function changed(rerender){
+  saveDraft();
+  $("json").value = JSON.stringify(S, null, 2);
+  if (rerender) renderNights();
+  say("devmsg", "edited — validate to see the nights", "");
+}
+
+// ------------------------------------------------------------------ form inputs
+$("lat").onchange = () => { S.site.lat = parseFloat($("lat").value); changed(false); };
+$("lon").onchange = () => { S.site.lon = parseFloat($("lon").value); changed(false); };
+$("tz").onchange = () => { S.site.tz_offset_min = parseInt($("tz").value, 10); render(); changed(false); };
+$("tzpc").onclick = () => { S.site.tz_offset_min = -new Date().getTimezoneOffset(); render(); changed(false); };
+$("angle").onchange = () => { S.defaults.start_angle_deg = parseFloat($("angle").value || "0"); changed(false); };
+$("camera").onchange = () => { S.defaults.camera = $("camera").value.trim(); changed(false); };
+$("cpol").onchange = () => { S.defaults.camera_policy = $("cpol").value; changed(false); };
+$("gpol").onchange = () => { S.defaults.gps_policy = $("gpol").value; changed(false); };
+$("repeat").onchange = () => { S.repeat_after_list = $("repeat").checked; changed(true); };
+
+function isoDate(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function nextFree(){
+  if (!S.nights.length) return isoDate(new Date());
+  const last = S.nights.map(n => n.date).sort().pop();
+  const d = new Date(last + "T12:00:00"); d.setDate(d.getDate() + 1); return isoDate(d);
+}
+$("addone").onclick = () => { S.nights.push({date: nextFree()}); sortNights(); changed(true); };
+$("addrange").onclick = () => {
+  const a = $("rfrom").value, b = $("rto").value;
+  if (!a || !b || a > b) { say("libmsg", "pick a from and to date", "err"); return; }
+  const have = new Set(S.nights.map(n => n.date));
+  for (let d = new Date(a + "T12:00:00"); isoDate(d) <= b; d.setDate(d.getDate() + 1)) if (!have.has(isoDate(d))) S.nights.push({date: isoDate(d)});
+  sortNights(); changed(true);
+};
+function sortNights(){ S.nights.sort((x, y) => (x.date || "").localeCompare(y.date || "")); }
+$("sortn").onclick = () => { sortNights(); changed(true); };
+$("clearn").onclick = () => { if (confirm("Remove every listed night?")) { S.nights = []; changed(true); } };
+
+// tabs
+$("tform").onclick = () => { $("form").hidden = false; $("jsonv").hidden = true; $("tform").className = "on"; $("tjson").className = ""; };
+$("tjson").onclick = () => { $("json").value = JSON.stringify(S, null, 2); $("form").hidden = true; $("jsonv").hidden = false; $("tjson").className = "on"; $("tform").className = ""; };
+$("applyjson").onclick = () => {
+  try{ const j = JSON.parse($("json").value); if (!j.site || !j.defaults) throw new Error("needs site and defaults");
+    j.nights = j.nights || []; S = j; render(); saveDraft(); say("jsonmsg", "applied", "ok"); }
+  catch(e){ say("jsonmsg", "not applied: " + e.message, "err"); }
+};
+
+// library
+$("new").onclick = () => { if (confirm("Start a new schedule? (the current draft is replaced)")) { S = blank(); render(); saveDraft(); } };
+$("save").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], {type: "application/json"}));
+  a.download = `schedule-${isoDate(new Date())}.json`; a.click(); URL.revokeObjectURL(a.href);
+};
+$("open").onclick = () => $("file").click();
+$("file").onchange = async () => {
+  const f = $("file").files[0]; if (!f) return;
+  try{ const j = JSON.parse(await f.text()); j.nights = j.nights || []; S = j; render(); saveDraft(); say("libmsg", `opened ${f.name}`, "ok"); }
+  catch(e){ say("libmsg", `${f.name}: ${e.message}`, "err"); }
+  $("file").value = "";
+};
+$("fromdev").onclick = async () => {
+  const r = await api("GET", "/api/schedule");
+  if (r.code === 200 && r.json && r.json.text) {
+    try{ const j = JSON.parse(r.json.text); j.nights = j.nights || []; S = j; render(); saveDraft(); say("libmsg", `loaded ${r.json.source} from the device`, "ok"); }
+    catch(e){ say("libmsg", "the device schedule is not JSON?", "err"); }
+  } else say("libmsg", r.json && r.json.error ? r.json.error : "no schedule on the device", "err");
+};
+
+// ------------------------------------------------------------------ device
+function fmtLocal(t){ const d = new Date(t * 1000);
+  return d.toLocaleString([], {weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"}); }
+function fmtUtc(t){ const d = new Date(t * 1000); return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}Z`; }
+function previewTable(el, nights){
+  if (!nights || !nights.length) { el.innerHTML = "<tr><td class='hint'>no nights ahead</td></tr>"; return; }
+  el.innerHTML = "<tr><th>date</th><th>start (this PC)</th><th>stop</th><th>hours</th><th>travel</th><th>camera</th></tr>" +
+    nights.map(n => n.skipped
+      ? `<tr class="skip"><td>${n.date}</td><td colspan="5">skipped — ${esc(n.skipped)}</td></tr>`
+      : `<tr><td>${n.date}</td><td>${fmtLocal(n.start_utc)} <span class="hint">${fmtUtc(n.start_utc)}</span></td>` +
+        `<td>${fmtLocal(n.stop_utc).replace(/^\w+,?\s*/, "")} <span class="hint">${fmtUtc(n.stop_utc)}</span></td>` +
+        `<td>${n.hours.toFixed(2)}</td><td>${n.start_deg.toFixed(1)}→${n.end_deg.toFixed(1)}°</td>` +
+        `<td>${esc(n.camera_policy)}${n.fallback ? ` <span class="tag fb" title="twilight fell back ${n.fallback} level(s)">fallback ${n.fallback}</span>` : ""}</td></tr>`).join("");
+}
+function showResult(j){
+  $("errs").innerHTML = (j.errors || []).map(e => `<li class="e">${esc(e)}</li>`).join("") +
+                        (j.errors_dropped ? `<li class="e">… ${j.errors_dropped} more</li>` : "") +
+                        (j.warnings || []).map(w => `<li class="w">${esc(w)}</li>`).join("");
+}
+function body(){ return JSON.stringify(S); }
+
+$("check").onclick = async () => {
+  say("devmsg", "checking on the device…");
+  const r = await api("POST", "/api/schedule/check?n=21", body());
+  const j = r.json || {};
+  showResult(j);
+  if (r.code === 200) { say("devmsg", "valid — this is what the tracker would do:", "ok"); $("prevhead").textContent = "Next nights, resolved by the tracker (times in this PC's time zone; UTC in grey)"; previewTable($("preview"), j.nights); }
+  else { say("devmsg", r.code === 422 ? "refused by the device:" : (j.error || `HTTP ${r.code}`), "err"); $("preview").innerHTML = ""; $("prevhead").textContent = ""; }
+};
+$("upload").onclick = async () => {
+  if (!confirm("Replace the schedule on the tracker with this one?")) return;
+  const r = await api("PUT", "/api/schedule", body());
+  const j = r.json || {};
+  showResult(j);
+  say("devmsg", r.code === 200 ? "sent and stored on the device" : r.code === 422 ? "refused — nothing was changed:" : (j.error || `HTTP ${r.code}`), r.code === 200 ? "ok" : "err");
+  if (r.code === 200) loadDevice();
+};
+$("del").onclick = async () => {
+  if (!confirm("Delete the schedule stored on the tracker (and its fallback)? It will plan nothing until you send one.")) return;
+  const r = await api("DELETE", "/api/schedule");
+  say("devmsg", r.code === 200 ? "deleted on the device" : (r.json && r.json.error) || `HTTP ${r.code}`, r.code === 200 ? "ok" : "err");
+  loadDevice();
+};
+async function loadDevice(){
+  const r = await api("GET", "/api/schedule/nights?n=14");
+  if (r.code === 200) { previewTable($("devprev"), r.json.nights); say("devinfo", ""); }
+  else { $("devprev").innerHTML = ""; say("devinfo", (r.json && r.json.error) || `HTTP ${r.code}`, r.code === 404 ? "" : "err"); }
+}
+$("devnights").onclick = loadDevice;
+
+// ------------------------------------------------------------------ header status
+async function heartbeat(){
+  const b = await api("GET", "/bridge/info");
+  if (b.code !== 200) { $("link").textContent = "bridge not running"; $("link").className = "pill bad"; return; }
+  $("link").textContent = `USB ${b.json.port}`; $("link").className = "pill " + (b.json.connected ? "ok" : "bad");
+  const s = await api("GET", "/api/status");
+  if (s.code === 200) {
+    const j = s.json;
+    $("dev").textContent = `${j.state}${j.fault_code ? " · FAULT " + j.fault_text : ""} · ${j.schedule && j.schedule.valid ? "schedule " + j.schedule.source : "no schedule"}`;
+    $("dev").className = "pill " + (j.fault_code ? "bad" : "ok");
+    const skew = j.rtc_utc - Date.now() / 1000;
+    $("clk").textContent = `device clock ${skew >= 0 ? "+" : ""}${skew.toFixed(0)} s`;
+    $("clk").className = "pill " + (Math.abs(skew) > 5 ? "bad" : "ok");
+    $("clk").title = Math.abs(skew) > 5 ? "click to set the tracker's clock from this PC" : "";
+  } else { $("dev").textContent = (s.json && s.json.error) || "device not answering"; $("dev").className = "pill bad"; }
+}
+$("clk").onclick = async () => {
+  if (!confirm("Set the tracker's clock from this PC?")) return;
+  await api("POST", "/api/time", {utc: Math.round(Date.now() / 1000)}); heartbeat();
+};
+
+render();
+heartbeat(); loadDevice();
+setInterval(heartbeat, 5000);
+</script>
+</body>
+</html>

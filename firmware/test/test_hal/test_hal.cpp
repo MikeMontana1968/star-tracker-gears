@@ -1,4 +1,4 @@
-﻿// Host tests for the pure parts of lib/hal. Run:  pio test -e native
+// Host tests for the pure parts of lib/hal. Run:  pio test -e native
 #include <unity.h>
 #include <math.h>
 #include "CivilTime.h"
@@ -72,6 +72,17 @@ void test_map_unwraps_across_4095(void) {
   TEST_ASSERT_FALSE(m.toUnits(1000, &u));  // outside the mapped arc
 }
 
+void test_map_extrapolates_just_past_its_ends(void) {
+  EncoderMap m = sweep(-1.5, 181.5, 1);            // as calibrated on the board
+  int64_t u;
+  TEST_ASSERT_TRUE(m.toUnits(fakeRaw(-2.2), &u));   // a rewind overshoot below the sweep
+  TEST_ASSERT_DOUBLE_WITHIN(0.15, -2.2, u * 360.0 / 13107200.0);
+  TEST_ASSERT_TRUE(m.toUnits(fakeRaw(183.0), &u));
+  TEST_ASSERT_DOUBLE_WITHIN(0.15, 183.0, u * 360.0 / 13107200.0);
+  TEST_ASSERT_FALSE(m.toUnits(fakeRaw(-9), &u));    // far outside: no guess
+  TEST_ASSERT_FALSE(m.toUnits(fakeRaw(190), &u));
+}
+
 void test_map_invalid_until_filled(void) {
   EncoderMap m;
   int64_t u;
@@ -129,6 +140,7 @@ int main(int, char **) {
   RUN_TEST(test_civil_round_trip);
   RUN_TEST(test_map_corrects_eccentricity);
   RUN_TEST(test_map_unwraps_across_4095);
+  RUN_TEST(test_map_extrapolates_just_past_its_ends);
   RUN_TEST(test_map_invalid_until_filled);
   RUN_TEST(test_nmea_rmc_gga);
   RUN_TEST(test_nmea_rejects_bad_checksum_and_void_fix);

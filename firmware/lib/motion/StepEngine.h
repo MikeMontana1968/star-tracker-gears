@@ -77,6 +77,9 @@ class StepEngine {
   bool startTrackingAt(int64_t origin_units, uint64_t t0_us, uint64_t now_us);
   void stop();                                // immediate, -> Idle
   void setSlewMax(uint32_t hz);
+  // the forward-arrival overshoot (diagnostics: 0 measures the lash itself)
+  void setBacklash(int64_t units) { if (units >= 0) c_.backlash_units = units; }
+  int64_t backlash() const { return c_.backlash_units; }
   // Units per pulse after the driver's MRES changed (1/8 -> 4, 1/32 -> 1).
   // Idle only: the counter keeps its meaning, only the pulse size changes.
   bool setPulseUnits(int32_t units);

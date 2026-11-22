@@ -218,6 +218,28 @@ regenerate.
     (`?mock` works offline). Verified on the board over serial (`H`), incl. a
     2-min test track. **Not yet verified: a phone actually joining the AP.**
     Lash note in FIRMWARE.md "Slice 5 as built". Next: slice 6 (GoPro).
+21. **Diagnostics, calibration, Schedule Studio (2026-11-22).**
+    - Web UI "Diagnostics" card (CONFIG_AP): wiggle, sweep, repeat test (optional
+      overshoot / slew overrides), coils on/off. API `diag` / `coils` commands.
+    - **Baseline calibration of today's #12-screw-post train:
+      `docs/calibration/2026-11-22_baseline_screw_posts.md`.** Lash < 0.09 deg at
+      park but ~0.75 deg at 47-48.5 deg (eccentric centres); 3200/s rewinds lose
+      steps (+0.56 / +0.82 deg), 2000/s and 1200/s come home exact -> **SLEW_MAX_HZ
+      lowered to 2000**, orient/rewind/home deadlines raised to 20 min.
+    - **TODO when the 696ZZ + 6 mm shoulder-bolt build is in (parts due
+      2026-12-10): run `firmware/tools/Run-Calibration.ps1` (suite all, ~75 min)
+      and COMPARE against the baseline doc -- lash vs angle, rewind return
+      error at 3200/s (can SLEW_MAX_HZ go back up?), sigma across runs, jams.
+      The user asked for this comparison explicitly.**
+    - Schedule Studio: `firmware/tools/Start-ScheduleStudio.cmd` -> USB bridge
+      (tools/usb_bridge.py, pyserial) -> studio.html: compose / validate on the
+      device / preview resolved nights / send / load / delete. New endpoints
+      `POST /api/schedule/check`, `GET /api/schedule/nights`, `DELETE /api/schedule`.
+      Verified end to end on the board. The bridge holds the COM port.
+    - Fixed: map extrapolation past its ends (false "slip" at -1.44 deg);
+      ENC_RAW_START 1029 -> 1059 (zero moved with the re-shim); the FSM held a
+      stale schedule reference (uploads/deletes now take effect at once, a sleeping
+      bench board re-plans); guard trips print their numbers; DRV_STATUS in status.
 
 ## Module facts, measured and confirmed
 

@@ -25,7 +25,17 @@ void EspHost::status(JsonObject o) {
   o["encoder_map"] = sens_.mapValid();
   o["target_minus_actual_usteps"] = mot_.servoError();
   o["driver_uart"] = mot_.uartOk();
+  if (mot_.uartOk()) {                                // TMC2209 DRV_STATUS: why a motor would not turn
+    Tmc2209::Status ts = tmc_.status();
+    if (ts.ok) {
+      JsonObject dv = o["driver"].to<JsonObject>();
+      dv["ot"] = ts.ot; dv["otpw"] = ts.otpw; dv["s2g"] = ts.s2g; dv["s2vs"] = ts.s2vs;
+      dv["open_load"] = ts.ol; dv["standstill"] = ts.standstill; dv["cs_actual"] = ts.cs_actual;
+      dv["mscnt"] = ts.mscnt; dv["microsteps"] = tmc_.microsteps();
+    }
+  }
   o["guard"] = mot_.lastGuard();
+  o["overshoot_deg"] = mot_.overshootDeg();          // BACKLASH_UNITS as degrees
 
   o["rtc_utc"] = clk_.utc();
   o["rtc_lost_power"] = clk_.lostPower();

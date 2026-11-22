@@ -81,6 +81,8 @@ bool Motion::tracking() { MotionLock l; return eng_.mode() == Mode::Track; }
 bool Motion::arrived() { MotionLock l; return eng_.mode() == Mode::Idle && eng_.lastStop() == Stop::Arrived; }
 bool Motion::limitHit() { MotionLock l; return eng_.lastStop() == Stop::Limit; }
 double Motion::positionDeg() { MotionLock l; return unitsToDeg(eng_.position()); }
+void Motion::setOvershootDeg(double d) { MotionLock l; eng_.setBacklash(degToUnits(d)); }
+double Motion::overshootDeg() { MotionLock l; return unitsToDeg(eng_.backlash()); }
 int64_t Motion::servoError() { MotionLock l; return eng_.mode() == motion::Mode::Track ? eng_.target() - eng_.position() : 0; }
 void Motion::drive() { driverPin(enabled_ || moving()); }
 
@@ -91,6 +93,7 @@ void Motion::service(Sensors &s) {
     bool was_reset;
     if (tmc_.health(&was_reset) && was_reset) {
       guard_ = "driver reset";
+      Serial.println("GUARD driver reset: re-seeding the counter from the encoder");
       if (moving()) { stop(); }
       int64_t u;
       if (s.encoderUnits(s.raw(), &u)) { MotionLock l; eng_.setPosition(u); }
@@ -111,13 +114,18 @@ void Motion::service(Sensors &s) {
   }
   if (s.encoderUnits(r, &eu) &&
       llabs((eu - pos) - slip_off0_) > degToUnits(s.mapValid() ? SLIP_DEG_MAP : SLIP_DEG_LINE)) {
+    Serial.printf("GUARD slip: pos %.3f deg, encoder-minus-counter drifted %.3f deg this move\n", unitsToDeg(pos), unitsToDeg((eu - pos) - slip_off0_));
     stop(); guard_ = "slip"; jam_armed_ = false; return;
   }
   if (llabs(pos - jam_pos0_) >= degToUnits(JAM_WINDOW_DEG)) {
     int d = r - jam_raw0_;
     if (d > 2048) d -= 4096;
     if (d < -2048) d += 4096;
-    if (abs(d) < JAM_MIN_COUNTS) { stop(); guard_ = "jam"; jam_armed_ = false; return; }
+    if (abs(d) < JAM_MIN_COUNTS) {
+      Serial.printf("GUARD jam: pos %.3f deg, counter moved %.3f deg, encoder %d counts (raw %d -> %d)\n",
+                    unitsToDeg(pos), unitsToDeg(pos - jam_pos0_), d, jam_raw0_, r);
+      stop(); guard_ = "jam"; jam_armed_ = false; return;
+    }
     jam_pos0_ = pos; jam_raw0_ = r;
   }
 }
@@ -295,6 +303,7 @@ void System::serviceSleep() {
 
 // ---- schedule store -----------------------------------------------------------------
 app::ScheduleDoc ScheduleStore::doc_;
+app::ScheduleDoc ScheduleStore::trial_;
 
 static bool readFile(const char *path, String *out) {
   File f = LittleFS.open(path, "r");
@@ -329,7 +338,7 @@ bool ScheduleStore::load(int64_t now_utc, Print &log) {
 }
 
 bool ScheduleStore::upload(const char *json, size_t len, int64_t now_utc, app::Messages *err, app::Messages *warn) {
-  static app::ScheduleDoc trial;                 // validate into a scratch doc first
+  app::ScheduleDoc &trial = trial_;               // validate into the scratch doc first
   if (!app::parseSchedule(json, len, lim_, now_utc, &trial, err, warn)) return false;
   // atomic: write tmp, close (flushes), then rename over the live file
   File f = LittleFS.open("/schedule.tmp", "w");
@@ -343,7 +352,23 @@ bool ScheduleStore::upload(const char *json, size_t len, int64_t now_utc, app::M
   sched_.reload();
   valid_ = true;
   source_ = "/schedule.json";
+  gen_++;
   return true;
+}
+
+app::Schedule *ScheduleStore::check(const char *json, size_t len, int64_t now_utc, app::Messages *err, app::Messages *warn) {
+  if (!app::parseSchedule(json, len, lim_, now_utc, &trial_, err, warn)) return nullptr;
+  trial_sched_.reload();
+  return &trial_sched_;
+}
+
+bool ScheduleStore::remove() {
+  LittleFS.remove("/schedule.json");
+  LittleFS.remove("/schedule.good.json");
+  valid_ = false;
+  source_ = "none";
+  gen_++;
+  return !LittleFS.exists("/schedule.json") && !LittleFS.exists("/schedule.good.json");
 }
 
 bool ScheduleStore::text(String *out) {

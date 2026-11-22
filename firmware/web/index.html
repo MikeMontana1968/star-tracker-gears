@@ -128,6 +128,32 @@ ul.list{margin:4px 0;padding-left:18px;font-size:13px}
     <h2>Hardware</h2>
     <div class="grid" id="hw"></div>
   </section>
+
+  <section class="card">
+    <h2>Diagnostics — motor &amp; gear train</h2>
+    <div class="conn" style="margin-bottom:6px">Config mode only. HALT stops any of these. Sweeps and repeats start from park (0°) and end there.</div>
+    <div class="row">
+      <button id="wiggle">Wiggle ±2°</button>
+      <button id="coils">Coils: —</button>
+    </div>
+    <div class="row">
+      <select id="sweepdeg" aria-label="sweep degrees" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit">
+        <option>5</option><option selected>10</option><option>45</option><option>90</option><option>180</option>
+      </select> °
+      <button id="sweep">Sweep out &amp; home</button>
+    </div>
+    <div class="row">
+      out <input id="repdeg" type="number" min="0.5" max="180" step="0.5" value="5" aria-label="repeat degrees"> °
+      × <input id="repn" type="number" min="1" max="20" value="5" aria-label="cycles">
+      <button id="repeat">Repeat test</button>
+    </div>
+    <div class="row conn">
+      overshoot <input id="repos" type="number" min="0" max="1.5" step="0.05" placeholder="default" aria-label="overshoot degrees" style="width:96px"> ° &nbsp; slew <input id="slewhz" type="number" min="400" max="6400" step="100" placeholder="default" aria-label="slew pulses per second" style="width:96px"> Hz<br>
+      blank = firmware default. Overshoot 0 makes the return error equal the lash; a slower slew shows whether speed costs steps.
+    </div>
+    <div class="msg" id="diagmsg"></div>
+    <div id="diagres"></div>
+  </section>
 </main>
 <script>
 "use strict";
@@ -247,6 +273,26 @@ function render(){
   $("clearfault").disabled = !cfg || !s.fault_code;
   $("endnight").disabled = !active;
 
+  // diagnostics
+  const dg = s.diag, drun = !!(dg && dg.running);
+  for (const id of ["wiggle","sweep","repeat"]) $(id).disabled = !cfg || drun || !!s.fault_code;
+  $("coils").disabled = !cfg || drun;
+  $("coils").textContent = `Coils: ${s.coils ? "ON (holding)" : "off (free)"}`;
+  if (drun) for (const id of ["goto","testtrack","home"]) $(id).disabled = true;
+  if (drun) document.querySelectorAll("#jogrow button").forEach(b => b.disabled = true);
+  if (dg) {
+    say("diagmsg", `${dg.kind}: ${dg.msg}`, dg.running ? "" : dg.ok ? "ok" : "err");
+    const rows = dg.return_err_arcsec.map((r, i) =>
+      `<tr><td>${i + 1}</td><td>${(dg.out_err_deg[i] ?? 0).toFixed(3)}°</td><td>${r.toFixed(1)}″</td></tr>`).join("");
+    $("diagres").innerHTML =
+      (dg.return_mean_arcsec != null ? `<div class="grid" style="margin:6px 0">` +
+        kv("return mean", dg.return_mean_arcsec.toFixed(0) + "″") + kv("return σ", dg.return_sd_arcsec.toFixed(0) + "″") +
+        kv("return max", dg.return_max_arcsec.toFixed(0) + "″") + kv("out error mean", dg.out_mean_err_deg.toFixed(3) + "°") + `</div>` : "") +
+      (rows ? `<table><tr><th>cycle</th><th>out error (enc − cmd)</th><th>return error</th></tr>${rows}</table>` : "") +
+      `<div class="conn" style="margin-top:4px">Overshoot ${deg(dg.overshoot_deg)}${dg.slew_hz ? `, slew ${dg.slew_hz} Hz` : ""}. Errors are relative to the first encoder reading at ${deg(dg.base_deg, 2)}. ` +
+      `One encoder count is 0.088° (317″). Return error ≫ 0 means the approach leaves lash unloaded.</div>`;
+  } else { $("diagres").innerHTML = ""; }
+
   // schedule summary
   const sc = s.schedule || {};
   $("sched").innerHTML = kv("valid", sc.valid ? "yes" : "NO") + kv("source", esc(sc.source || "—")) +
@@ -257,7 +303,7 @@ function render(){
     kv("encoder raw", s.encoder_raw) + kv("AGC", s.encoder_agc ?? "—") + kv("magnitude", s.encoder_magnitude ?? "—") +
     kv("encoder map", s.encoder_map ? "calibrated" : "line fit") +
     kv("servo error", (s.target_minus_actual_usteps ?? 0) + " u") + kv("driver UART", s.driver_uart ? "ok" : "MISSING") +
-    kv("last guard", esc(s.guard || "—")) + kv("stay-awake", s.stay_awake ? "ON (bench)" : "off") +
+    kv("last guard", esc(s.guard || "—")) + kv("backlash overshoot", deg(s.overshoot_deg)) + kv("stay-awake", s.stay_awake ? "ON (bench)" : "off") +
     kv("uptime", dur(s.uptime_s)) + kv("free heap", s.free_heap != null ? (s.free_heap/1024).toFixed(0) + " KB" : "—") +
     kv("LittleFS free", s.littlefs_free != null ? (s.littlefs_free/1024).toFixed(0) + " KB" : "—") +
     kv("SSID", esc((s.radio && s.radio.ssid) || "—"));
@@ -314,6 +360,22 @@ $("settime").onclick = async () => {
   say("cmdmsg", r.code === 200 ? `clock set (was ${r.json.was_off_s >= 0 ? "+" : ""}${r.json.was_off_s} s off)` : (r.json && r.json.error) || `HTTP ${r.code}`,
       r.code === 200 ? "ok" : "err");
 };
+async function diagCmd(body){
+  const r = await api("POST", "/api/command", Object.assign({cmd: "diag"}, body));
+  say("diagmsg", r.json ? (r.json.msg || r.json.error) : `HTTP ${r.code}`, r.code === 200 ? "" : "err");
+  poll();
+}
+$("wiggle").onclick = () => diagCmd({kind: "wiggle"});
+$("sweep").onclick = () => { const d = +$("sweepdeg").value;
+  if (d < 45 || confirm(`Sweep out ${d}° and back? At slew speed that is about ${Math.ceil(2 * d / 0.35 / 60)} min.`)) diagCmd(withSlew({kind: "sweep", deg: d})); };
+function withSlew(b){ if (slewhz.value !== "") b.slew_hz = parseInt(slewhz.value, 10); return b; }
+$("repeat").onclick = () => { const b = {kind: "repeat", deg: parseFloat($("repdeg").value), cycles: parseInt($("repn").value, 10)};
+  if ($("repos").value !== "") b.overshoot_deg = parseFloat($("repos").value); diagCmd(withSlew(b)); };
+$("coils").onclick = async () => {
+  const r = await api("POST", "/api/command", {cmd: "coils", on: !(S && S.coils)});
+  say("diagmsg", r.json ? (r.json.msg || r.json.error) : `HTTP ${r.code}`, r.code === 200 ? "ok" : "err");
+  poll();
+};
 $("loadsched").onclick = loadSchedule;
 $("putsched").onclick = putSchedule;
 $("loadnights").onclick = loadNights;
@@ -323,6 +385,17 @@ const M = { t0: Date.now(), state: "CONFIG_AP", pos: 0, target: null, fault: 0, 
   sched: '{"version":1,"site":{"lat":34.6,"lon":-120.4,"tz_min":-480},"defaults":{"start":{"event":"astronomical_dusk"},"stop":{"event":"astronomical_dawn"},"camera_policy":"best_effort"},"nights":[],"repeat_after_list":true}' };
 function mlog(m){ M.log.push({seq: M.log.length + 1, utc: Math.floor(Date.now()/1000), msg: `[${M.state}] ${m}`}); }
 mlog("button wake: config");
+function mockDiag(){
+  const d = M.diag; if (!d) return null;
+  const done = Math.min(d.n, Math.floor((Date.now() - d.t0) / 2500)), running = done < d.n;
+  const ret = Array.from({length: done}, (_, i) => [212, 190, 245, 201, 230, 198][i % 6]);
+  const out = Array.from({length: done}, (_, i) => [0.031, -0.012, 0.044, 0.02, -0.03][i % 5]);
+  const mean = ret.reduce((a, b) => a + b, 0) / (ret.length || 1);
+  const sd = Math.sqrt(ret.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, ret.length - 1));
+  return Object.assign({kind: d.kind, running, ok: !running, msg: running ? `cycle ${done + 1}/${d.n}` : `done: return +${mean.toFixed(0)}" mean`,
+    base_deg: d.base, out_deg: d.out, cycles: d.n, done, return_err_arcsec: ret, out_err_deg: out},
+    running ? {} : {return_mean_arcsec: mean, return_sd_arcsec: sd, return_max_arcsec: Math.max(...ret), out_mean_err_deg: 0.011});
+}
 function mock(method, path, body){
   const now = Math.floor(Date.now() / 1000), b = typeof body === "string" ? JSON.parse(body || "{}") : body || {};
   if (M.target != null) { const d = M.target - M.pos, s = 0.35; if (Math.abs(d) <= s) { M.pos = M.target; M.target = null; mlog(`manual move arrived, ${M.pos.toFixed(3)} deg`); } else M.pos += Math.sign(d) * s; }
@@ -332,7 +405,7 @@ function mock(method, path, body){
   if (path === "/api/status") {
     const n = M.night && Object.assign({}, M.night, M.state === "TRACK" ? {tracking_elapsed_s: now - M.night.start_utc, tracking_remaining_s: M.night.stop_utc - now, expected_deg: M.pos} : {});
     return ok({state: M.state, state_s: Math.floor((Date.now()-M.t0)/1000), deadline_remaining_s: M.state === "CONFIG_AP" ? 600 : null,
-      fault_code: M.fault, fault_text: M.fault ? "divergence" : "none", move_failed: false, radio_mode: "ap", night: n, log_next: M.log.length + 1,
+      fault_code: M.fault, fault_text: M.fault ? "divergence" : "none", move_failed: false, radio_mode: "ap", night: n, log_next: M.log.length + 1, coils: !!M.coils, diag: mockDiag(),
       pos_deg: M.pos, encoder_deg: M.pos + 0.03, encoder_err_deg: 0.03, encoder_raw: 1029 + Math.round(M.pos * 11.38), encoder_agc: 44, encoder_magnitude: 2104,
       encoder_map: true, target_minus_actual_usteps: 0, driver_uart: true, guard: "", rtc_utc: now, rtc_lost_power: false, rtc_temp_c: 18.25,
       gps: {powered: false, fix: false, sats: 0, hdop: 99}, battery_v: 12.41,
@@ -354,6 +427,13 @@ function mock(method, path, body){
         M.night = {test: true, start_utc: now, stop_utc: now + b.minutes * 60, start_deg: 0, camera_policy: "none", camera: "not_tried", gps: "not_tried", max_div_deg: 0.02, min_battery_v: 12.4, warnings: 0, resumes: 0, rtc_drift_s: 0};
         M.state = "TRACK"; mlog("tracking from 0.000 deg"); return yes("test track starting");
       case "end_night": if (!M.night) return no("no night in progress"); M.state = "REWIND"; M.target = 0; mlog("SAFE_STOP: ended from the web UI"); return yes("ending the night: rewinding");
+      case "coils": if (!cfg) return no("only in CONFIG_AP"); M.coils = !!b.on; return yes(M.coils ? "coils on: the motor holds" : "coils off: the train turns freely");
+      case "diag": {
+        if (!cfg) return no("only in CONFIG_AP"); if (M.diag && M.diag.t1 > Date.now()) return no("already moving");
+        if (b.kind !== "wiggle" && !(b.deg > 0)) return no("degrees must be > 0");
+        const n = b.kind === "repeat" ? b.cycles : 1;
+        M.diag = {kind: b.kind, t0: Date.now(), t1: Date.now() + 2500 * n, n, base: b.kind === "wiggle" ? M.pos : 0, out: b.kind === "wiggle" ? 2 : b.deg};
+        M.coils = true; mlog(`diag ${b.kind} started`); return yes("diagnostic started"); }
       case "clear_fault": if (!cfg) return no("only in CONFIG_AP"); M.fault = 0; return yes("fault cleared");
       case "sleep_now": if (!cfg) return no("only in CONFIG_AP"); return yes("leaving config: home, then sleep");
     }

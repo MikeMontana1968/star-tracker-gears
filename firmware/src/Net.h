@@ -24,8 +24,8 @@ namespace esp {
 
 class EspHost : public net::Host {
  public:
-  EspHost(Clock &c, Motion &m, Sensors &s, As5600 &a, Ds3231 &r, Gps &g, Store &st, ScheduleStore &ss)
-      : clk_(c), mot_(m), sens_(s), as_(a), rtc_(r), gps_(g), store_(st), sstore_(ss) {}
+  EspHost(Clock &c, Motion &m, Sensors &s, As5600 &a, Ds3231 &r, Gps &g, Store &st, ScheduleStore &ss, Tmc2209 &t)
+      : clk_(c), mot_(m), sens_(s), as_(a), rtc_(r), gps_(g), store_(st), sstore_(ss), tmc_(t) {}
   int64_t utc() override { return clk_.utc(); }
   void status(JsonObject o) override;
   bool scheduleText(std::string *out) override;
@@ -33,9 +33,14 @@ class EspHost : public net::Host {
   bool uploadSchedule(const char *json, size_t len, app::Messages *err, app::Messages *warn) override;
   int  nights(int n, std::string *ndjson) override;
   bool setTime(int64_t utc) override { return clk_.setUtc(utc); }
+  app::Schedule *checkSchedule(const char *json, size_t len, app::Messages *err, app::Messages *warn) override {
+    return sstore_.check(json, len, clk_.utc(), err, warn);
+  }
+  app::Schedule *currentSchedule() override { return sstore_.current(); }
+  bool deleteSchedule() override { return sstore_.remove(); }
  private:
   Clock &clk_; Motion &mot_; Sensors &sens_; As5600 &as_; Ds3231 &rtc_; Gps &gps_;
-  Store &store_; ScheduleStore &sstore_;
+  Store &store_; ScheduleStore &sstore_; Tmc2209 &tmc_;
 };
 
 namespace web {

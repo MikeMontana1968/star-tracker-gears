@@ -1,4 +1,4 @@
-﻿#include "Fsm.h"
+#include "Fsm.h"
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -254,6 +254,7 @@ void Fsm::endNightNow(const char *why) {
   p_.camera.power(false);
   touch_ms_ = 0;
   move_pending_ = false;
+  if (diag_.running) diagEnd(false, "halted");
   enter(State::ConfigAp, c_.config_ap_ms);
 }
 
@@ -275,15 +276,27 @@ CmdResult Fsm::command(Cmd c, double arg) {
     case Cmd::Goto: case Cmd::Jog: case Cmd::Home: {
       if (!cfg) return {false, "only in CONFIG_AP"};
       if (p_.motion.moving()) return {false, "already moving"};
+      if (diag_.running) return {false, "a diagnostic is running"};
       double to = c == Cmd::Home ? c_.park_deg : c == Cmd::Goto ? arg : p_.motion.positionDeg() + arg;
       if (!(to >= c_.travel_min_deg && to <= c_.travel_max_deg)) return {false, "outside the travel envelope"};
+      bool there = fabs(to - p_.motion.positionDeg()) < 0.0005;
       p_.motion.enable(true);
+      coils_ = true;
       if (!p_.motion.moveTo(to)) return {false, "move refused"};
       move_pending_ = true; move_failed_ = false;
       touch();
       log("manual move to %.3f deg", to);
+      if (there) return {true, c == Cmd::Home ? "already at park: nothing to move" : "already there: nothing to move"};
       return {true, "moving"};
     }
+
+    case Cmd::Coils:
+      if (!cfg) return {false, "only in CONFIG_AP"};
+      if (p_.motion.moving()) return {false, "still moving"};
+      coils_ = arg != 0;
+      p_.motion.enable(coils_);
+      log("coils %s", coils_ ? "on (holding)" : "off (released)");
+      return {true, coils_ ? "coils on: the motor holds" : "coils off: the train turns freely"};
 
     case Cmd::ClearFault:
       if (!cfg) return {false, "only in CONFIG_AP"};
@@ -320,8 +333,144 @@ CmdResult Fsm::command(Cmd c, double arg) {
   return {false, "unknown command"};
 }
 
+// ---- CONFIG_AP motor diagnostics ---------------------------------------------
+const char *diagName(DiagKind k) {
+  static const char *n[] = {"none", "wiggle", "sweep", "repeat"};
+  return n[(int)k];
+}
+
+CmdResult Fsm::diag(DiagKind k, double deg, int cycles, double overshoot_deg, uint32_t slew_hz) {
+  if (asleep_) return {false, "asleep"};
+  if (state_ != State::ConfigAp) return {false, "only in CONFIG_AP"};
+  if (fault_ != Fault::None) return {false, "clear the fault first"};
+  if (p_.motion.moving() || diag_.running) return {false, "already moving"};
+  DiagState d;
+  d.kind = k;
+  switch (k) {
+    case DiagKind::Wiggle:
+      d.base = p_.motion.positionDeg();
+      d.out = d.base + 2 <= c_.travel_max_deg ? 2 : -2;
+      d.cycles = 1;
+      break;
+    case DiagKind::Sweep: case DiagKind::Repeat:
+      if (!(deg > 0)) return {false, "degrees must be > 0"};
+      d.base = c_.park_deg;
+      d.out = deg;
+      d.cycles = k == DiagKind::Sweep ? 1 : cycles;
+      if (d.cycles < 1 || d.cycles > DiagState::MAX) return {false, "cycles must be 1..20"};
+      break;
+    default:
+      return {false, "unknown diagnostic"};
+  }
+  double far = d.base + d.out;
+  if (!(far >= c_.travel_min_deg && far <= c_.travel_max_deg)) return {false, "outside the travel envelope"};
+  if (!isnan(overshoot_deg) && !(overshoot_deg >= 0 && overshoot_deg <= 1.5)) return {false, "overshoot must be 0..1.5 deg"};
+  if (slew_hz && (slew_hz < 400 || slew_hz > 6400)) return {false, "slew_hz must be 400..6400"};
+  d.saved_overshoot = p_.motion.overshootDeg();
+  d.override_os = !isnan(overshoot_deg);
+  d.overshoot = d.override_os ? overshoot_deg : d.saved_overshoot;
+  // prime: 1 deg below base, then a pure forward move up to it, so the
+  // reference reading is forward-loaded whatever state the train was in
+  bool prime = d.base - 1.0 >= c_.travel_min_deg;
+  p_.motion.enable(true);
+  coils_ = true;
+  if (!p_.motion.moveTo(prime ? d.base - 1.0 : d.base)) return {false, "move refused"};
+  if (d.override_os) p_.motion.setOvershootDeg(d.overshoot);   // after the prime's own approach
+  if (slew_hz) { d.saved_slew_hz = p_.motion.slewHz(); d.slew_hz = slew_hz; p_.motion.setSlewHz(slew_hz); }
+  d.wp = prime ? -1 : 0;
+  d.running = true;
+  snprintf(d.msg, sizeof d.msg, "priming at %.2f deg", d.base);
+  diag_ = d;
+  diag_settle_ms_ = 0;
+  move_pending_ = false; move_failed_ = false;
+  touch();
+  log("diag %s: base %.3f, out %+.3f, %d cycle(s), overshoot %.3f deg, slew %u Hz", diagName(k), d.base, d.out, d.cycles, d.overshoot,
+      (unsigned)(slew_hz ? slew_hz : p_.motion.slewHz()));
+  return {true, "diagnostic started"};
+}
+
+void Fsm::diagEnd(bool ok, const char *msg) {
+  if (diag_.override_os) { p_.motion.setOvershootDeg(diag_.saved_overshoot); diag_.override_os = false; }
+  if (diag_.slew_hz && diag_.saved_slew_hz) { p_.motion.setSlewHz(diag_.saved_slew_hz); diag_.saved_slew_hz = 0; }
+  diag_.running = false;
+  diag_.ok = ok;
+  strncpy(diag_.msg, msg, sizeof diag_.msg - 1);
+  diag_.msg[sizeof diag_.msg - 1] = 0;
+  log("diag %s: %s", diagName(diag_.kind), msg);
+}
+
+// one step of the runner: wait for the move, settle, read, next waypoint
+void Fsm::doDiag() {
+  if (p_.motion.moving()) return;
+  if (!p_.motion.arrived()) { move_failed_ = true; diagEnd(false, "move stopped short (jam/slip guard)"); return; }
+  uint64_t ms = p_.clock.ms();
+  if (!diag_settle_ms_) { diag_settle_ms_ = ms; return; }
+  if (ms - diag_settle_ms_ < 400) return;                  // let the train settle before reading
+  diag_settle_ms_ = 0;
+  DiagState &d = diag_;
+  if (d.wp < 0) {                                          // primed: forward up to base
+    d.wp = 0;
+    if (!p_.motion.moveTo(d.base)) diagEnd(false, "move refused");
+    return;
+  }
+  double enc;
+  if (!p_.sensors.encoderDeg(&enc)) { diagEnd(false, "encoder not answering"); return; }
+  if (d.wp == 0) {
+    d.ref_enc = enc;
+  } else if (d.wp % 2) {                                   // out
+    double e = (enc - d.ref_enc) - d.out;
+    d.out_err_deg[d.n_out++] = e;
+    log("diag out %d/%d: encoder moved %.3f for %.3f (%+.3f deg)", d.n_out, d.cycles, enc - d.ref_enc, d.out, e);
+  } else {                                                 // back at base
+    double e = enc - d.ref_enc;
+    d.ret_err_deg[d.n_ret++] = e;
+    log("diag back %d/%d: return error %+.1f arcsec", d.n_ret, d.cycles, e * 3600);
+  }
+  d.wp++;
+  if (d.wp > 2 * d.cycles) {
+    double s = 0, s2 = 0, mx = 0, so = 0;
+    for (int i = 0; i < d.n_ret; i++) {
+      double a = d.ret_err_deg[i] * 3600;
+      s += a; s2 += a * a;
+      if (fabs(a) > mx) mx = fabs(a);
+    }
+    for (int i = 0; i < d.n_out; i++) so += d.out_err_deg[i];
+    d.ret_mean_as = d.n_ret ? s / d.n_ret : 0;
+    d.ret_sd_as = d.n_ret > 1 ? sqrt(fmax(0, (s2 - s * s / d.n_ret) / (d.n_ret - 1))) : 0;
+    d.ret_max_as = mx;
+    d.out_mean_deg = d.n_out ? so / d.n_out : 0;
+    char m[64];
+    snprintf(m, sizeof m, "done: return %+.0f\" mean, %.0f\" sd, %.0f\" max", d.ret_mean_as, d.ret_sd_as, d.ret_max_as);
+    diagEnd(true, m);
+    return;
+  }
+  double to = d.wp % 2 ? d.base + d.out : d.base;
+  if (!p_.motion.moveTo(to)) { diagEnd(false, "move refused"); return; }
+  snprintf(d.msg, sizeof d.msg, "cycle %d/%d: to %.2f deg", (d.wp + 1) / 2, d.cycles, to);
+  touch();
+}
+
 // CONFIG_AP: the human is in charge, but a scheduled night still wins.
 void Fsm::doConfig() {
+  if (diag_.running) {
+    doDiag();
+    if (diag_.running) {
+      // a scheduled night still wins, even mid-diagnostic
+      uint64_t ms = p_.clock.ms();
+      if (fault_ == Fault::None && ms - last_due_ms_ >= 10000) {
+        last_due_ms_ = ms;
+        int64_t now = p_.clock.utc();
+        int64_t after = now > last_done_stop_utc_ ? now : last_done_stop_utc_;
+        NightPlan plan = p_.schedule.next(after);
+        if (plan.valid && plan.start_utc - c_.lead_s <= now) {
+          p_.motion.stop();
+          diagEnd(false, "aborted: a scheduled night is due");
+          enter(State::Home, c_.home_ms);
+        }
+      }
+      return;
+    }
+  }
   if (move_pending_ && !p_.motion.moving()) {
     move_pending_ = false;
     move_failed_ = !p_.motion.arrived();

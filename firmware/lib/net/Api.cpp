@@ -1,4 +1,5 @@
 #include "Api.h"
+#include "CivilTime.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,7 +44,20 @@ Response Api::handle(const Request &r) {
   bool get = !strcmp(r.method, "GET"), post = !strcmp(r.method, "POST"), put = !strcmp(r.method, "PUT");
   if (path == "/api/status")      return get ? status() : error(405, "GET");
   if (path == "/api/command")     return post ? command(r) : error(405, "POST");
-  if (path == "/api/schedule")    return get ? getSchedule() : put || post ? putSchedule(r) : error(405, "GET or PUT");
+  if (path == "/api/schedule") {
+    if (get) return getSchedule();
+    if (put || post) return putSchedule(r);
+    if (!strcmp(r.method, "DELETE")) {
+      bool ok = host_.deleteSchedule();
+      if (!ok) return error(500, "delete failed");
+      Response out;
+      out.body = "{\"ok\":true,\"msg\":\"schedule deleted: nothing is planned\"}";
+      return out;
+    }
+    return error(405, "GET, PUT or DELETE");
+  }
+  if (path == "/api/schedule/check")  return post || put ? checkSchedule(r) : error(405, "POST");
+  if (path == "/api/schedule/nights") return get ? scheduleNights(r) : error(405, "GET");
   if (path == "/api/log")         return get ? logSince(r) : error(405, "GET");
   if (path == "/api/night/last")  return get ? nights(r, true) : error(405, "GET");
   if (path == "/api/night/list")  return get ? nights(r, false) : error(405, "GET");
@@ -88,6 +102,33 @@ Response Api::status() {
   } else {
     d["night"] = nullptr;
   }
+  d["coils"] = f.coils();
+  const DiagState &g = f.diagState();
+  if (g.kind != DiagKind::None) {
+    JsonObject o = d["diag"].to<JsonObject>();
+    o["kind"] = diagName(g.kind);
+    o["running"] = g.running;
+    o["ok"] = g.ok;
+    o["msg"] = (const char *)g.msg;
+    o["base_deg"] = g.base;
+    o["out_deg"] = g.out;
+    o["cycles"] = g.cycles;
+    o["overshoot_deg"] = g.overshoot;
+    if (g.slew_hz) o["slew_hz"] = g.slew_hz;
+    o["done"] = g.n_ret;
+    JsonArray r = o["return_err_arcsec"].to<JsonArray>();
+    for (int i = 0; i < g.n_ret; i++) r.add(round(g.ret_err_deg[i] * 36000) / 10);
+    JsonArray a = o["out_err_deg"].to<JsonArray>();
+    for (int i = 0; i < g.n_out; i++) a.add(round(g.out_err_deg[i] * 10000) / 10000);
+    if (!g.running && g.ok) {
+      o["return_mean_arcsec"] = round(g.ret_mean_as * 10) / 10;
+      o["return_sd_arcsec"] = round(g.ret_sd_as * 10) / 10;
+      o["return_max_arcsec"] = round(g.ret_max_as * 10) / 10;
+      o["out_mean_err_deg"] = round(g.out_mean_deg * 10000) / 10000;
+    }
+  } else {
+    d["diag"] = nullptr;
+  }
   d["log_next"] = log_.next();
   host_.status(d.as<JsonObject>());
   Response r;
@@ -111,6 +152,14 @@ Response Api::command(const Request &r) {
   else if (!strcmp(c, "clear_fault")) res = fsm_->command(Cmd::ClearFault);
   else if (!strcmp(c, "test_track"))  res = fsm_->command(Cmd::TestTrack, minutes);
   else if (!strcmp(c, "sleep_now"))   res = fsm_->command(Cmd::SleepNow);
+  else if (!strcmp(c, "coils"))       res = fsm_->command(Cmd::Coils, (in["on"] | false) ? 1 : 0);
+  else if (!strcmp(c, "diag")) {
+    const char *k = in["kind"] | "";
+    DiagKind dk = !strcmp(k, "wiggle") ? DiagKind::Wiggle : !strcmp(k, "sweep") ? DiagKind::Sweep
+                : !strcmp(k, "repeat") ? DiagKind::Repeat : DiagKind::None;
+    if (dk == DiagKind::None) return error(400, "kind: wiggle, sweep or repeat");
+    res = fsm_->diag(dk, deg, in["cycles"] | 1, in["overshoot_deg"] | NAN, in["slew_hz"] | 0u);
+  }
   else if (!strcmp(c, "extend"))      res = {true, "config timeout restarted"};   // the touch did it
   else return error(400, "unknown cmd");
   Response out;
@@ -148,6 +197,68 @@ Response Api::putSchedule(const Request &r) {
   if (ok) host_.scheduleInfo(d["schedule"].to<JsonObject>());
   Response out;
   out.code = ok ? 200 : 422;
+  serializeJson(d, out.body);
+  return out;
+}
+
+// the nights a schedule resolves, from tonight: what the tracker WILL do
+void Api::preview(Schedule &s, int n, JsonArray out) {
+  int64_t now = host_.utc();
+  int32_t tz = s.doc().tz_offset_min;
+  int32_t today = (int32_t)((now + tz * 60LL) / 86400 - ((now + tz * 60LL) < 0 ? 1 : 0));
+  int shown = 0;
+  for (int32_t day = today - 1; day < today + 400 && shown < n; day++) {
+    NightPlan p; const char *why = nullptr;
+    bool ok = s.resolve(day, &p, &why);
+    if (ok && p.stop_utc <= now) continue;            // already over
+    if (!ok && day < today) continue;
+    Civil c = fromUnix((int64_t)day * 86400);
+    char date[12];
+    snprintf(date, sizeof date, "%04d-%02d-%02d", c.year, c.month, c.day);
+    JsonObject o = out.add<JsonObject>();
+    o["date"] = date;
+    if (!ok) { o["skipped"] = why ? why : "not scheduled"; }
+    else {
+      o["start_utc"] = p.start_utc;
+      o["stop_utc"] = p.stop_utc;
+      o["hours"] = round((p.stop_utc - p.start_utc) / 36.0) / 100;
+      o["start_deg"] = p.start_deg;
+      o["end_deg"] = round((p.start_deg + (p.stop_utc - p.start_utc) * SID_DEG_S) * 100) / 100;
+      o["fallback"] = p.fallback;
+      o["camera"] = (const char *)p.camera;
+      o["camera_policy"] = policyName(p.cam);
+    }
+    shown++;
+  }
+}
+
+Response Api::checkSchedule(const Request &r) {
+  static Messages err, warn;
+  err = Messages(); warn = Messages();
+  Schedule *s = host_.checkSchedule(r.body, r.body_len, &err, &warn);
+  JsonDocument d;
+  d["ok"] = s != nullptr;
+  JsonArray e = d["errors"].to<JsonArray>();
+  for (int i = 0; i < err.n; i++) e.add(err.msg[i]);
+  if (err.dropped) d["errors_dropped"] = err.dropped;
+  JsonArray w = d["warnings"].to<JsonArray>();
+  for (int i = 0; i < warn.n; i++) w.add(warn.msg[i]);
+  if (s) preview(*s, (int)queryInt(r.query, "n", 14), d["nights"].to<JsonArray>());
+  Response out;
+  out.code = s ? 200 : 422;
+  serializeJson(d, out.body);
+  return out;
+}
+
+Response Api::scheduleNights(const Request &r) {
+  Schedule *s = host_.currentSchedule();
+  if (!s) return error(404, "no valid schedule on the device");
+  JsonDocument d;
+  long n = queryInt(r.query, "n", 14);
+  if (n < 1) n = 1;
+  if (n > 60) n = 60;
+  preview(*s, (int)n, d["nights"].to<JsonArray>());
+  Response out;
   serializeJson(d, out.body);
   return out;
 }

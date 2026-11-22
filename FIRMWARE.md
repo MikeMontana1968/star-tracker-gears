@@ -247,7 +247,33 @@ slice 1/3 bench console, `src/bench_main.cpp`, unchanged).
   after the 0.44 deg overshoot). `repeat_test` should settle `BACKLASH_UNITS`.
   The "position moved while asleep" warning (threshold 0.5) can fire on that
   relaxed-train offset alone.
-- Not yet: `repeat_test`, `discover`, `/api/camera/dump`, the GoPro STA (slice 6).
+- Not yet: `discover`, `/api/camera/dump`, the GoPro STA (slice 6).
+
+### Diagnostics, calibration and the Schedule Studio (2026-11-22)
+
+- **Diagnostics** (`Fsm::diag`, CONFIG_AP only, HALT aborts): waypoints
+  base -> (base + out -> base) x N, the encoder read 400 ms after each arrival.
+  The reference is taken after a pure forward approach (prime 1 deg below
+  base), so the encoder's absolute offset drops out. Kinds: wiggle (+-2 deg
+  here), sweep (park -> N deg -> park), repeat (= s3's `repeat_test`: return
+  error in arcsec, mean / sigma / max). Per-run overrides of the overshoot
+  (`overshoot_deg`, 0 = return error is the lash) and slew (`slew_hz`), always
+  restored. `coils` on/off. Every guard trip prints its numbers to serial;
+  `/api/status` carries the TMC2209 DRV_STATUS flags.
+- **Calibration:** `firmware/tools/Run-Calibration.ps1` runs a fixed suite over
+  the serial `H` API (park lash, lash vs angle, slew speed vs lost steps, a
+  180 deg sweep). Baseline of the screw-post train:
+  `docs/calibration/2026-11-22_baseline_screw_posts.md` -- lash < 0.09 deg at
+  park, ~0.75 deg at 47-48.5 deg; 3200/s rewinds lose steps, 2000/s does not, so
+  `SLEW_MAX_HZ` = 2000 and the orient/rewind/home deadlines are 20 min.
+  `BACKLASH_UNITS` (0.44 deg) is ample at park, short at 47 deg.
+- **Schedule Studio:** `firmware/tools/Start-ScheduleStudio.cmd` starts
+  `tools/usb_bridge.py` (pyserial), which serves `web/studio.html` and the phone
+  UI on http://localhost:8780 and forwards every `/api` call over USB as one
+  `H` console line. New endpoints: `POST /api/schedule/check` (validate only,
+  plus the nights it resolves, skips with reasons), `GET /api/schedule/nights`,
+  `DELETE /api/schedule`. The FSM now holds a forwarding schedule, so an upload
+  or delete takes effect without a restart.
 
 `firmware/sidereal_drive/sidereal_drive.ino` stays where it is as the reference
 artefact. Its accumulator migrates into `lib/motion/`; the sketch is not the
@@ -925,7 +951,7 @@ watching. Cases that belong in it from day one:
 - [x] ~~**Slice 0, step 1: verify the OLED board pinout**~~ -- done 2026-09-27: OLED on 21/22, no PSRAM (§4)
 - [x] ~~Confirm the module is WROOM-32, not WROVER~~ -- pin check 2026-09-27: no PSRAM
 - [ ] Measure the real cable arc, set `TRAVEL_MIN_DEG` / `TRAVEL_MAX_DEG`
-- [ ] Set `BACKLASH_USTEPS` from a `repeat_test` run, not from the 0.35 mm estimate
+- [x] ~~Set `BACKLASH_USTEPS` from a `repeat_test` run~~ -- 2026-11-22: 0.44 deg is ample at park (docs/calibration/); recheck on the bearing build
 - [ ] Choose the AS5600 magnet orientation so the working arc clears the 0/4095 wrap
 
 **Hardware** — carried from HARDWARE.md §6

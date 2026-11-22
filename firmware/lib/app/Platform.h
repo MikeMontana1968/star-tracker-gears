@@ -56,6 +56,12 @@ struct IMotion {
   virtual bool   limitHit() = 0;                             // tracking reached the envelope
   virtual double positionDeg() = 0;                          // step counter
   virtual void   enable(bool on) = 0;                        // driver EN
+  // forward-arrival overshoot in output degrees (moveTo from above, or unloaded)
+  virtual void   setOvershootDeg(double d) { (void)d; }
+  virtual double overshootDeg() { return 0; }
+  // top slew speed, pulses/s (diagnostics: does speed cost steps?)
+  virtual void     setSlewHz(uint32_t hz) { (void)hz; }
+  virtual uint32_t slewHz() { return 0; }
   virtual ~IMotion() {}
 };
 

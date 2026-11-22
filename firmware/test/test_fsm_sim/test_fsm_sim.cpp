@@ -501,6 +501,98 @@ void test_end_night_rewinds_and_halt_stops_dead(void) {
   }
 }
 
+// ---- diagnostics ----------------------------------------------------------------
+void test_home_at_park_says_so(void) {
+  Sim s;
+  toConfig(s, T0 + H);
+  CmdResult r = s.fsm->command(Cmd::Home);
+  TEST_ASSERT_TRUE(r.ok);
+  TEST_ASSERT_EQUAL_STRING("already at park: nothing to move", r.msg);
+}
+
+void test_diag_repeat_measures_the_lash(void) {
+  Sim s;
+  s.w.lash_deg = 0.3;                     // sim overshoot 0: every return is a plain reverse arrival
+  toConfig(s, T0 + H);
+  TEST_ASSERT_FALSE(s.fsm->diag(DiagKind::Repeat, 0, 3).ok);       // degrees must be > 0
+  TEST_ASSERT_FALSE(s.fsm->diag(DiagKind::Repeat, 5, 21).ok);      // cycles 1..20
+  TEST_ASSERT_FALSE(s.fsm->diag(DiagKind::Repeat, 190, 1).ok);     // envelope
+  TEST_ASSERT_TRUE(s.fsm->diag(DiagKind::Repeat, 5, 3).ok);
+  TEST_ASSERT_FALSE(s.fsm->command(Cmd::Goto, 3).ok);              // busy
+  s.run(T0 + H + 300);
+  const DiagState &d = s.fsm->diagState();
+  TEST_ASSERT_FALSE(d.running);
+  TEST_ASSERT_TRUE(d.ok);
+  TEST_ASSERT_EQUAL(3, d.n_ret);
+  TEST_ASSERT_EQUAL(3, d.n_out);
+  TEST_ASSERT_DOUBLE_WITHIN(1, 1080, d.ret_mean_as);               // the whole lash: 0.3 deg = 1080"
+  TEST_ASSERT_DOUBLE_WITHIN(1, 0, d.ret_sd_as);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-3, 0, d.out_mean_deg);              // forward-loaded reference: out is exact
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 0.0, s.w.step_deg);              // ends at park
+  TEST_ASSERT_EQUAL(State::ConfigAp, s.fsm->state());
+  // an overshoot past the lash takes it all up: returns land on the reference
+  TEST_ASSERT_FALSE(s.fsm->diag(DiagKind::Repeat, 5, 3, 2.0).ok);  // 0..1.5
+  TEST_ASSERT_TRUE(s.fsm->diag(DiagKind::Repeat, 5, 3, 0.5).ok);
+  s.run(T0 + H + 600);
+  TEST_ASSERT_TRUE(s.fsm->diagState().ok);
+  TEST_ASSERT_DOUBLE_WITHIN(1, 0, s.fsm->diagState().ret_mean_as);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-9, 0, s.w.overshoot_deg);           // restored afterwards
+  // ...and one short of it leaves the difference
+  TEST_ASSERT_TRUE(s.fsm->diag(DiagKind::Repeat, 5, 2, 0.2).ok);
+  s.run(T0 + H + 900);
+  TEST_ASSERT_DOUBLE_WITHIN(1, 360, s.fsm->diagState().ret_mean_as);
+  // a slew-speed override runs slower and is put back afterwards
+  TEST_ASSERT_FALSE(s.fsm->diag(DiagKind::Sweep, 5, 1, NAN, 100).ok);
+  TEST_ASSERT_TRUE(s.fsm->diag(DiagKind::Sweep, 5, 1, NAN, 1600).ok);
+  TEST_ASSERT_EQUAL_UINT32(1600, s.w.slew_hz);
+  s.run(T0 + H + 1200);
+  TEST_ASSERT_TRUE(s.fsm->diagState().ok);
+  TEST_ASSERT_EQUAL_UINT32(3200, s.w.slew_hz);
+}
+
+void test_diag_wiggle_and_sweep(void) {
+  Sim s;
+  toConfig(s, T0 + H);
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::Goto, 7).ok);
+  s.run(T0 + H + 60);
+  TEST_ASSERT_TRUE(s.fsm->diag(DiagKind::Wiggle).ok);
+  s.run(T0 + H + 90);
+  TEST_ASSERT_TRUE(s.fsm->diagState().ok);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 7.0, s.w.step_deg);              // wiggle comes back to where it was
+  TEST_ASSERT_TRUE(s.fsm->diag(DiagKind::Sweep, 20).ok);
+  s.run(T0 + H + 300);
+  const DiagState &d = s.fsm->diagState();
+  TEST_ASSERT_TRUE(d.ok);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 0, d.out_err_deg[0]);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-6, 0.0, s.w.step_deg);              // sweep ends at park
+}
+
+void test_diag_halt_and_coils(void) {
+  Sim s;
+  toConfig(s, T0 + H);
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::Coils, 0).ok);
+  TEST_ASSERT_FALSE(s.w.enabled);
+  TEST_ASSERT_FALSE(s.fsm->coils());
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::Coils, 1).ok);
+  TEST_ASSERT_TRUE(s.w.enabled);
+  // a halt mid-diagnostic stops it dead
+  TEST_ASSERT_TRUE(s.fsm->diag(DiagKind::Repeat, 10, 5).ok);
+  s.run(T0 + H + 20);
+  double at = s.w.step_deg;
+  TEST_ASSERT_TRUE(s.fsm->command(Cmd::Halt).ok);
+  s.run(T0 + H + 40);
+  TEST_ASSERT_FALSE(s.fsm->diagState().running);
+  TEST_ASSERT_FALSE(s.fsm->diagState().ok);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-9, at, s.w.step_deg);
+  // refused outside CONFIG_AP
+  Sim t;
+  t.w.nights.push_back(night(T0 + 3 * H, T0 + 9 * H));
+  start(t);
+  t.run(T0 + 4 * H);
+  TEST_ASSERT_FALSE(t.fsm->diag(DiagKind::Wiggle).ok);
+  TEST_ASSERT_FALSE(t.fsm->command(Cmd::Coils, 0).ok);
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -533,5 +625,9 @@ int main(int, char **) {
   RUN_TEST(test_config_commands_are_refused_outside_config);
   RUN_TEST(test_test_track_runs_with_the_ap_up_and_leaves_tonight_alone);
   RUN_TEST(test_end_night_rewinds_and_halt_stops_dead);
+  RUN_TEST(test_home_at_park_says_so);
+  RUN_TEST(test_diag_repeat_measures_the_lash);
+  RUN_TEST(test_diag_wiggle_and_sweep);
+  RUN_TEST(test_diag_halt_and_coils);
   return UNITY_END();
 }

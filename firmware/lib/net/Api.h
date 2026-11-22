@@ -8,8 +8,13 @@
 //    GET  /api/status          the status struct, ~1 Hz polling
 //    GET  /api/schedule        the stored schedule text + validation state
 //    PUT  /api/schedule        upload: 200 + warnings, or 422 + the error list
+//    DELETE /api/schedule      remove it: the tracker then plans nothing
+//    POST /api/schedule/check  validate only: 200 + the nights it resolves, or 422
+//    GET  /api/schedule/nights?n=14   the nights the stored schedule resolves
 //    POST /api/command         {"cmd": halt | end_night | goto | jog | home |
-//                               clear_fault | test_track | sleep_now | extend,
+//                               clear_fault | test_track | sleep_now | extend |
+//                               coils {on} | diag {kind: wiggle|sweep|repeat,
+//                               deg, cycles, overshoot_deg},
 //                               "deg": n, "minutes": n}
 //    GET  /api/log?since=N     log lines since N: {next, lost, lines}
 //    GET  /api/night/last      the last night report
@@ -53,6 +58,11 @@ struct Host {
   virtual bool scheduleText(std::string *out) = 0;
   virtual void scheduleInfo(JsonObject o) = 0;        // valid, source, next night
   virtual bool uploadSchedule(const char *json, size_t len, app::Messages *err, app::Messages *warn) = 0;
+  // validate without storing; the parsed schedule (scratch, valid until the
+  // next call) or null with the errors
+  virtual app::Schedule *checkSchedule(const char *json, size_t len, app::Messages *err, app::Messages *warn) = 0;
+  virtual app::Schedule *currentSchedule() = 0;       // null: no valid schedule
+  virtual bool deleteSchedule() = 0;                  // remove it (and the fallback)
   // the last `n` night reports, one JSON object per line, oldest first
   virtual int  nights(int n, std::string *ndjson) = 0;
   virtual bool setTime(int64_t utc) = 0;
@@ -72,6 +82,9 @@ class Api {
   Response command(const Request &r);
   Response getSchedule();
   Response putSchedule(const Request &r);
+  Response checkSchedule(const Request &r);
+  Response scheduleNights(const Request &r);
+  void     preview(app::Schedule &s, int n, JsonArray out);
   Response logSince(const Request &r);
   Response nights(const Request &r, bool last_only);
   Response setTime(const Request &r);

@@ -56,6 +56,21 @@ struct EncoderMap {
         }
       }
     }
+    // just past either end (the envelope reaches -2, the sweep -1.5; a
+    // rewind overshoots below its target): extrapolate on the map's mean
+    // slope rather than fall back to the straight line, which is anchored on
+    // a constant and can sit degrees away -- the slip guard reads that jump
+    // as a slip (2026-11-22, diag priming to -1.44 deg)
+    int64_t total_u = (int64_t)(n - 1) * step_units;
+    int32_t total_r = (int32_t)raw[n - 1] - (int32_t)raw[0];
+    if (total_r <= 0) return false;
+    for (int wrap = -1; wrap < 2; wrap++) {
+      int32_t r = (int32_t)raw12 + 4096 * wrap;
+      int32_t below = (int32_t)raw[0] - r, above = r - (int32_t)raw[n - 1];
+      if (below > 0 && below <= EXTRAP_COUNTS) { *units = first_units - (int64_t)below * total_u / total_r; return true; }
+      if (above > 0 && above <= EXTRAP_COUNTS) { *units = first_units + total_u + (int64_t)above * total_u / total_r; return true; }
+    }
     return false;
   }
+  static constexpr int32_t EXTRAP_COUNTS = 64;   // ~5.6 deg of output
 };

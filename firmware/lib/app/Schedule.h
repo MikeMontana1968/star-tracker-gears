@@ -116,6 +116,7 @@ class Schedule : public ISchedule {
   // One local date -> a plan. false with *why when that date has no night.
   bool resolve(int32_t day, NightPlan *out, const char **why) const;
   const char *lastSkip() const { return last_skip_; }
+  const ScheduleDoc &doc() const { return d_; }
 
  private:
   const NightEntry *entry(int32_t day) const;

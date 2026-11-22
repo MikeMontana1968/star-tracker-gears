@@ -28,6 +28,7 @@
 #include "EncoderMap.h"
 #include "Nmea.h"
 #include "Oled.h"
+#include "StepTimer.h"
 
 namespace esp {
 
@@ -61,6 +62,11 @@ class Motion : public app::IMotion {
   bool   limitHit() override;
   double positionDeg() override;
   void   enable(bool on) override { enabled_ = on; drive(); }
+  void   setOvershootDeg(double d) override;
+  double overshootDeg() override;
+  void     setSlewHz(uint32_t hz) override { motion::MotionLock l; eng_.setSlewMax(hz); slew_hz_ = hz; }
+  uint32_t slewHz() override { return slew_hz_; }
+  uint32_t slew_hz_ = 0;                          // set by main from SLEW_MAX_HZ
   // call every loop: guards, watchdog, EN
   void   service(class Sensors &s);
   const char *lastGuard() const { return guard_; }
@@ -154,17 +160,32 @@ class ScheduleStore {
   bool load(int64_t now_utc, Print &log);          // false: no valid schedule
   bool upload(const char *json, size_t len, int64_t now_utc, app::Messages *err, app::Messages *warn);
   void markGood();                                 // after a night completes on it
-  app::ISchedule &schedule() { return valid_ ? (app::ISchedule &)sched_ : (app::ISchedule &)none_; }
+  // what the FSM holds for its whole life: forwards to the schedule in use
+  // NOW, so an upload or a delete takes effect without a restart
+  app::ISchedule &schedule() { return live_; }
   bool valid() const { return valid_; }
   const char *source() const { return source_; }
   bool text(String *out);                          // the schedule file in use
+  app::Schedule *check(const char *json, size_t len, int64_t now_utc, app::Messages *err, app::Messages *warn);
+  app::Schedule *current() { return valid_ ? &sched_ : nullptr; }
+  bool remove();                                   // delete both files: nothing planned
+  uint32_t generation() const { return gen_; }     // bumps on every upload / delete
  private:
-  struct None : app::ISchedule { app::NightPlan next(int64_t) override { return app::NightPlan(); } } none_;
+  struct Live : app::ISchedule {
+    ScheduleStore *s;
+    explicit Live(ScheduleStore *x) : s(x) {}
+    app::NightPlan next(int64_t a) override { return s->valid_ ? s->sched_.next(a) : app::NightPlan(); }
+    void setSite(double la, double lo) override { if (s->valid_) s->sched_.setSite(la, lo); }
+    app::NightPlan refresh(const app::NightPlan &p) override { return s->valid_ ? s->sched_.refresh(p) : p; }
+  } live_{this};
   app::ScheduleLimits lim_;
   static app::ScheduleDoc doc_;                    // ~6 KB: static, never on the stack
+  static app::ScheduleDoc trial_;                  // validation scratch (upload, check)
+  app::Schedule trial_sched_{trial_, lim_};
   app::Schedule sched_{doc_, lim_};
   bool valid_ = false;
   const char *source_ = "none";
+  uint32_t gen_ = 0;
 };
 
 }  // namespace esp

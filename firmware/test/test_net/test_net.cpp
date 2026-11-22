@@ -37,6 +37,18 @@ struct FakeHost : Host {
     (void)n; return c;
   }
   bool setTime(int64_t t) override { return w.setUtc(t); }
+  // the real parser and resolver behind the check / preview endpoints
+  app::ScheduleLimits lim;
+  app::ScheduleDoc trial, live;
+  app::Schedule trial_s{trial, lim}, live_s{live, lim};
+  bool have_live = false;
+  app::Schedule *checkSchedule(const char *json, size_t len, app::Messages *err, app::Messages *warn) override {
+    if (!app::parseSchedule(json, len, lim, w.utc(), &trial, err, warn)) return nullptr;
+    trial_s.reload();
+    return &trial_s;
+  }
+  app::Schedule *currentSchedule() override { return have_live ? &live_s : nullptr; }
+  bool deleteSchedule() override { have_live = false; return true; }
 };
 
 struct Rig {
@@ -198,6 +210,70 @@ void test_set_time(void) {
   TEST_ASSERT_EQUAL(400, g.call("POST", "/api/time", "{\"utc\":12}").code);
 }
 
+void test_diag_over_the_api(void) {
+  Rig g;
+  g.s.w.lash_deg = 0.2;
+  g.toConfig(T0 + H);
+  TEST_ASSERT_EQUAL(400, g.call("POST", "/api/command", "{\"cmd\":\"diag\",\"kind\":\"spin\"}").code);
+  TEST_ASSERT_EQUAL(409, g.call("POST", "/api/command", "{\"cmd\":\"diag\",\"kind\":\"sweep\"}").code);  // no deg
+  TEST_ASSERT_EQUAL(200, g.call("POST", "/api/command", "{\"cmd\":\"diag\",\"kind\":\"repeat\",\"deg\":4,\"cycles\":2}").code);
+  JsonDocument d = g.json(g.call("GET", "/api/status"));
+  TEST_ASSERT_TRUE(d["diag"]["running"].as<bool>());
+  g.s.run(T0 + H + 200);
+  d = g.json(g.call("GET", "/api/status"));
+  TEST_ASSERT_FALSE(d["diag"]["running"].as<bool>());
+  TEST_ASSERT_TRUE(d["diag"]["ok"].as<bool>());
+  TEST_ASSERT_EQUAL(2, (int)d["diag"]["return_err_arcsec"].size());
+  TEST_ASSERT_DOUBLE_WITHIN(1, 720, d["diag"]["return_mean_arcsec"].as<double>());   // the lash, 0.2 deg
+  TEST_ASSERT_EQUAL(200, g.call("POST", "/api/command", "{\"cmd\":\"coils\",\"on\":false}").code);
+  TEST_ASSERT_FALSE(g.json(g.call("GET", "/api/status"))["coils"].as<bool>());
+}
+
+static const char *SCHED =
+  "{\"version\":1,\"site\":{\"lat\":34.6,\"lon\":-120.4,\"tz_offset_min\":-480},"
+  "\"defaults\":{\"start\":{\"event\":\"dusk_astronomical\",\"offset_min\":10},"
+  "\"stop\":{\"event\":\"dawn_astronomical\",\"offset_min\":-10},\"start_angle_deg\":0,\"camera\":\"nightlapse_30s_iso800\","
+  "\"camera_policy\":\"best_effort\"},"
+  "\"nights\":[{\"date\":\"2026-11-22\"},{\"date\":\"2026-11-23\",\"skip\":true},"
+  "{\"date\":\"2026-11-24\",\"start\":{\"utc\":\"2026-11-25T03:00:00Z\"},\"stop\":{\"utc\":\"2026-11-25T09:00:00Z\"}}],"
+  "\"repeat_after_list\":true}";
+
+void test_schedule_check_previews_without_storing(void) {
+  Rig g;
+  g.toConfig(T0 + H);                                   // 2026-11-22 01:00Z = the 21st locally
+  Response r = g.call("POST", "/api/schedule/check", SCHED, "n=5");
+  TEST_ASSERT_EQUAL(200, r.code);
+  JsonDocument d = g.json(r);
+  JsonArray n = d["nights"];
+  TEST_ASSERT_EQUAL(5, (int)n.size());
+  TEST_ASSERT_EQUAL_STRING("2026-11-21", n[0]["date"]);   // tonight: not listed, no repeat before -> skipped
+  TEST_ASSERT_TRUE(n[0]["skipped"].is<const char *>());
+  TEST_ASSERT_EQUAL_STRING("2026-11-22", n[1]["date"]);
+  TEST_ASSERT_TRUE(n[1]["hours"].as<double>() > 10 && n[1]["hours"].as<double>() < 13);
+  TEST_ASSERT_TRUE(n[2]["skipped"].is<const char *>());   // the skip
+  TEST_ASSERT_EQUAL_INT64(1795575600, n[3]["start_utc"].as<int64_t>());   // the UTC override, 2026-11-25T03:00Z
+  TEST_ASSERT_DOUBLE_WITHIN(0.01, 6.0, n[3]["hours"].as<double>());
+  TEST_ASSERT_FALSE(n[4]["skipped"].is<const char *>());  // repeat after the list
+  TEST_ASSERT_FALSE(g.host.have_live);                    // nothing stored
+  r = g.call("POST", "/api/schedule/check", "{\"version\":1}");
+  TEST_ASSERT_EQUAL(422, r.code);
+  TEST_ASSERT_TRUE(g.json(r)["errors"].size() > 0);
+}
+
+void test_schedule_nights_and_delete(void) {
+  Rig g;
+  g.toConfig(T0 + H);
+  TEST_ASSERT_EQUAL(404, g.call("GET", "/api/schedule/nights").code);
+  app::Messages e, w;
+  TEST_ASSERT_TRUE(app::parseSchedule(SCHED, strlen(SCHED), g.host.lim, g.s.w.utc(), &g.host.live, &e, &w));
+  g.host.live_s.reload();
+  g.host.have_live = true;
+  JsonDocument d = g.json(g.call("GET", "/api/schedule/nights", "", "n=3"));
+  TEST_ASSERT_EQUAL(3, (int)d["nights"].size());
+  TEST_ASSERT_EQUAL(200, g.call("DELETE", "/api/schedule").code);
+  TEST_ASSERT_EQUAL(404, g.call("GET", "/api/schedule/nights").code);
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -212,5 +288,8 @@ int main(int, char **) {
   RUN_TEST(test_log_since_and_ring_overflow);
   RUN_TEST(test_night_reports_as_json);
   RUN_TEST(test_set_time);
+  RUN_TEST(test_diag_over_the_api);
+  RUN_TEST(test_schedule_check_previews_without_storing);
+  RUN_TEST(test_schedule_nights_and_delete);
   return UNITY_END();
 }

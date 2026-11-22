@@ -126,7 +126,7 @@ static void command(String &line) {
       for (int i = 0; i < err.n; i++) Serial.printf("  error: %s\n", err.msg[i]);
       if (err.dropped) Serial.printf("  (+%d more errors)\n", err.dropped);
       for (int i = 0; i < warn.n; i++) Serial.printf("  warning: %s\n", warn.msg[i]);
-      if (ok) { nextNight(); Serial.println("(takes effect at the next IDLE; Z restarts now)"); }
+      if (ok) { nextNight(); Serial.println("(takes effect at the next IDLE)"); }
       break;
     }
     case 'T': {
@@ -227,6 +227,7 @@ void setup() {
   c.max_units = degToUnits(TRAVEL_MAX_DEG);
   eng = new StepEngine(c);
   mot = new esp::Motion(*eng, tmc, clk);
+  mot->slew_hz_ = SLEW_MAX_HZ;
 
   bool uart_ok = tmc.begin(Serial2, PIN_TMC_RX, PIN_TMC_TX) && tmc.configure() && tmc.setMicrosteps(8);
   mot->begin(uart_ok);
@@ -246,7 +247,7 @@ void setup() {
   plat = new app::Platform{clk, *mot, sens, gps, cam, store, sstore.schedule(), sys_};
   fsm = new app::Fsm(*plat, fc);
 
-  host = new esp::EspHost(clk, *mot, sens, as5600, ds3231, gps, store, sstore);
+  host = new esp::EspHost(clk, *mot, sens, as5600, ds3231, gps, store, sstore, tmc);
   api = new net::Api(*host, logring);
   api->attach(fsm);
   esp::web::begin(*api);
@@ -272,6 +273,12 @@ void loop() {
   gps.service();
   mot->service(sens);
   esp::web::service();
+  static uint32_t sched_gen = sstore.generation();
+  if (sys_.asleep() && sstore.generation() != sched_gen) {   // new schedule while asleep: plan again now
+    Serial.println("schedule changed while asleep: restarting to re-plan");
+    g_soft_wake = SOFT_ALARM; Serial.flush(); delay(50); ESP.restart();
+  }
+  sched_gen = sstore.generation();
   if (sys_.asleep()) {
     if (board::wakeLow() && !(ds3231.alarmFired())) g_soft_wake = SOFT_BUTTON;
     else g_soft_wake = SOFT_ALARM;
