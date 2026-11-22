@@ -109,11 +109,17 @@ void Motion::service(Sensors &s) {
   if (r < 0) return;
   if (!jam_armed_) {
     jam_pos0_ = pos; jam_raw0_ = r; jam_armed_ = true;
-    if (s.encoderUnits(r, &eu)) slip_off0_ = eu - pos;
+    if (s.encoderUnits(r, &eu, &slip_map_)) slip_off0_ = eu - pos;
     return;
   }
-  if (s.encoderUnits(r, &eu) &&
-      llabs((eu - pos) - slip_off0_) > degToUnits(s.mapValid() ? SLIP_DEG_MAP : SLIP_DEG_LINE)) {
+  bool fm = false;
+  bool eok = s.encoderUnits(r, &eu, &fm);
+  // crossing between the straight line (outside the calibrated arc) and the map
+  // is a step in the reading, not a slip: re-arm the baseline there
+  if (eok && fm != slip_map_) { slip_map_ = fm; slip_off0_ = eu - pos; }
+  // the threshold follows where THIS reading came from (2026-11-22: a home from
+  // -64 deg tripped the map's 2 deg on line readings that are good to ~3%)
+  if (eok && llabs((eu - pos) - slip_off0_) > degToUnits(fm ? SLIP_DEG_MAP : SLIP_DEG_LINE)) {
     Serial.printf("GUARD slip: pos %.3f deg, encoder-minus-counter drifted %.3f deg this move\n", unitsToDeg(pos), unitsToDeg((eu - pos) - slip_off0_));
     stop(); guard_ = "slip"; jam_armed_ = false; return;
   }
@@ -131,9 +137,10 @@ void Motion::service(Sensors &s) {
 }
 
 // ---- sensors -------------------------------------------------------------------
-bool Sensors::encoderUnits(int raw, int64_t *u) {
+bool Sensors::encoderUnits(int raw, int64_t *u, bool *from_map) {
+  if (from_map) *from_map = false;
   if (raw < 0) return false;
-  if (map_.valid() && map_.toUnits((uint16_t)raw, u)) return true;
+  if (map_.valid() && map_.toUnits((uint16_t)raw, u)) { if (from_map) *from_map = true; return true; }
   int d = raw - ENC_RAW_START;                 // line, unwrapped into -90..+270 deg
   while (d >= 3072) d -= 4096;
   while (d < -1024) d += 4096;
@@ -159,7 +166,13 @@ double Sensors::batteryV() {
 void Gps::begin() { Serial1.begin(9600, SERIAL_8N1, 18, 5); }
 void Gps::power(bool on) { board::gps(on); on_ = on; if (on) { seen_rmc_ = nmea_.fix().rmc_count; } }
 void Gps::service() {
-  while (Serial1.available()) if (nmea_.feed((char)Serial1.read())) last_rmc_ms_ = millis();
+  if (echo_ && (int32_t)(millis() - echo_until_) >= 0) { echo_ = false; Serial.println("\n[gps echo off]"); }
+  while (Serial1.available()) {
+    char c = (char)Serial1.read();
+    bytes_++;
+    if (echo_) Serial.write(c);
+    if (nmea_.feed(c)) last_rmc_ms_ = millis();
+  }
 }
 bool Gps::fix(int64_t *utc, double *lat, double *lon) {
   service();

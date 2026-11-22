@@ -78,6 +78,7 @@ class Motion : public app::IMotion {
   bool uart_ok_ = false, enabled_ = false;
   // guards
   bool jam_armed_ = false; int64_t jam_pos0_ = 0, slip_off0_ = 0; int jam_raw0_ = 0;
+  bool slip_map_ = true;                           // the slip baseline's reading came from the map
   uint32_t last_health_ = 0;
   const char *guard_ = "";
 };
@@ -87,7 +88,8 @@ class Sensors : public app::ISensors {
   Sensors(As5600 &a, EncoderMap &m) : enc_(a), map_(m) {}
   bool   encoderDeg(double *deg) override;
   double batteryV() override;
-  bool   encoderUnits(int raw, int64_t *units);   // map, else the straight line
+  // map (incl. its short extrapolation), else the straight line; *from_map says which
+  bool   encoderUnits(int raw, int64_t *units, bool *from_map = nullptr);
   int    raw() { return enc_.raw(); }
   bool   mapValid() const { return map_.valid(); }
  private:
@@ -103,9 +105,12 @@ class Gps : public app::IGps {
   void service();                                  // drain the UART
   const Nmea::Fix &nmea() const { return nmea_.fix(); }
   bool on() const { return on_; }
+  void echo(uint32_t ms) { echo_until_ = millis() + ms; echo_ = ms > 0; }   // copy raw NMEA to the console
+  uint32_t bytes() const { return bytes_; }
  private:
   Nmea nmea_;
   bool on_ = false;
+  bool echo_ = false; uint32_t echo_until_ = 0, bytes_ = 0;
   uint32_t last_rmc_ms_ = 0; uint32_t seen_rmc_ = 0;
 };
 

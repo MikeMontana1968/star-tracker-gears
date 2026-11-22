@@ -249,6 +249,26 @@ regenerate.
     (Connections > Camera Info; never typed by Claude) -> Save -> Discover ->
     check/fix every setting id against the dump -> Test track + camera
     (10 min) -> answers "does the AP stay rejoinable mid-record" and WoL.
+23. **Rev D: J2's USB-A plug hits J11 (found 2026-11-22).** J2 (camera USB-A,
+    `place.py` (60, 8, 0)) opens sideways along the top edge, and a plug plus
+    its strain relief (~35-40 mm) runs into J11 (spare IO, (26, 7, 90)), with
+    J1 and H1 next in line. Rotate J2 so the plug enters from the board edge
+    (opening outward), and keep ~45 mm clear in front of any USB opening;
+    re-check J1's turn (note 11) at the same time. Rev C build workaround: a
+    90-deg "up angle" USB-A adapter, or feed the camera from J3 (same switched
+    +5V_CAM) with a USB-C pigtail -- twist D+ and D- together in the pigtail,
+    as J2's footprint does, so the GoPro charges at full current.
+24. **GPS verified on the board; PPS dropped (2026-11-22).** New console
+    `G on|off` (IDLE/CONFIG_AP/FAULT only) and `G raw [s]` (raw NMEA echo);
+    `g` now shows bytes and UTC. GY-NEO6MV2 on UART1 9600: 0 bad checksums
+    in 228 sentences; cold start indoors to a 3-D fix in ~2 min (7 sats,
+    HDOP 1.5). **No PPS lead**: nothing in the firmware reads it. Time comes
+    from the RMC (whole seconds; sentence latency well under 1 s, i.e.
+    < 0.004 deg of sky), and the tracking rate comes from the ESP32 crystal
+    through the step timer, not from absolute time -- so PPS would only have
+    measured crystal ppm (`gps.pps_ppm`, never implemented). 20 ppm over a
+    10 h night is 0.7 s = 0.003 deg, far below the gear lash. J9.1 and
+    GPIO 23 stay unused.
 
 ## Module facts, measured and confirmed
 
@@ -312,8 +332,6 @@ ride on the threads, so a screw with a smooth shank under the gear runs better.
   camera sweeps ~180° a night and the enclosure does not, so "display opposite
   the lens" only holds at one point in the sweep if the panel is fixed.
   `oled_on_while_tracking` currently defaults to on.
-- **Solder the GPS PPS flying lead.** The GY-NEO6MV2's 4-pin header does not
-  bring TIMEPULSE out; tap it at the on-board PPS LED.
 - The three HERO6 unknowns in HARDWARE.md §6 are still unmeasured.
 
 ## Where things are

@@ -11,6 +11,8 @@
 //    T <unix>   set the DS3231 (UTC seconds)
 //    r [n]      the last n night reports (default 5)
 //    g          GPS / NMEA state
+//    G on|off   GPS power by hand (IDLE / CONFIG_AP / FAULT only)
+//    G raw [s]  copy the raw NMEA to the console for s seconds (default 5)
 //    B          toggle stay-awake (bench default ON: the board waits on USB
 //               instead of deep sleeping -- turn it OFF for deployment)
 //    F          clear a fault, then restart
@@ -139,9 +141,30 @@ static void command(String &line) {
     case 'r': store.printReports(Serial, arg.length() ? arg.toInt() : 5); break;
     case 'g': {
       const Nmea::Fix &f = gps.nmea();
-      Serial.printf("gps %s  rmc %lu gga %lu bad %lu  status %s  q %d sats %d hdop %.1f  %.5f %.5f\n",
-                    gps.on() ? "ON" : "off", (unsigned long)f.rmc_count, (unsigned long)f.gga_count,
-                    (unsigned long)f.bad_checksum, f.rmc_ok ? "A" : "V", f.quality, f.sats, f.hdop, f.lat, f.lon);
+      char u[24] = "-";
+      if (f.utc) fmtUtc(f.utc, u, sizeof u);
+      Serial.printf("gps %s  bytes %lu  rmc %lu gga %lu bad %lu  status %s  q %d sats %d hdop %.1f  %.5f %.5f  utc %s\n",
+                    gps.on() ? "ON" : "off", (unsigned long)gps.bytes(), (unsigned long)f.rmc_count,
+                    (unsigned long)f.gga_count, (unsigned long)f.bad_checksum, f.rmc_ok ? "A" : "V", f.quality,
+                    f.sats, f.hdop, f.lat, f.lon, u);
+      break;
+    }
+    case 'G': {                                   // G on | G off | G raw [s]: bench GPS checks outside a night
+      app::State st = fsm->state();
+      bool idle = (st == app::State::Idle || st == app::State::ConfigAp || st == app::State::Fault) &&
+                  !fsm->nightActive();
+      if (arg.startsWith("raw")) {
+        int s = arg.length() > 3 ? arg.substring(3).toInt() : 5;
+        if (s <= 0) s = 5;
+        gps.echo((uint32_t)s * 1000);
+        Serial.printf("[gps echo %d s]\n", s);
+      } else if (!idle) {
+        Serial.println("GPS power is the FSM's during a night: G on/off only in IDLE, CONFIG_AP or FAULT");
+      } else {
+        bool on = arg.length() ? arg == "on" : !gps.on();
+        gps.power(on);
+        Serial.printf("GPS power %s\n", on ? "ON (fix takes ~30 s warm, minutes cold; needs sky)" : "off");
+      }
       break;
     }
     case 'B': {
