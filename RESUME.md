@@ -163,9 +163,13 @@ regenerate.
     the plate, motor below): DIR LOW = motor CLOCKWISE, DIR HIGH = CCW.** Four
     single-mesh stages = even reversals, so the output follows the motor:
     **tracking (output CW from the camera end) = DIR LOW** (predicted; the
-    AS5600 raw should count UP during the DIR LOW leg). Still to do: rerun
-    first_spin WITH the gear train installed to confirm that and the
-    microstep mode.
+    AS5600 raw should count UP during the DIR LOW leg). **CONFIRMED by
+    first_spin with the gear train in:** DIR HIGH -57 counts (-5.01 deg, CCW),
+    DIR LOW +53 counts (+4.66 deg, CW) for 46161 steps each; 1/8 predicts
+    5.07 deg. 1/8 microstepping confirmed; tracking DIR = LOW. The 4-count
+    shortfall on the reversed leg (net -4) is backlash, ~0.35 deg at the
+    output: take it up with a short pre-roll in the tracking direction
+    before an exposure run.
     Bench sketches: first_spin, tmc_probe, driver_hold, driver_lines,
     driver_off, spin_dir.
 
