@@ -304,6 +304,32 @@ regenerate.
     latitudes. Studio: "Dark sky" and "Moon" buttons (N nights from a date,
     with a preset), a Target selector, and a moon column (phase, rise bearing,
     end bearing/alt) for aiming. 94 host tests.
+27. **Endurance + camera balance (2026-11-23).** Run 1 (GoPro on) faulted on
+    divergence after 7 h: the camera's off-axis weight tilted the main gear
+    until it bound. Camera off, run 2: lunar 3 h max div 0.68 deg (vs 1.52),
+    re-home lost ~0.17 deg; solar leg in progress. Lesson: **balance the
+    payload on the axis** (or counterweight) before any camera run.
+28. **NEAR-TERM FEATURE: Canon EOS 70D as the camera (planned 2026-11-23).**
+    May replace the GoPro. Wired, not Wi-Fi (Canon's Wi-Fi protocol is
+    undocumented):
+    - **E3 remote jack** (2.5 mm TRS, RS-60E3 type, left side "REMOTE"):
+      tip = shutter, ring = focus (half-press), sleeve = ground. Fire = short
+      focus + shutter to sleeve; hold ~150 ms, or for the whole exposure in
+      **Bulb** (70D timed shutter tops out at 30 s; no built-in intervalometer,
+      so the tracker is the intervalometer).
+    - **Drive:** 2x DIP optocouplers (4N35 / PC817), GPIO -> ~330 R -> LED;
+      transistor C to tip/ring, E to sleeve. Isolated from the camera.
+      Rev C is frozen: an **external pod off a spare header pin** -- check which
+      Rev C pins are free first.
+    - **Power:** LP-E6/LP-E6N won't last a long night; **DR-E6 dummy battery**
+      (ACK-E6 or 3rd-party) fed ~7.4-8 V from a 12 V buck. Budget ~0.3-0.5 A at
+      12 V while shooting.
+    - **Firmware:** a new ICamera driver beside the GoPro one (Wake/Config =
+      no-ops, Start/Stop = an exposure timer pulsing the GPIOs). Presets carry
+      exposure s + interval s (Bulb). No feedback: frames/card/battery can't be
+      confirmed, so Op::Ok = "pulses sent".
+    - **Mechanical:** a 70D + lens is far heavier than the GoPro -> balance or
+      counterweight it (see 27).
 
 ## Module facts, measured and confirmed
 
