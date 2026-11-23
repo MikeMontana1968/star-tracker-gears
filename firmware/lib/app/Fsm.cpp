@@ -345,6 +345,8 @@ CmdResult Fsm::command(Cmd c, double arg) {
       // profile's shared settings only
       strncpy(pl.camera, with_cam ? test_preset_ : "", sizeof pl.camera - 1);
       test_preset_[0] = 0;
+      pl.rate = test_rate_;
+      test_rate_ = TrackRate::Sidereal;
       move_pending_ = false;
       startNight(pl);
       return {true, "test track starting"};

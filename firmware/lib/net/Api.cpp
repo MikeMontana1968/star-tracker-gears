@@ -127,7 +127,8 @@ Response Api::status() {
       int64_t el = now - n.plan.start_utc;
       o["tracking_elapsed_s"] = el > 0 ? el : 0;
       o["tracking_remaining_s"] = n.plan.stop_utc > now ? n.plan.stop_utc - now : 0;
-      o["expected_deg"] = n.plan.start_deg + (el > 0 ? el : 0) * rateDegPerS(n.plan.rate);
+      o["rate"] = rateName(n.plan.rate);
+    o["expected_deg"] = n.plan.start_deg + (el > 0 ? el : 0) * rateDegPerS(n.plan.rate);
     }
   } else {
     d["night"] = nullptr;
@@ -182,11 +183,18 @@ Response Api::command(const Request &r) {
   else if (!strcmp(c, "jog"))         res = fsm_->command(Cmd::Jog, deg);
   else if (!strcmp(c, "home"))        res = fsm_->command(Cmd::Home);
   else if (!strcmp(c, "clear_fault")) res = fsm_->command(Cmd::ClearFault);
-  else if (!strcmp(c, "test_track") && (in["camera"] | false)) {
-    fsm_->testPreset(in["preset"] | "");
-    res = fsm_->command(Cmd::TestTrackCamera, minutes);
+  else if (!strcmp(c, "test_track")) {
+    // {minutes, camera?, preset?, rate?: sidereal | lunar | solar}
+    const char *r = in["rate"] | "sidereal";
+    TrackRate tr = !strcmp(r, "lunar") ? TrackRate::Lunar : !strcmp(r, "solar") ? TrackRate::Solar : TrackRate::Sidereal;
+    bool cam = in["camera"] | false;
+    if (tr == TrackRate::Sidereal && strcmp(r, "sidereal")) { res.ok = false; res.msg = "rate must be sidereal, lunar or solar"; }
+    else {
+      fsm_->testRate(tr);
+      if (cam) fsm_->testPreset(in["preset"] | "");
+      res = fsm_->command(cam ? Cmd::TestTrackCamera : Cmd::TestTrack, minutes);
+    }
   }
-  else if (!strcmp(c, "test_track"))  res = fsm_->command((in["camera"] | false) ? Cmd::TestTrackCamera : Cmd::TestTrack, minutes);
   else if (!strcmp(c, "discover"))    res = fsm_->command(Cmd::Discover);
   else if (!strcmp(c, "sleep_now"))   res = fsm_->command(Cmd::SleepNow);
   else if (!strcmp(c, "coils"))       res = fsm_->command(Cmd::Coils, (in["on"] | false) ? 1 : 0);
@@ -262,7 +270,7 @@ void Api::preview(Schedule &s, int n, JsonArray out) {
       o["start_deg"] = p.start_deg;
       o["preset"] = (const char *)p.camera;
       o["end_deg"] = round((p.start_deg + (p.stop_utc - p.start_utc) * rateDegPerS(p.rate)) * 100) / 100;
-      o["rate"] = p.rate == TrackRate::Lunar ? "lunar" : "sidereal";
+      o["rate"] = rateName(p.rate);
       if (p.moon) {
         // for aiming at setup: where the moon is when tracking starts and ends
         moon::Pos a = moon::at(p.start_utc, s.doc().lat, s.doc().lon);

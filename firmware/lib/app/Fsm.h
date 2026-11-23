@@ -121,6 +121,7 @@ class Fsm {
 
   // the camera preset for the next TestTrackCamera ("" = the shared settings only)
   void testPreset(const char *name) { strncpy(test_preset_, name ? name : "", sizeof test_preset_ - 1); test_preset_[sizeof test_preset_ - 1] = 0; }
+  void testRate(TrackRate r) { test_rate_ = r; }            // the next test track's rate (then sidereal)
   State state() const { return state_; }
   Fault fault() const { return fault_; }
   bool  asleep() const { return asleep_; }
@@ -195,6 +196,7 @@ class Fsm {
   bool    div_armed_ = false, div_warned_ = false;
   int     batt_low_ = 0, enc_fail_ = 0;
   char    test_preset_[24] = "";
+  TrackRate test_rate_ = TrackRate::Sidereal;
   Fault   pending_fault_ = Fault::None;   // SAFE_STOP -> FAULT instead of REWIND
 };
 

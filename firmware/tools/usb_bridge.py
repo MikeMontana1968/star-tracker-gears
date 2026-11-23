@@ -131,6 +131,13 @@ class Board:
             except queue.Empty:
                 return None
 
+    def raw(self, line):
+        if self.ser is None:
+            return 503, json.dumps({"ok": False, "error": "board not connected"})
+        with self.lock:
+            self.ser.write((line + "\n").encode("utf-8"))
+        return 200, json.dumps({"ok": True, "sent": line})
+
     def request(self, method, path_q, body, timeout=8.0):
         if self.ser is None:
             return 503, json.dumps({"ok": False, "error": "board not connected: " + (self.error or "?")})
@@ -209,6 +216,17 @@ def make_handler(board):
             self._send(404, "not found", "text/plain")
 
         def do_POST(self):
+            if self.path.startswith("/bridge/console"):
+                # a few whole console commands, for test scripts: A = restart into CONFIG_AP
+                # (the boot HOME re-seeds from the encoder), Z = restart, s/g/r = reports
+                n = int(self.headers.get("Content-Length") or 0)
+                try:
+                    line = json.loads(self.rfile.read(n).decode("utf-8") or "{}").get("line", "")
+                except ValueError:
+                    line = ""
+                if line not in ("A", "Z", "s", "g", "r"):
+                    return self._send(400, json.dumps({"ok": False, "error": "line must be one of A Z s g r"}))
+                return self._send(*board.raw(line))
             self._api() if self.path.startswith("/api/") else self._send(404, "", "text/plain")
 
         def do_PUT(self):

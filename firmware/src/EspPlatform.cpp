@@ -71,7 +71,8 @@ bool Motion::startTracking(double origin_deg, int64_t origin_utc, app::TrackRate
   if (behind_us < 0) behind_us = 0;
   if ((uint64_t)behind_us > now_us) return false;       // > 115 days: not a night
   bool ok; { MotionLock l; ok = eng_.startTrackingAt(degToUnits(origin_deg), now_us - behind_us, now_us,
-                                                   rate == app::TrackRate::Lunar ? motion::LUNAR_US : motion::SIDEREAL_US); }
+                                                   rate == app::TrackRate::Lunar ? motion::LUNAR_US :
+                                                   rate == app::TrackRate::Solar ? motion::SOLAR_US : motion::SIDEREAL_US); }
   jam_armed_ = false;
   return ok;
 }

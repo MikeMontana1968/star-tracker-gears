@@ -21,9 +21,13 @@ enum class GpsPolicy : uint8_t { None, BestEffort };
 
 // Sidereal keeps the stars still; lunar (mean: the moon's hour angle runs a
 // sidereal month slower) keeps the moon still. 89428.33 s = 1 / (1/86164.0905 - 1/(27.321661 d)).
-enum class TrackRate : uint8_t { Sidereal, Lunar };
-constexpr double SIDEREAL_DAY_S = 86164.0905, LUNAR_DAY_S = 89428.33;
-inline double rateDegPerS(TrackRate r) { return 360.0 / (r == TrackRate::Lunar ? LUNAR_DAY_S : SIDEREAL_DAY_S); }
+// Solar (24 h) follows the sun: bench endurance tests only, so far.
+enum class TrackRate : uint8_t { Sidereal, Lunar, Solar };
+constexpr double SIDEREAL_DAY_S = 86164.0905, LUNAR_DAY_S = 89428.33, SOLAR_DAY_S = 86400.0;
+inline double rateDegPerS(TrackRate r) {
+  return 360.0 / (r == TrackRate::Lunar ? LUNAR_DAY_S : r == TrackRate::Solar ? SOLAR_DAY_S : SIDEREAL_DAY_S);
+}
+inline const char *rateName(TrackRate r) { return r == TrackRate::Lunar ? "lunar" : r == TrackRate::Solar ? "solar" : "sidereal"; }
 enum class Op : uint8_t { Pending, Ok, Fail };
 enum class Wake : uint8_t { PowerOn, Alarm, Button };
 // what the radio must be doing; the FSM's state table decides (FIRMWARE.md s3)

@@ -31,6 +31,7 @@ namespace motion {
 constexpr int64_t  USTEPS_PER_REV = 200LL * 32LL * 2048LL;   // 13,107,200
 constexpr uint64_t SIDEREAL_US    = 86164090500ULL;          // 86164.0905 s
 constexpr uint64_t LUNAR_US       = 89428330000ULL;          // 89428.33 s: the mean lunar day
+constexpr uint64_t SOLAR_US       = 86400000000ULL;          // 24 h
 
 inline double unitsToDeg(int64_t u) { return (double)u * 360.0 / (double)USTEPS_PER_REV; }
 inline int64_t degToUnits(double d) {
