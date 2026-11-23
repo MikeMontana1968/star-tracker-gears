@@ -23,6 +23,11 @@
 //    "repeat_after_list": true                  after the last listed date, every night
 //  }
 //
+//  "target": "moon" (in defaults or on a night; default "sky"): the night runs
+//  only while the moon is up INSIDE the start..stop window -- so with the
+//  astronomical dusk/dawn defaults it is "the moon in the dark" -- and tracks
+//  at the lunar rate. A night with the moon up < 30 min of it is skipped.
+//
 //  Events: sunset, dusk_civil, dusk_nautical, dusk_astronomical (evening of
 //  the date); sunrise, dawn_civil, dawn_nautical, dawn_astronomical (the
 //  following morning). A twilight with no solution falls back
@@ -64,6 +69,7 @@ struct NightEntry {
   double    angle = 0;
   char      camera[24] = {};
   CamPolicy policy = CamPolicy::BestEffort;
+  bool      has_target = false, moon = false;   // "target": "sky" | "moon"
 };
 
 struct ScheduleDoc {
@@ -76,6 +82,7 @@ struct ScheduleDoc {
   char      def_camera[24] = {};
   CamPolicy def_policy = CamPolicy::BestEffort;
   GpsPolicy gps = GpsPolicy::BestEffort;
+  bool      def_moon = false;          // defaults.target == "moon"
   bool      repeat = false;
   int       n = 0;
   NightEntry nights[MAX_NIGHTS];
@@ -114,7 +121,9 @@ class Schedule : public ISchedule {
   NightPlan refresh(const NightPlan &p) override;
 
   // One local date -> a plan. false with *why when that date has no night.
-  bool resolve(int32_t day, NightPlan *out, const char **why) const;
+  // clip_moon = false gives a moon night's unclipped dark window (a superset of the
+  // clipped one): the year-long envelope scan uses it, ~400 moon solves cost seconds.
+  bool resolve(int32_t day, NightPlan *out, const char **why, bool clip_moon = true) const;
   const char *lastSkip() const { return last_skip_; }
   const ScheduleDoc &doc() const { return d_; }
 

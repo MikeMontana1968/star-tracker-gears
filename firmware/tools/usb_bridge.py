@@ -142,7 +142,12 @@ class Board:
                 self.replies.get_nowait()
             line = "H %s %s%s\n" % (method, path_q, (" " + body) if body else "")
             try:
-                self.ser.write(line.encode("utf-8"))
+                # paced: boards flashed before the 8 KB RX buffer overflowed theirs at ~1.5 KB
+                data = line.encode("utf-8")
+                for i in range(0, len(data), 128):
+                    self.ser.write(data[i:i + 128])
+                    self.ser.flush()
+                    time.sleep(0.012)
             except Exception as e:        # noqa: BLE001
                 return 503, json.dumps({"ok": False, "error": "serial write failed: %s" % e})
             try:

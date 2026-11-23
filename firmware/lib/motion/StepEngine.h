@@ -30,6 +30,7 @@ namespace motion {
 // Output shaft: 2048:1 gear train x 200 full steps x 32 (canonical units).
 constexpr int64_t  USTEPS_PER_REV = 200LL * 32LL * 2048LL;   // 13,107,200
 constexpr uint64_t SIDEREAL_US    = 86164090500ULL;          // 86164.0905 s
+constexpr uint64_t LUNAR_US       = 89428330000ULL;          // 89428.33 s: the mean lunar day
 
 inline double unitsToDeg(int64_t u) { return (double)u * 360.0 / (double)USTEPS_PER_REV; }
 inline int64_t degToUnits(double d) {
@@ -74,7 +75,7 @@ class StepEngine {
   // Track the line target = origin + sidereal(now - t0_us). t0 may be in the
   // past (resume after a reboot, late start): the engine catches up at the
   // capped rate. Same preconditions as startTracking.
-  bool startTrackingAt(int64_t origin_units, uint64_t t0_us, uint64_t now_us);
+  bool startTrackingAt(int64_t origin_units, uint64_t t0_us, uint64_t now_us, uint64_t period_us = SIDEREAL_US);
   void stop();                                // immediate, -> Idle
   void setSlewMax(uint32_t hz);
   // the forward-arrival overshoot (diagnostics: 0 measures the lash itself)
@@ -100,7 +101,7 @@ class StepEngine {
   const Config &config() const { return c_; }
 
   // Exact sidereal target: units travelled after elapsed_us at rate_x.
-  static int64_t siderealUnits(uint64_t elapsed_us, uint32_t rate_x = 1);
+  static int64_t siderealUnits(uint64_t elapsed_us, uint32_t rate_x = 1, uint64_t period_us = SIDEREAL_US);
 
  private:
   Pulse emit(bool forward);
@@ -125,6 +126,7 @@ class StepEngine {
   uint64_t t0_us_ = 0;
   int64_t  track_origin_ = 0, track_target_ = 0;
   uint32_t rate_x_ = 1;
+  uint64_t period_us_ = SIDEREAL_US;     // one revolution: sidereal, or lunar on moon nights
   uint32_t min_gap_ticks_ = 1, ticks_since_pulse_ = 0;
 };
 

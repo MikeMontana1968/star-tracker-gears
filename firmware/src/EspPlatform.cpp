@@ -62,7 +62,7 @@ bool Motion::moveTo(double deg) {
   return ok;
 }
 
-bool Motion::startTracking(double origin_deg, int64_t origin_utc) {
+bool Motion::startTracking(double origin_deg, int64_t origin_utc, app::TrackRate rate) {
   if (moving()) return false;
   if (!useMicrosteps(32)) return false;
   driverPin(true); delay(5);
@@ -70,7 +70,8 @@ bool Motion::startTracking(double origin_deg, int64_t origin_utc) {
   int64_t behind_us = (clock_.utcMs() - origin_utc * 1000) * 1000;
   if (behind_us < 0) behind_us = 0;
   if ((uint64_t)behind_us > now_us) return false;       // > 115 days: not a night
-  bool ok; { MotionLock l; ok = eng_.startTrackingAt(degToUnits(origin_deg), now_us - behind_us, now_us); }
+  bool ok; { MotionLock l; ok = eng_.startTrackingAt(degToUnits(origin_deg), now_us - behind_us, now_us,
+                                                   rate == app::TrackRate::Lunar ? motion::LUNAR_US : motion::SIDEREAL_US); }
   jam_armed_ = false;
   return ok;
 }

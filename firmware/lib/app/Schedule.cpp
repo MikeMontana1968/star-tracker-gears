@@ -1,4 +1,4 @@
-﻿#include "Schedule.h"
+#include "Schedule.h"
 #include <ArduinoJson.h>
 #include <math.h>
 #include <stdarg.h>
@@ -6,10 +6,10 @@
 #include <string.h>
 #include "CivilTime.h"
 #include "Solar.h"
+#include "Moon.h"
 
 namespace app {
 
-static const double SIDEREAL_DEG_PER_S = 360.0 / 86164.0905;
 
 void Messages::add(const char *fmt, ...) {
   if (n >= MAX) { dropped++; return; }
@@ -112,6 +112,14 @@ static bool parseTime(JsonVariantConst v, const char *path, bool evening, Messag
   return ok;
 }
 
+static bool parseTarget(JsonVariantConst v, const char *path, Messages *err, bool *moon) {
+  const char *s = v.as<const char *>();
+  if (s && !strcmp(s, "sky")) { *moon = false; return true; }
+  if (s && !strcmp(s, "moon")) { *moon = true; return true; }
+  err->add("%s: must be sky or moon", path);
+  return false;
+}
+
 static bool knownCamera(const ScheduleLimits &lim, const char *name) {
   if (!lim.cameras) return true;
   for (int i = 0; i < lim.n_cameras; i++) if (!strcmp(lim.cameras[i], name)) return true;
@@ -169,6 +177,7 @@ bool parseSchedule(const char *json, size_t len, const ScheduleLimits &lim, int6
     parseCamera(def["camera"], "defaults.camera", lim, err, d->def_camera);
     if (!parsePolicy(def["camera_policy"].as<const char *>(), &d->def_policy))
       err->add("defaults.camera_policy: must be none, best_effort or required");
+    if (!def["target"].isNull()) parseTarget(def["target"], "defaults.target", err, &d->def_moon);
     if (!def["gps_policy"].isNull()) {
       const char *g = def["gps_policy"].as<const char *>();
       if (g && !strcmp(g, "none")) d->gps = GpsPolicy::None;
@@ -206,6 +215,7 @@ bool parseSchedule(const char *json, size_t len, const ScheduleLimits &lim, int6
       else { e.has_angle = true; e.angle = o["start_angle_deg"].as<double>(); }
     }
     if (!o["camera"].isNull()) { snprintf(p2, sizeof p2, "%s.camera", path); e.has_camera = parseCamera(o["camera"], p2, lim, err, e.camera); }
+    if (!o["target"].isNull()) { snprintf(p2, sizeof p2, "%s.target", path); e.has_target = parseTarget(o["target"], p2, err, &e.moon); }
     if (!o["camera_policy"].isNull()) {
       if (!parsePolicy(o["camera_policy"].as<const char *>(), &e.policy)) err->add("%s.camera_policy: must be none, best_effort or required", path);
       else e.has_policy = true;
@@ -234,7 +244,7 @@ bool parseSchedule(const char *json, size_t len, const ScheduleLimits &lim, int6
     if (h > lim.max_night_h) err->add("nights[%d] (%s): %.1f h is longer than %.0f h", k, day, h, lim.max_night_h);
     if (prev_i >= 0 && p.start_utc < prev_stop) err->add("nights[%d] (%s): starts before nights[%d] ends", k, day, prev_i);
     prev_stop = p.stop_utc; prev_i = k;
-    double end = p.start_deg + (p.stop_utc - p.start_utc) * SIDEREAL_DEG_PER_S;
+    double end = p.start_deg + (p.stop_utc - p.start_utc) * rateDegPerS(p.rate);
     if (p.start_deg < lim.travel_min_deg)
       err->add("nights[%d] (%s): start angle %.1f is below the envelope (%.1f)", k, day, p.start_deg, lim.travel_min_deg);
     else if (end > lim.travel_max_deg)
@@ -248,8 +258,8 @@ bool parseSchedule(const char *json, size_t len, const ScheduleLimits &lim, int6
     double worst_end = -1e9; int32_t worst_day = 0, long_day = 0; double longest_h = 0;
     for (int32_t day = from; day < from + 366; day++) {
       NightPlan p; const char *why;
-      if (!s.resolve(day, &p, &why)) continue;
-      double end = p.start_deg + (p.stop_utc - p.start_utc) * SIDEREAL_DEG_PER_S;
+      if (!s.resolve(day, &p, &why, false)) continue;       // moon nights: the dark window bounds them
+      double end = p.start_deg + (p.stop_utc - p.start_utc) * rateDegPerS(p.rate);
       if (end > worst_end) { worst_end = end; worst_day = day; }
       double h = (p.stop_utc - p.start_utc) / 3600.0;
       if (h > longest_h) { longest_h = h; long_day = day; }
@@ -287,7 +297,7 @@ bool Schedule::timeFor(const TimeSpec &t, int32_t day, int64_t *utc, uint8_t *fe
   return false;
 }
 
-bool Schedule::resolve(int32_t day, NightPlan *out, const char **why) const {
+bool Schedule::resolve(int32_t day, NightPlan *out, const char **why, bool clip_moon) const {
   const NightEntry *e = entry(day);
   if (e && e->skip) { *why = "skipped by the schedule"; return false; }
   if (!e) {
@@ -309,6 +319,16 @@ bool Schedule::resolve(int32_t day, NightPlan *out, const char **why) const {
   p.fallback = fell_a > fell_b ? fell_a : fell_b;
   p.valid = p.stop_utc > p.start_utc;
   if (!p.valid) { *why = "stop is not after start"; return false; }
+  p.moon = e && e->has_target ? e->moon : d_.def_moon;
+  if (p.moon) {
+    p.rate = TrackRate::Lunar;
+    int64_t a, b;
+    if (clip_moon) {
+      if (!moon::upWindow(lat_, lon_, p.start_utc, p.stop_utc, &a, &b)) { *why = "the moon is not up in the window"; return false; }
+      if (b - a < 30 * 60) { *why = "the moon is up under 30 min of the window"; return false; }
+      p.start_utc = a; p.stop_utc = b;
+    }
+  }
   *out = p;
   return true;
 }

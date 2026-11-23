@@ -1,10 +1,11 @@
-﻿// Schedule + solar solver tests. Run:  pio test -e native
+// Schedule + solar solver tests. Run:  pio test -e native
 #include <unity.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
 #include "Solar.h"
+#include "Moon.h"
 #include "Schedule.h"
 #include "CivilTime.h"
 
@@ -323,8 +324,105 @@ void test_gps_site_moves_the_times(void) {
 void setUp(void) {}
 void tearDown(void) {}
 
+// ---- moon: Skyfield 1.54 / DE421 (scratchpad moon_ref.py), 2026-11-20..12-20 ----
+struct MoonSite { const char *name; double lat, lon; long long rise[6], set[6]; };
+static const MoonSite MOON_SITES[] = {
+  {"lompoc", 34.6, -120.4, {1795212690, 1795300884, 1795389373, 1795478299, 1795567804, 1795657941},
+                           {1795169864, 1795260158, 1795350698, 1795441485, 1795532408, 1795623204}},
+  {"oslo", 59.91, 10.75,   {1795179495, 1795265963, 1795352512, 1795439235, 1795526363, 1795614550},
+                           {1795137377, 1795229338, 1795321691, 1795414531, 1795507729, 1795600526}},
+  {"sydney", -33.87, 151.21, {1795146986, 1795237204, 1795327657, 1795418367, 1795509258, 1795600107},
+                           {1795190224, 1795278384, 1795366804, 1795455623, 1795544984, 1795634971}},
+};
+
+void test_moon_rise_set_match_skyfield(void) {
+  long worst = 0;
+  for (const MoonSite &s : MOON_SITES)
+    for (int i = 0; i < 6; i++) {
+      int64_t a, b;
+      // a window around the rise: down before it, so the pass starts at the rise
+      TEST_ASSERT_TRUE_MESSAGE(moon::upWindow(s.lat, s.lon, s.rise[i] - 3 * 3600, s.rise[i] + 3 * 3600, &a, &b), s.name);
+      long e = (long)llabs(a - s.rise[i]);
+      if (e > worst) worst = e;
+      TEST_ASSERT_TRUE_MESSAGE(e <= 180, s.name);
+      TEST_ASSERT_TRUE_MESSAGE(moon::upWindow(s.lat, s.lon, s.set[i] - 3 * 3600, s.set[i] + 3 * 3600, &a, &b), s.name);
+      e = (long)llabs(b - s.set[i]);
+      if (e > worst) worst = e;
+      TEST_ASSERT_TRUE_MESSAGE(e <= 180, s.name);
+    }
+  printf("moon rise/set: worst %ld s off Skyfield\n", worst);
+}
+
+void test_moon_position_and_phase(void) {
+  // lompoc: utc, alt, az (topocentric, no refraction), illuminated fraction
+  struct P { long long t; double alt, az, illum; } P_[] = {
+    {1795400000, 33.823, 89.364, 0.9649}, {1795450000, -22.589, 319.815, 0.985}, {1796000000, -41.85, 356.321, 0.6349}};
+  for (const P &p : P_) {
+    moon::Pos m = moon::at(p.t, 34.6, -120.4);
+    TEST_ASSERT_FLOAT_WITHIN(0.3, p.alt, m.alt_deg);
+    TEST_ASSERT_FLOAT_WITHIN(0.4, p.az, m.az_deg);
+    TEST_ASSERT_FLOAT_WITHIN(0.01, p.illum, m.illum);
+  }
+  int64_t a, b;
+  TEST_ASSERT_FALSE(moon::upWindow(34.6, -120.4, 1795389373 - 6 * 3600, 1795389373 - 3600, &a, &b));   // down all window
+}
+
+void test_moon_nights_clip_to_the_moon_in_the_dark(void) {
+  // Lompoc, astronomical dusk..dawn, target moon. Expected windows from Skyfield
+  // (scratchpad moon_nights_ref.py): dark window intersected with the moon being up.
+  const char *j =
+    "{\"version\":1,\"site\":{\"lat\":34.6,\"lon\":-120.4,\"tz_offset_min\":-480},"
+    "\"defaults\":{\"start\":{\"event\":\"dusk_astronomical\"},\"stop\":{\"event\":\"dawn_astronomical\"},"
+    "\"start_angle_deg\":0,\"camera\":\"timelapse_20s_1m\",\"camera_policy\":\"best_effort\",\"target\":\"moon\"},"
+    "\"nights\":[{\"date\":\"2026-11-22\"},{\"date\":\"2026-11-28\"},{\"date\":\"2026-12-06\"},"
+    "{\"date\":\"2026-12-13\"},{\"date\":\"2026-12-14\",\"target\":\"sky\"}],\"repeat_after_list\":false}";
+  static ScheduleDoc d; Messages err, warn;
+  TEST_ASSERT_TRUE_MESSAGE(parseSchedule(j, strlen(j), ScheduleLimits(), 1795300000, &d, &err, &warn), err.n ? err.msg[0] : "");
+  TEST_ASSERT_EQUAL(1, warn.n);                                    // 12-06: no moon -> skipped, warned
+  TEST_ASSERT_TRUE(strstr(warn.msg[0], "2026-12-06") && strstr(warn.msg[0], "moon is not up"));
+  Schedule s(d, ScheduleLimits());
+  struct W { const char *date; long long a, b; } W_[] = {
+    {"2026-11-22", 1795400472, 1795439696},      // full moon: the whole dark window
+    {"2026-11-28", 1795930353, 1795958383},      // rises in the dark
+    {"2026-12-13", 1797214916, 1797224811},      // sets in the dark
+  };
+  for (const W &w : W_) {
+    int32_t day; parseDate(w.date, &day);
+    NightPlan p; const char *why = "";
+    TEST_ASSERT_TRUE_MESSAGE(s.resolve(day, &p, &why), why);
+    TEST_ASSERT_TRUE(p.moon);
+    TEST_ASSERT_EQUAL((int)TrackRate::Lunar, (int)p.rate);
+    TEST_ASSERT_INT64_WITHIN(180, w.a, p.start_utc);
+    TEST_ASSERT_INT64_WITHIN(180, w.b, p.stop_utc);
+  }
+  int32_t day; parseDate("2026-12-06", &day);
+  NightPlan p; const char *why = "";
+  TEST_ASSERT_FALSE(s.resolve(day, &p, &why));
+  TEST_ASSERT_EQUAL_STRING("the moon is not up in the window", why);
+  parseDate("2026-12-14", &day);                    // a sky night in a moon schedule: unclipped, sidereal
+  TEST_ASSERT_TRUE(s.resolve(day, &p, &why));
+  TEST_ASSERT_FALSE(p.moon);
+  TEST_ASSERT_EQUAL((int)TrackRate::Sidereal, (int)p.rate);
+  TEST_ASSERT_INT64_WITHIN(180, 1797301336, p.start_utc);
+  // the lunar rate: a 10.9 h full-moon night ends at ~158 deg, not the ~164 sidereal would give
+  parseDate("2026-11-22", &day);
+  s.resolve(day, &p, &why);
+  double end = p.start_deg + (p.stop_utc - p.start_utc) * rateDegPerS(p.rate);
+  TEST_ASSERT_FLOAT_WITHIN(0.5, 157.9, end);
+  // a bad target is named
+  const char *bad = "{\"version\":1,\"site\":{\"lat\":34.6,\"lon\":-120.4,\"tz_offset_min\":-480},"
+    "\"defaults\":{\"start\":{\"event\":\"dusk_astronomical\"},\"stop\":{\"event\":\"dawn_astronomical\"},"
+    "\"start_angle_deg\":0,\"camera\":\"x\",\"camera_policy\":\"none\",\"target\":\"sun\"}}";
+  Messages e2;
+  TEST_ASSERT_FALSE(parseSchedule(bad, strlen(bad), ScheduleLimits(), 1795300000, &d, &e2));
+  TEST_ASSERT_EQUAL_STRING("defaults.target: must be sky or moon", e2.msg[0]);
+}
+
 int main(int, char **) {
   UNITY_BEGIN();
+  RUN_TEST(test_moon_nights_clip_to_the_moon_in_the_dark);
+  RUN_TEST(test_moon_rise_set_match_skyfield);
+  RUN_TEST(test_moon_position_and_phase);
   RUN_TEST(test_solar_matches_skyfield);
   RUN_TEST(test_resolves_a_night_from_twilight);
   RUN_TEST(test_overrides_skip_and_repeat);

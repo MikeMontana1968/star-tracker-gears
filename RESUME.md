@@ -269,6 +269,41 @@ regenerate.
     measured crystal ppm (`gps.pps_ppm`, never implemented). 20 ppm over a
     10 h night is 0.7 s = 0.003 deg, far below the gear lash. J9.1 and
     GPIO 23 stay unused.
+25. **GoPro on the bench (2026-11-22): the camera is a HERO5 Black
+    (HD5.02.02.70), not a HERO6.** Discover works; every id in
+    web/camera_profile.example.json is verified against its dump (the HERO6
+    guesses were wrong: protune 34 not 21, ISO 37/76 not 24, interval 3601 not
+    0, recording key 10 `encoding_active`, not 8 `system_busy`). Findings, each
+    fixed + host-tested:
+    - **A slept HERO5 cannot be woken**: not by wake-on-LAN, not by cycling the
+      USB rail. Asleep it still answers status with 200
+      `{"state":{"shutdown_pending":true}}`. So: `sleep_after_stop` false,
+      Auto Off = never (59=0), the user turns the camera on at setup; wake
+      always sends WoL and needs two full status reads to call it awake.
+    - **A recording HERO5 could not be rejoined** (20 s) to stop it: the radio
+      table now keeps STA from the camera's start to its stop (beats the bench
+      AP and D8; the USB bridge still reaches the tracker).
+    - Stop must outlast the frame in progress: `timing.stop_s` (45 s), CAM_STOP
+      90 s, SAFE_STOP's camera stop 60 s.
+    - Bench supply >= 1.5 A with the camera on USB (it charges at ~1 A; a
+      500 mA limit sagged 12 V to 5.4 V and safe-stopped "battery low").
+    - Lines over ~1.5 KB on the USB console were corrupted: RX buffer 8 KB,
+      and the bridge writes in paced 128-byte chunks.
+    **Still unproven on hardware:** one camera test night with the stay-joined
+    radio (the last two attempts could not find the camera's Wi-Fi -- check the
+    camera is on with Wireless on, then `test_track {camera, preset}`).
+    Tracking divergence reached 0.56 deg in one 10-min run (0.16-0.27 in the
+    others) -- look at it before an unattended night.
+26. **Workflows (2026-11-22): camera presets, Dark sky + Moon quick plans.**
+    The camera profile has shared `settings` plus named `presets` (each night's
+    `camera` picks one; unknown name = config fails loudly; the Studio warns).
+    Schedule `target: "moon"` clips each night to the moon being up inside its
+    start..stop window and tracks at the mean lunar rate (89428.33 s/rev;
+    `TrackRate` in NightPlan, Persist magic FSM4). lib/app/Moon (Meeus ch. 47,
+    truncated) matches Skyfield/DE421 to 19 s worst over 36 rise/sets at 3
+    latitudes. Studio: "Dark sky" and "Moon" buttons (N nights from a date,
+    with a preset), a Target selector, and a moon column (phase, rise bearing,
+    end bearing/alt) for aiming. 94 host tests.
 
 ## Module facts, measured and confirmed
 

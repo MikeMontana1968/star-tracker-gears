@@ -6,7 +6,7 @@
 
 namespace app {
 
-static const double SIDEREAL_DEG_PER_S = 360.0 / 86164.0905;
+
 
 const char *stateName(State s) {
   static const char *n[] = {"BOOT", "HOME", "IDLE", "CONFIG_AP", "PREFLIGHT", "TIME_SYNC", "ORIENT",
@@ -64,8 +64,12 @@ void Fsm::enter(State s, uint32_t deadline_ms) {
 Radio Fsm::radioFor(State s) const {
   if (s == State::ConfigAp) return discover_ == 1 ? Radio::Sta : Radio::Ap;   // discover joins the camera
   bool cam_seq = s >= State::CamPower && s <= State::CamStart;
-  bool cam_stop = (s == State::CamStop || s == State::SafeStop) && night_.camera == Op::Ok;
-  if (cam_seq || cam_stop) return Radio::Sta;                     // talking to the GoPro
+  // A recording camera keeps the STA link until it is stopped: a recording HERO5 could
+  // not be rejoined to stop it (2026-11-22), so the tracker never leaves its AP while it
+  // records. That wins over the bench AP and D8 -- the USB bridge still reaches the tracker.
+  bool cam_live = night_.camera == Op::Ok &&
+                  (s == State::WaitStart || s == State::Track || s == State::CamStop || s == State::SafeStop);
+  if (cam_seq || cam_live) return Radio::Sta;                     // talking to the GoPro
   bool winding_down = s == State::CamStop || s == State::SafeStop || s == State::Rewind;
   if (night_active_ && night_.plan.test && (activeState(s) || winding_down)) return Radio::Ap;  // bench: watch it
   if (c_.ap_during_track && (s == State::WaitStart || s == State::Track)) return Radio::Ap;
@@ -123,7 +127,7 @@ void Fsm::sleep(int64_t wake_utc) {
 
 double Fsm::expectedDeg(int64_t utc) const {
   double dt = (double)(utc - night_.plan.start_utc);
-  return night_.plan.start_deg + (dt > 0 ? dt : 0) * SIDEREAL_DEG_PER_S;
+  return night_.plan.start_deg + (dt > 0 ? dt : 0) * rateDegPerS(night_.plan.rate);
 }
 
 void Fsm::clearFault() {
@@ -337,7 +341,10 @@ CmdResult Fsm::command(Cmd c, double arg) {
       pl.cam = with_cam ? CamPolicy::BestEffort : CamPolicy::None;
       pl.gps = GpsPolicy::None;
       if (with_cam) { pl.start_utc = now + c_.cam_total_ms / 1000 + 30; pl.stop_utc = pl.start_utc + (int64_t)(arg * 60); }
-      strncpy(pl.camera, with_cam ? "test_camera" : "test_track", sizeof pl.camera - 1);
+      // the camera test uses the preset the web UI named (testPreset), or none: the
+      // profile's shared settings only
+      strncpy(pl.camera, with_cam ? test_preset_ : "", sizeof pl.camera - 1);
+      test_preset_[0] = 0;
       move_pending_ = false;
       startNight(pl);
       return {true, "test track starting"};
@@ -639,7 +646,7 @@ void Fsm::tick() {
 
     case State::Preflight: {
       const NightPlan &pl = night_.plan;
-      double end_deg = pl.start_deg + (double)(pl.stop_utc - pl.start_utc) * SIDEREAL_DEG_PER_S;
+      double end_deg = pl.start_deg + (double)(pl.stop_utc - pl.start_utc) * rateDegPerS(pl.rate);
       double enc, v = p_.sensors.batteryV();
       night_.min_battery_v = v;
       if (pl.stop_utc <= pl.start_utc) { skipNight("stop not after start"); break; }
@@ -676,7 +683,7 @@ void Fsm::tick() {
         // move it and the times follow (FIRMWARE.md s3): tonight from the fix
         p_.schedule.setSite(lat, lon);
         NightPlan np = p_.schedule.refresh(night_.plan);
-        double end = np.start_deg + (double)(np.stop_utc - np.start_utc) * SIDEREAL_DEG_PER_S;
+        double end = np.start_deg + (double)(np.stop_utc - np.start_utc) * rateDegPerS(np.rate);
         if (np.valid && np.stop_utc > np.start_utc && np.start_deg >= c_.travel_min_deg && end <= c_.travel_max_deg) {
           if (np.start_utc != night_.plan.start_utc || np.stop_utc != night_.plan.stop_utc)
             log("site from GPS: night now %lld..%lld", (long long)np.start_utc, (long long)np.stop_utc);
@@ -716,7 +723,10 @@ void Fsm::tick() {
         break;
       }
       CamStep step = state_ == State::CamWake ? CamStep::Wake : state_ == State::CamConfig ? CamStep::Config : CamStep::Start;
-      if (!cam_started_) { p_.camera.begin(step); cam_started_ = true; break; }
+      if (!cam_started_) {
+        if (step == CamStep::Config) p_.camera.preset(night_.plan.camera);
+        p_.camera.begin(step); cam_started_ = true; break;
+      }
       Op r = p_.camera.poll();
       if (r == Op::Pending) break;
       if (r == Op::Fail) {
@@ -731,7 +741,7 @@ void Fsm::tick() {
 
     case State::WaitStart:
       if (now >= night_.plan.start_utc) {
-        if (!p_.motion.startTracking(night_.plan.start_deg, night_.plan.start_utc)) {
+        if (!p_.motion.startTracking(night_.plan.start_deg, night_.plan.start_utc, night_.plan.rate)) {
           safeStop("tracking refused"); break;
         }
         if (!night_.track_start_utc) night_.track_start_utc = now;

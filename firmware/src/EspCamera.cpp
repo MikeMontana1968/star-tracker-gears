@@ -145,6 +145,11 @@ bool EspCamera::removeProfile() {
 }
 
 // ---- steps -------------------------------------------------------------------------
+void EspCamera::preset(const char *name) {
+  strncpy(preset_, name ? name : "", sizeof preset_ - 1);
+  preset_[sizeof preset_ - 1] = 0;
+}
+
 void EspCamera::power(bool on) { powered_ = on; board::camera(on); }
 
 void EspCamera::begin(app::CamStep s) {
@@ -170,7 +175,7 @@ void EspCamera::run() {
     long bytes = 0;
     switch (s) {
       case app::CamStep::Wake:     r = gp_->wake(); break;
-      case app::CamStep::Config:   r = gp_->configure(); break;
+      case app::CamStep::Config:   r = gp_->configure(preset_); break;
       case app::CamStep::Start:    r = gp_->start(); break;
       case app::CamStep::Stop:     r = gp_->stop(); break;
       case app::CamStep::Discover:
@@ -193,7 +198,11 @@ void EspCamera::status(JsonObject o) {
   o["joined"] = s_io ? s_io->joined() : false;
   o["busy"] = busy_;
   o["last_step"] = (const char *)last_step_;
+  o["preset"] = (const char *)preset_;
+  JsonArray pr = o["presets"].to<JsonArray>();
+  for (int i = 0; i < prof_.n_presets; i++) pr.add((const char *)prof_.presets[i].name);
   o["reachable"] = s.reachable;
+  o["asleep"] = s.asleep;
   o["recording"] = s.recording;
   if (s.battery_pct >= 0) o["battery_pct"] = s.battery_pct;
   if (s.sd_free_kb >= 0) o["sd_free_mb"] = s.sd_free_kb / 1024;

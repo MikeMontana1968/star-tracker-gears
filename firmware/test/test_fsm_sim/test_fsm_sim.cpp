@@ -51,6 +51,21 @@ void test_one_good_night(void) {
   TEST_ASSERT_FALSE(s.w.gps_on);
 }
 
+void test_a_moon_night_tracks_at_the_lunar_rate(void) {
+  Sim s;
+  NightPlan n = night(T0 + 3 * H, T0 + 13 * H, 0.0);
+  n.moon = true; n.rate = TrackRate::Lunar;
+  s.w.nights.push_back(n);
+  start(s);
+  s.run(T0 + 8 * H);                                                // 5 h into the night
+  TEST_ASSERT_EQUAL((int)TrackRate::Lunar, (int)s.w.last_rate);
+  TEST_ASSERT_DOUBLE_WITHIN(0.05, 5 * 3600 * 360.0 / LUNAR_DAY_S, s.w.true_deg);   // 72.5, not 75.2
+  s.run(T0 + 15 * H);
+  TEST_ASSERT_EQUAL(1, (int)s.w.reports.size());
+  TEST_ASSERT_EQUAL(Outcome::Completed, s.w.reports[0].outcome);
+  TEST_ASSERT_TRUE(s.w.reports[0].max_div_deg < 0.01);              // the divergence check uses the same rate
+}
+
 void test_three_nights_in_a_row(void) {
   Sim s;
   for (int d = 0; d < 3; d++) s.w.nights.push_back(night(T0 + d * 24 * H + 3 * H, T0 + d * 24 * H + 13 * H));
@@ -389,15 +404,30 @@ void test_radio_table_over_a_night(void) {
     TEST_ASSERT_EQUAL(0, (int)s.w.radios.size());     // HOME/IDLE never touch the radio
     s.run(T0 + 3 * H - 5);                             // camera done, waiting for the start
     TEST_ASSERT_EQUAL(Radio::Sta, s.w.radios[0]);      // the camera sequence: STA
-    TEST_ASSERT_EQUAL(ap ? Radio::Ap : Radio::Off, s.w.radio_now);
+    TEST_ASSERT_EQUAL(Radio::Sta, s.w.radio_now);      // recording: stay joined (D8 does not apply)
     s.run(T0 + 5 * H);
-    TEST_ASSERT_EQUAL(ap ? Radio::Ap : Radio::Off, s.w.radio_now);  // D8
+    TEST_ASSERT_EQUAL(Radio::Sta, s.w.radio_now);
     s.run(T0 + 10 * H);
     TEST_ASSERT_EQUAL(Radio::Off, s.w.radio_now);
-    // camera STA -> (AP while tracking) -> camera-stop STA -> off for the rewind
-    Radio want[4] = {Radio::Sta, ap ? Radio::Ap : Radio::Off, Radio::Sta, Radio::Off};
-    TEST_ASSERT_EQUAL(4, (int)s.w.radios.size());
-    for (int i = 0; i < 4; i++) TEST_ASSERT_EQUAL(want[i], s.w.radios[i]);
+    // STA from the wake to the stop, never dropped -> off for the rewind
+    TEST_ASSERT_EQUAL(2, (int)s.w.radios.size());
+    TEST_ASSERT_EQUAL(Radio::Sta, s.w.radios[0]);
+    TEST_ASSERT_EQUAL(Radio::Off, s.w.radios[1]);
+  }
+}
+
+void test_radio_table_without_a_camera(void) {
+  // the camera failed: nothing to stay joined to, so D8 decides the tracking radio
+  for (int ap = 0; ap < 2; ap++) {
+    Sim s;
+    s.cfg.ap_during_track = ap;
+    s.w.cam.fail_step = (int)CamStep::Wake;
+    s.w.nights.push_back(night(T0 + 3 * H, T0 + 9 * H));
+    start(s);
+    s.run(T0 + 5 * H);
+    TEST_ASSERT_EQUAL(ap ? Radio::Ap : Radio::Off, s.w.radio_now);
+    s.run(T0 + 10 * H);
+    TEST_ASSERT_EQUAL(Radio::Off, s.w.radio_now);
   }
 }
 
@@ -640,6 +670,7 @@ void tearDown(void) {}
 int main(int, char **) {
   UNITY_BEGIN();
   RUN_TEST(test_one_good_night);
+  RUN_TEST(test_a_moon_night_tracks_at_the_lunar_rate);
   RUN_TEST(test_three_nights_in_a_row);
   RUN_TEST(test_camera_fails_at_every_stage_night_still_tracks);
   RUN_TEST(test_camera_required_and_failing_skips_the_night);
@@ -662,6 +693,7 @@ int main(int, char **) {
   RUN_TEST(test_config_ap_brings_the_ap_up_and_activity_keeps_it);
   RUN_TEST(test_config_ap_gives_way_to_a_scheduled_night);
   RUN_TEST(test_radio_table_over_a_night);
+  RUN_TEST(test_radio_table_without_a_camera);
   RUN_TEST(test_config_commands_move_inside_the_envelope_only);
   RUN_TEST(test_config_commands_are_refused_outside_config);
   RUN_TEST(test_test_track_runs_with_the_ap_up_and_leaves_tonight_alone);

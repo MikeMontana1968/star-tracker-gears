@@ -40,6 +40,7 @@ struct World : IClock, IMotion, ISensors, IGps, IStore, ISchedule, ISystem {
   double  step_deg = 0, true_deg = 0;
   double  slew_target = 0;
   double  track_origin = 0; int64_t track_origin_true_ms = 0;
+  double  track_dps = SID_DEG_S; TrackRate last_rate = TrackRate::Sidereal;
   bool    arrived_ = false, limit_ = false, enabled = false;
   double  slew_dps = 0.3516;     // 3200 pulses/s at 1/8
   double  catchup_dps = 0.044;   // 1600 pulses/s at 1/32
@@ -64,9 +65,9 @@ struct World : IClock, IMotion, ISensors, IGps, IStore, ISchedule, ISystem {
     else { slew_target = d; has_final = false; }
     return true;
   }
-  bool startTracking(double origin, int64_t origin_utc) override {
+  bool startTracking(double origin, int64_t origin_utc, TrackRate r = TrackRate::Sidereal) override {
     if (mode != M::Idle) return false;
-    mode = M::Track; track_origin = origin;
+    mode = M::Track; track_origin = origin; track_dps = rateDegPerS(r); last_rate = r;
     track_origin_true_ms = t_ms - (utc() - origin_utc) * 1000;   // device clock -> true time
     limit_ = false; tracks++; return true;
   }
@@ -89,7 +90,7 @@ struct World : IClock, IMotion, ISensors, IGps, IStore, ISchedule, ISystem {
       }
       else step_deg += d > 0 ? s : -s;
     } else if (mode == M::Track) {
-      double want = track_origin + (t_ms + dt_ms - track_origin_true_ms) / 1000.0 * SID_DEG_S;
+      double want = track_origin + (t_ms + dt_ms - track_origin_true_ms) / 1000.0 * track_dps;
       if (want > max_deg) want = max_deg;
       double d = want - step_deg, s = catchup_dps * dt;
       step_deg += d <= s ? (d > 0 ? d : 0) : s;

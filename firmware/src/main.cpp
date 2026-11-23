@@ -233,6 +233,9 @@ static void display() {
 
 void setup() {
   board::begin();                               // EN high, loads off
+  // the default 256-byte RX buffer overflowed on a 1.8 KB H line (2026-11-22) while the
+  // loop was busy; schedules and camera profiles go up to 8 KB as one line
+  Serial.setRxBufferSize(8448);
   Serial.begin(115200);
   Wire.begin(PIN_SDA, PIN_SCL);
   Wire.setClock(400000);

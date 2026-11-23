@@ -42,6 +42,24 @@ void test_sidereal_exact(void) {
   TEST_ASSERT_DOUBLE_WITHIN(0.01, 180.49, deg12);
   // rate multiplier is exact too
   TEST_ASSERT_EQUAL_INT64(USTEPS_PER_REV, StepEngine::siderealUnits(SIDEREAL_US / 4, 4));
+  // the lunar period: exact over its own day, and 3.65% short of sidereal over 12 h
+  TEST_ASSERT_EQUAL_INT64(USTEPS_PER_REV, StepEngine::siderealUnits(LUNAR_US, 1, LUNAR_US));
+  double lun12 = unitsToDeg(StepEngine::siderealUnits(12ULL * 3600 * 1000000, 1, LUNAR_US));
+  TEST_ASSERT_DOUBLE_WITHIN(0.01, 173.91, lun12);
+}
+
+void test_lunar_tracking_runs_at_the_lunar_rate(void) {
+  StepEngine e(cfg());
+  e.setPosition(0);
+  TEST_ASSERT_TRUE(e.moveToForward(1000));
+  run(e, 10000000ULL);
+  TEST_ASSERT_FALSE(e.startTrackingAt(1000, 0, 0, SIDEREAL_US / 3));      // nonsense periods refused
+  TEST_ASSERT_TRUE(e.startTrackingAt(1000, 0, 0, LUNAR_US));
+  uint64_t one_h = 3600ULL * 1000000;
+  int64_t want = 1000 + StepEngine::siderealUnits(one_h, 1, LUNAR_US);
+  e.tick(one_h);
+  TEST_ASSERT_EQUAL_INT64(want, e.target());
+  TEST_ASSERT_TRUE(want < 1000 + StepEngine::siderealUnits(one_h));
 }
 
 void test_forward_move_arrives_exactly(void) {
@@ -213,6 +231,7 @@ void tearDown(void) {}
 int main(int, char **) {
   UNITY_BEGIN();
   RUN_TEST(test_sidereal_exact);
+  RUN_TEST(test_lunar_tracking_runs_at_the_lunar_rate);
   RUN_TEST(test_forward_move_arrives_exactly);
   RUN_TEST(test_boot_move_prerolls_for_backlash);
   RUN_TEST(test_reverse_move_overshoots_and_arrives_forward);

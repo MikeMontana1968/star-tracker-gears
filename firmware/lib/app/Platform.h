@@ -18,6 +18,12 @@ namespace app {
 
 enum class CamPolicy : uint8_t { None, BestEffort, Required };
 enum class GpsPolicy : uint8_t { None, BestEffort };
+
+// Sidereal keeps the stars still; lunar (mean: the moon's hour angle runs a
+// sidereal month slower) keeps the moon still. 89428.33 s = 1 / (1/86164.0905 - 1/(27.321661 d)).
+enum class TrackRate : uint8_t { Sidereal, Lunar };
+constexpr double SIDEREAL_DAY_S = 86164.0905, LUNAR_DAY_S = 89428.33;
+inline double rateDegPerS(TrackRate r) { return 360.0 / (r == TrackRate::Lunar ? LUNAR_DAY_S : SIDEREAL_DAY_S); }
 enum class Op : uint8_t { Pending, Ok, Fail };
 enum class Wake : uint8_t { PowerOn, Alarm, Button };
 // what the radio must be doing; the FSM's state table decides (FIRMWARE.md s3)
@@ -35,6 +41,8 @@ struct NightPlan {
   uint8_t   fallback = 0;                  // twilight levels fallen back (astro -> nautical = 1)
   char      camera[24] = {};               // camera profile name
   bool      test = false;                  // a bench test_track, not a schedule night
+  TrackRate rate = TrackRate::Sidereal;    // lunar on moon nights
+  bool      moon = false;                  // the window was clipped to the moon being up
 };
 
 struct IClock {
@@ -48,7 +56,8 @@ struct IClock {
 struct IMotion {
   virtual bool   setPosition(double deg) = 0;               // seed (idle)
   virtual bool   moveTo(double deg) = 0;                     // moveToForward, 1/8
-  virtual bool   startTracking(double origin_deg, int64_t origin_utc) = 0;  // 1/32
+  virtual bool   startTracking(double origin_deg, int64_t origin_utc,
+                                TrackRate rate = TrackRate::Sidereal) = 0;   // 1/32
   virtual void   stop() = 0;
   virtual bool   moving() = 0;                               // slewing or tracking
   virtual bool   tracking() = 0;
@@ -85,6 +94,7 @@ struct ICamera {
   virtual void begin(CamStep s) = 0;         // start one step...
   virtual Op   poll() = 0;                   // ...and poll it; never blocks
   virtual void cancel() = 0;                 // abandon the step in flight
+  virtual void preset(const char *name) { (void)name; }   // the night's camera preset, before Config
   virtual ~ICamera() {}
 };
 
@@ -115,7 +125,7 @@ struct Persist {
   double      pos_deg = 0;            // where the step counter was
   int64_t     last_done_stop_utc = 0; // stop time of the last finished/skipped night
   uint32_t    boot_count = 0;
-  static constexpr uint32_t MAGIC = 0x46534D33;   // "FSM3"
+  static constexpr uint32_t MAGIC = 0x46534D34;   // "FSM4": NightPlan gained rate + moon
 };
 struct IStore {
   virtual bool load(Persist *p) = 0;

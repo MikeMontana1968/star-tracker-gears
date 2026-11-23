@@ -42,6 +42,7 @@ struct Io {
 
 struct State {
   bool     reachable = false;     // the last status call answered
+  bool     asleep = false;        // ...but only with {"state":{"shutdown_pending":true}}
   bool     recording = false;
   int      battery_pct = -1;
   long     sd_free_kb = -1;
@@ -54,7 +55,9 @@ class GoPro {
  public:
   GoPro(Io &io, const Profile &p) : io_(io), p_(p) {}
   app::Op wake();
-  app::Op configure();
+  // the profile's settings, then the named preset's (null/"" = none). A profile with
+  // presets refuses a name it does not have: the night's intent is not silently dropped.
+  app::Op configure(const char *preset = nullptr);
   app::Op start();
   app::Op stop();
   app::Op discover(long *bytes);
@@ -64,8 +67,11 @@ class GoPro {
  private:
   bool waitJoin(uint64_t until);
   bool waitAwake(uint64_t until);
+  bool awakeNow();
   bool waitRecording(bool want, uint32_t within_ms);
   bool cmd(const char *path);
+  app::Op apply(const Setting *s, int n);
+  app::Op readBack(const Setting *s, int n, const Preset *overrides = nullptr);
   app::Op fail(const char *fmt, ...);
   Io &io_;
   const Profile &p_;

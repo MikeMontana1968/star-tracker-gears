@@ -17,11 +17,14 @@ struct FakeHero : Io {
   bool awake = true;
   bool ap_in_sleep = true;        // the AP stays up while asleep (WoL works through it)
   bool wol_works = true;
+  bool sleep_answers = false;     // asleep, status still answers 200 {"state":{"shutdown_pending":true}}
   bool wakes_on_power = false;    // rail on -> the camera boots by itself
   bool drop_ap_recording = false; // the open question in FIRMWARE.md s6
   int  clamp_id = -1, clamp_to = 0;   // a setting the camera silently changes
   int  refuse_id = -1;
   bool recording = false;
+  uint32_t finish_ms = 0;         // shutter off -> still recording this long (a night lapse finishing its exposure)
+  uint64_t off_at = 0;
   int  mode = 0, submode = 0;
   std::map<int, int> settings;
   uint64_t wake_at = 0, rail_on_at = 0;
@@ -31,19 +34,24 @@ struct FakeHero : Io {
   bool apUp() { return powered && (awake || ap_in_sleep) && !(drop_ap_recording && recording); }
   void tick() {
     if (wake_at && t >= wake_at) { awake = true; wake_at = 0; }
+    if (off_at && t >= off_at) { recording = false; off_at = 0; }
   }
   uint64_t ms() override { return t; }
   void delay(uint32_t d) override { t += d; tick(); }
   bool joined() override { tick(); return apUp(); }
   int get(const char *path, std::string *body, uint32_t) override {
     t += 50; tick();
-    if (!apUp() || !awake) { t += 2000; return -1; }        // nobody answers: a timeout
     std::string p = path;
+    if (apUp() && !awake && sleep_answers && p == "/gp/gpControl/status") {   // the real HERO5, asleep
+      *body = "{\"state\":{\"shutdown_pending\":true}}";
+      return 200;
+    }
+    if (!apUp() || !awake) { t += 2000; return -1; }        // nobody answers: a timeout
     if (p == "/gp/gpControl/status") {
       char b[512];
       std::string sets;
       for (auto &kv : settings) { char e[24]; snprintf(e, sizeof e, ",\"%d\":%d", kv.first, kv.second); sets += e; }
-      snprintf(b, sizeof b, "{\"status\":{\"8\":%d,\"70\":87,\"54\":31000000,\"43\":%d,\"44\":%d},\"settings\":{\"0\":0%s}}",
+      snprintf(b, sizeof b, "{\"status\":{\"10\":%d,\"70\":87,\"54\":31000000,\"43\":%d,\"44\":%d},\"settings\":{\"0\":0%s}}",
                recording ? 1 : 0, mode, submode, sets.c_str());
       *body = b;
       return 200;
@@ -60,7 +68,7 @@ struct FakeHero : Io {
       return 200;
     }
     if (p == "/gp/gpControl/command/shutter?p=1") { recording = true; return 200; }
-    if (p == "/gp/gpControl/command/shutter?p=0") { recording = false; return 200; }
+    if (p == "/gp/gpControl/command/shutter?p=0") { if (finish_ms) off_at = t + finish_ms; else recording = false; return 200; }
     if (p == "/gp/gpControl/command/system/sleep") { awake = false; sleeps++; return 200; }
     return 404;
   }
@@ -91,7 +99,7 @@ static const char *PROFILE =
   "\"verify_mode\":{\"mode_key\":43,\"mode\":2,\"submode_key\":44,\"submode\":2},"
   "\"settings\":[{\"name\":\"exposure\",\"id\":31,\"value\":6},{\"name\":\"interval\",\"id\":32,\"value\":0},"
   "{\"name\":\"iso\",\"id\":24,\"value\":0}],"
-  "\"status_keys\":{\"recording\":8,\"battery_pct\":70,\"sd_free_kb\":54}}";
+  "\"status_keys\":{\"recording\":10,\"battery_pct\":70,\"sd_free_kb\":54}}";
 
 static Profile prof() {
   Profile p; app::Messages e;
@@ -126,7 +134,8 @@ void test_profile_parses_and_rejects(void) {
 void test_wake_already_awake(void) {
   Profile p = prof(); FakeHero h; GoPro g(h, p);
   TEST_ASSERT_EQUAL(Op::Ok, g.wake());
-  TEST_ASSERT_EQUAL(0, h.wols);
+  TEST_ASSERT_EQUAL(3, h.wols);                        // sent anyway: the status alone is not trusted
+  TEST_ASSERT_EQUAL(0, h.rails);
   TEST_ASSERT_EQUAL(87, g.state().battery_pct);
 }
 
@@ -137,6 +146,17 @@ void test_wake_by_wol(void) {
   TEST_ASSERT_EQUAL(0, h.rails);
   TEST_ASSERT_EQUAL(1u, g.state().wakes_by_wol);
   TEST_ASSERT_TRUE(h.t < 15000);
+}
+
+void test_wake_a_sleeping_hero5_that_still_answers(void) {
+  // HERO5 2026-11-22: asleep after the last stop's sleep command, the AP up, status answering
+  // 200 with only shutdown_pending. That must not count as awake.
+  Profile p = prof(); FakeHero h; h.awake = false; h.sleep_answers = true; GoPro g(h, p);
+  TEST_ASSERT_EQUAL(Op::Ok, g.wake());
+  TEST_ASSERT_EQUAL(3, h.wols);
+  TEST_ASSERT_EQUAL(1u, g.state().wakes_by_wol);
+  TEST_ASSERT_FALSE(g.state().asleep);
+  TEST_ASSERT_EQUAL(87, g.state().battery_pct);
 }
 
 void test_wake_falls_back_to_the_rail(void) {
@@ -170,6 +190,39 @@ void test_configure_applies_and_reads_back(void) {
   TEST_ASSERT_EQUAL_STRING("setting iso (24=0) refused", g3.state().error);
 }
 
+static const char *PRESETS =
+  "{\"model\":\"HERO5 Black\",\"wifi\":{\"ssid\":\"GP-test\",\"password\":\"goprohero\"},"
+  "\"commands\":{\"mode\":\"/gp/gpControl/command/sub_mode?mode=2&sub_mode=2\","
+  "\"shutter_on\":\"/gp/gpControl/command/shutter?p=1\",\"shutter_off\":\"/gp/gpControl/command/shutter?p=0\"},"
+  "\"settings\":[{\"name\":\"protune\",\"id\":34,\"value\":1},{\"name\":\"shutter\",\"id\":31,\"value\":6}],"
+  "\"presets\":{\"astro_30s\":[{\"name\":\"interval\",\"id\":32,\"value\":3601}],"
+  "\"moon_20s_1m\":[{\"name\":\"shutter\",\"id\":31,\"value\":5},{\"name\":\"interval\",\"id\":32,\"value\":60}]},"
+  "\"status_keys\":{\"recording\":10}}";
+
+void test_presets_apply_on_top_of_the_shared_settings(void) {
+  Profile p; app::Messages e;
+  TEST_ASSERT_TRUE(parseProfile(PRESETS, strlen(PRESETS), &p, &e));
+  TEST_ASSERT_EQUAL(2, p.n_presets);
+  TEST_ASSERT_NOT_NULL(p.preset("moon_20s_1m"));
+  FakeHero h; GoPro g(h, p);
+  TEST_ASSERT_EQUAL(Op::Ok, g.configure("moon_20s_1m"));
+  TEST_ASSERT_EQUAL(1, h.settings[34]);
+  TEST_ASSERT_EQUAL(5, h.settings[31]);                 // the preset overrides the shared 30 s
+  TEST_ASSERT_EQUAL(60, h.settings[32]);
+  TEST_ASSERT_EQUAL(Op::Ok, g.configure("astro_30s"));
+  TEST_ASSERT_EQUAL(6, h.settings[31]);
+  TEST_ASSERT_EQUAL(3601, h.settings[32]);
+  TEST_ASSERT_EQUAL(Op::Ok, g.configure(""));           // shared settings only
+  TEST_ASSERT_EQUAL(Op::Fail, g.configure("nightlapse_30s_iso800"));
+  TEST_ASSERT_EQUAL_STRING("no camera preset 'nightlapse_30s_iso800' in the profile", g.state().error);
+  // a bad preset is reported with its path
+  const char *bad = "{\"model\":\"x\",\"wifi\":{\"ssid\":\"a\",\"password\":\"12345678\"},\"commands\":{\"shutter_on\":\"/a\",\"shutter_off\":\"/b\"},"
+                    "\"presets\":{\"m\":[{\"name\":\"s\",\"id\":31}]}}";
+  Profile q; app::Messages e2;
+  TEST_ASSERT_FALSE(parseProfile(bad, strlen(bad), &q, &e2));
+  TEST_ASSERT_EQUAL_STRING("presets.m[0].value: missing or not a whole number", e2.msg[0]);
+}
+
 void test_start_and_stop(void) {
   Profile p = prof(); FakeHero h; GoPro g(h, p);
   TEST_ASSERT_EQUAL(Op::Ok, g.start());
@@ -179,6 +232,19 @@ void test_start_and_stop(void) {
   TEST_ASSERT_EQUAL(Op::Ok, g.stop());
   TEST_ASSERT_FALSE(h.recording);
   TEST_ASSERT_EQUAL(1, h.sleeps);
+}
+
+void test_stop_waits_out_a_30s_exposure(void) {
+  // found on the HERO5 2026-11-22: after shutter off, encoding_active stays 1 until the
+  // night lapse frame in progress (30 s) is written. The old fixed 15 s wait failed here.
+  Profile p = prof(); FakeHero h; h.finish_ms = 32000; GoPro g(h, p);
+  TEST_ASSERT_EQUAL(Op::Ok, g.start());
+  TEST_ASSERT_EQUAL(Op::Ok, g.stop());
+  TEST_ASSERT_FALSE(h.recording);
+  TEST_ASSERT_EQUAL(45000u, p.stop_ms);
+  h.awake = true; h.recording = true; h.off_at = 0; h.finish_ms = 60000;   // a camera that never settles inside stop_s
+  TEST_ASSERT_EQUAL(Op::Fail, g.stop());
+  TEST_ASSERT_EQUAL_STRING("shutter off, but it is still recording", g.state().error);
 }
 
 void test_stop_when_the_ap_vanished_mid_record(void) {
@@ -213,10 +279,13 @@ int main(int, char **) {
   RUN_TEST(test_profile_parses_and_rejects);
   RUN_TEST(test_wake_already_awake);
   RUN_TEST(test_wake_by_wol);
+  RUN_TEST(test_wake_a_sleeping_hero5_that_still_answers);
   RUN_TEST(test_wake_falls_back_to_the_rail);
   RUN_TEST(test_wake_gives_up_inside_its_deadline);
   RUN_TEST(test_configure_applies_and_reads_back);
+  RUN_TEST(test_presets_apply_on_top_of_the_shared_settings);
   RUN_TEST(test_start_and_stop);
+  RUN_TEST(test_stop_waits_out_a_30s_exposure);
   RUN_TEST(test_stop_when_the_ap_vanished_mid_record);
   RUN_TEST(test_cancel_stops_a_wake);
   RUN_TEST(test_discover_saves_three_files);

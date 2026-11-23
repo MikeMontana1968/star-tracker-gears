@@ -16,10 +16,11 @@ void StepEngine::setSlewMax(uint32_t hz) {
 
 // exact: q*U + (r*U)/S, with r < S so r*U < 1.2e18 -- no 64-bit overflow
 // for any elapsed time (elapsed*rate_x must fit in 64 bits: 5800 years at 1x)
-int64_t StepEngine::siderealUnits(uint64_t elapsed_us, uint32_t rate_x) {
+int64_t StepEngine::siderealUnits(uint64_t elapsed_us, uint32_t rate_x, uint64_t P) {
+  // r < P <= LUNAR_US, so r*U < 1.2e18: still no overflow
   uint64_t e = elapsed_us * rate_x;
-  uint64_t q = e / SIDEREAL_US, r = e % SIDEREAL_US;
-  return (int64_t)(q * (uint64_t)USTEPS_PER_REV + (r * (uint64_t)USTEPS_PER_REV) / SIDEREAL_US);
+  uint64_t q = e / P, r = e % P;
+  return (int64_t)(q * (uint64_t)USTEPS_PER_REV + (r * (uint64_t)USTEPS_PER_REV) / P);
 }
 
 bool StepEngine::setPulseUnits(int32_t units) {
@@ -59,6 +60,7 @@ bool StepEngine::startTracking(uint64_t now_us, uint32_t rate_x) {
   t0_us_ = now_us;
   track_origin_ = track_target_ = pos_;
   rate_x_ = rate_x;
+  period_us_ = SIDEREAL_US;
   min_gap_ticks_ = c_.tick_hz / (c_.track_catchup_hz ? c_.track_catchup_hz : 1);
   if (min_gap_ticks_ == 0) min_gap_ticks_ = 1;
   ticks_since_pulse_ = min_gap_ticks_;
@@ -67,11 +69,12 @@ bool StepEngine::startTracking(uint64_t now_us, uint32_t rate_x) {
   return true;
 }
 
-bool StepEngine::startTrackingAt(int64_t origin_units, uint64_t t0_us, uint64_t now_us) {
-  if (t0_us > now_us) return false;
+bool StepEngine::startTrackingAt(int64_t origin_units, uint64_t t0_us, uint64_t now_us, uint64_t period_us) {
+  if (t0_us > now_us || period_us < SIDEREAL_US / 2 || period_us > LUNAR_US) return false;
   if (!startTracking(t0_us, 1)) return false;
+  period_us_ = period_us;
   track_origin_ = origin_units;
-  track_target_ = origin_units + siderealUnits(now_us - t0_us, 1);
+  track_target_ = origin_units + siderealUnits(now_us - t0_us, 1, period_us_);
   if (track_target_ > c_.max_units) track_target_ = c_.max_units;
   return true;
 }
@@ -139,7 +142,7 @@ Pulse StepEngine::tick(uint64_t now_us) {
 
   if (mode_ == Mode::Track) {
     uint64_t el = now_us > t0_us_ ? now_us - t0_us_ : 0;
-    track_target_ = track_origin_ + siderealUnits(el, rate_x_);
+    track_target_ = track_origin_ + siderealUnits(el, rate_x_, period_us_);
     if (track_target_ > c_.max_units) track_target_ = c_.max_units;
     if (ticks_since_pulse_ < min_gap_ticks_) ticks_since_pulse_++;
     if (track_target_ - pos_ >= c_.pulse_units) {

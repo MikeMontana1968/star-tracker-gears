@@ -53,7 +53,7 @@ class Motion : public app::IMotion {
   void begin(bool uart_ok) { uart_ok_ = uart_ok; }
   bool   setPosition(double deg) override;
   bool   moveTo(double deg) override;
-  bool   startTracking(double origin_deg, int64_t origin_utc) override;
+  bool   startTracking(double origin_deg, int64_t origin_utc, app::TrackRate rate = app::TrackRate::Sidereal) override;
   void   stop() override;
   bool   moving() override;
   bool   tracking() override;

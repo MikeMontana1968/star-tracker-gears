@@ -30,6 +30,11 @@ bool GoPro::status() {
   if (!st_.reachable) return false;
   JsonDocument d;
   if (deserializeJson(d, b)) { st_.reachable = false; return false; }
+  // A sleeping HERO5 keeps its AP up and answers this with 200 and
+  // {"state":{"shutdown_pending":true}} -- no status block. That is asleep, not awake
+  // (found 2026-11-22: counting it as awake skipped the wake-on-LAN).
+  st_.asleep = !d["status"].is<JsonObjectConst>() || (d["state"]["shutdown_pending"] | false);
+  if (st_.asleep) return false;
   JsonObjectConst s = d["status"];
   char k[8];
   snprintf(k, sizeof k, "%d", p_.key_recording); st_.recording = (s[k] | 0) != 0;
@@ -49,9 +54,17 @@ bool GoPro::waitJoin(uint64_t until) {
   return true;
 }
 
+// awake = two full status reads in a row, 1 s apart: a dozing HERO5 can answer one
+// full status and then fall back to shutdown_pending (seen 2026-11-22)
+bool GoPro::awakeNow() {
+  if (!io_.joined() || !status()) return false;
+  io_.delay(1000);
+  return io_.joined() && status();
+}
+
 bool GoPro::waitAwake(uint64_t until) {
   while (io_.ms() < until && !io_.cancelled()) {
-    if (io_.joined() && status()) return true;
+    if (awakeNow()) return true;
     io_.delay(1000);
   }
   return false;
@@ -69,9 +82,12 @@ Op GoPro::wake() {
     uint64_t join_until = io_.ms() + p_.join_ms;
     if (join_until > until) join_until = until;
     if (waitJoin(join_until)) {
-      if (status()) return Op::Ok;               // already awake
+      // wake-on-LAN first, always: harmless to an awake camera, and the status
+      // alone cannot be trusted to say a HERO5 is awake
+      bool sent = false;
       if (p_.has_mac)
-        for (int i = 0; i < 3; i++) { io_.wol(p_.mac); io_.delay(300); }
+        for (int i = 0; i < 3; i++) { io_.wol(p_.mac); io_.delay(300); sent = true; }
+      if (!sent && awakeNow()) return Op::Ok;    // no MAC: only the status to go on
       uint64_t poll_until = io_.ms() + 15000;
       if (poll_until > until) poll_until = until;
       if (waitAwake(poll_until)) {
@@ -85,31 +101,51 @@ Op GoPro::wake() {
   return fail(io_.joined() ? "joined the camera AP, but it never answered" : "could not join the camera AP '%s'", p_.ssid);
 }
 
-Op GoPro::configure() {
-  st_.error[0] = 0;
-  if (!cmd(p_.cmd_mode)) return fail("mode command refused");
-  io_.delay(500);
-  for (int i = 0; i < p_.n_settings; i++) {
-    const Setting &s = p_.settings[i];
+Op GoPro::apply(const Setting *set, int n) {
+  for (int i = 0; i < n; i++) {
+    const Setting &s = set[i];
     char path[48];
     snprintf(path, sizeof path, "/gp/gpControl/setting/%u/%ld", (unsigned)s.id, (long)s.value);
     if (!cmd(path)) return fail("setting %s (%u=%ld) refused", s.name, (unsigned)s.id, (long)s.value);
     if (io_.cancelled()) return fail("cancelled");
   }
+  return Op::Ok;
+}
+
+Op GoPro::readBack(const Setting *set, int n, const Preset *ov) {
+  JsonDocument d;
+  deserializeJson(d, last_);
+  JsonObjectConst got_all = d["settings"];
+  for (int i = 0; i < n; i++) {
+    const Setting &s = set[i];
+    bool overridden = false;                    // the preset set this id last: it wins
+    for (int j = 0; ov && j < ov->n_settings; j++) if (ov->settings[j].id == s.id) overridden = true;
+    if (overridden) continue;
+    char k[8]; snprintf(k, sizeof k, "%u", (unsigned)s.id);
+    long got = got_all[k] | -1L;
+    if (got != s.value) return fail("setting %s (%u) reads %ld, wanted %ld", s.name, (unsigned)s.id, got, (long)s.value);
+  }
+  return Op::Ok;
+}
+
+Op GoPro::configure(const char *preset) {
+  st_.error[0] = 0;
+  const Preset *pre = nullptr;
+  if (preset && preset[0] && p_.n_presets > 0) {
+    pre = p_.preset(preset);
+    if (!pre) return fail("no camera preset '%s' in the profile", preset);
+  }
+  if (!cmd(p_.cmd_mode)) return fail("mode command refused");
+  io_.delay(500);
+  if (apply(p_.settings, p_.n_settings) != Op::Ok) return Op::Fail;
+  if (pre && apply(pre->settings, pre->n_settings) != Op::Ok) return Op::Fail;
   io_.delay(500);
   if (!status()) return fail("no status after configuring");
   if (p_.mode >= 0 && st_.mode != p_.mode) return fail("mode is %d, wanted %d", st_.mode, p_.mode);
   if (p_.submode >= 0 && st_.submode != p_.submode) return fail("sub-mode is %d, wanted %d", st_.submode, p_.submode);
   // read every setting back from the same status body
-  JsonDocument d;
-  deserializeJson(d, last_);
-  JsonObjectConst set = d["settings"];
-  for (int i = 0; i < p_.n_settings; i++) {
-    const Setting &s = p_.settings[i];
-    char k[8]; snprintf(k, sizeof k, "%u", (unsigned)s.id);
-    long got = set[k] | -1L;
-    if (got != s.value) return fail("setting %s (%u) reads %ld, wanted %ld", s.name, (unsigned)s.id, got, (long)s.value);
-  }
+  if (readBack(p_.settings, p_.n_settings, pre) != Op::Ok) return Op::Fail;
+  if (pre && readBack(pre->settings, pre->n_settings) != Op::Ok) return Op::Fail;
   if (st_.sd_free_kb >= 0 && st_.sd_free_kb < 50 * 1024) return fail("SD card nearly full (%ld KB)", st_.sd_free_kb);
   return Op::Ok;
 }
@@ -137,7 +173,7 @@ Op GoPro::stop() {
   bool sent = false;
   for (int i = 0; i < 3 && !sent; i++) { sent = cmd(p_.cmd_shutter_off); if (!sent) io_.delay(1000); }
   if (!sent) return fail("shutter off not answered");
-  if (!waitRecording(false, 15000)) return fail("shutter off, but it is still recording");
+  if (!waitRecording(false, p_.stop_ms)) return fail("shutter off, but it is still recording");
   if (p_.sleep_after_stop) cmd(p_.cmd_sleep);    // best effort; the rail goes off next anyway
   return Op::Ok;
 }

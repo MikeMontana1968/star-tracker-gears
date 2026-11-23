@@ -43,6 +43,35 @@ static int intOr(JsonVariantConst v, int dflt, const char *path, int lo, int hi,
   return x;
 }
 
+static void parseSettings(JsonVariantConst sv, const char *where, Setting *out, int max, int *n,
+                          app::Messages *err) {
+  *n = 0;
+  if (sv.isNull()) return;
+  if (!sv.is<JsonArrayConst>()) { err->add("%s: must be an array", where); return; }
+  int i = 0;
+  for (JsonObjectConst s : sv.as<JsonArrayConst>()) {
+    char path[64];
+    if (i >= max) { err->add("%s: more than %d", where, max); break; }
+    Setting &t = out[i];
+    t = Setting();
+    snprintf(path, sizeof path, "%s[%d].name", where, i);
+    copyStr(s["name"], t.name, sizeof t.name, path, false, err);
+    snprintf(path, sizeof path, "%s[%d].id", where, i);
+    if (!s["id"].is<int>()) err->add("%s: missing or not a whole number", path);
+    else t.id = (uint16_t)intOr(s["id"], 0, path, 1, 999, err);
+    snprintf(path, sizeof path, "%s[%d].value", where, i);
+    if (!s["value"].is<int>()) err->add("%s: missing or not a whole number", path);
+    else t.value = intOr(s["value"], 0, path, 0, 100000, err);
+    i++;
+  }
+  *n = i;
+}
+
+const Preset *Profile::preset(const char *name) const {
+  for (int i = 0; i < n_presets; i++) if (!strcmp(presets[i].name, name)) return &presets[i];
+  return nullptr;
+}
+
 bool parseProfile(const char *json, size_t len, Profile *p, app::Messages *err) {
   *p = Profile();
   if (len > 6000) { err->add("profile: over 6000 bytes"); return false; }
@@ -84,26 +113,24 @@ bool parseProfile(const char *json, size_t len, Profile *p, app::Messages *err) 
     p->submode = intOr(vm["submode"], -1, "verify_mode.submode", 0, 99, err);
   }
 
-  JsonVariantConst sv = o["settings"];
-  if (!sv.isNull()) {
-    if (!sv.is<JsonArrayConst>()) err->add("settings: must be an array");
+  parseSettings(o["settings"], "settings", p->settings, Profile::MAX_SETTINGS, &p->n_settings, err);
+
+  JsonVariantConst pv = o["presets"];
+  if (!pv.isNull()) {
+    if (!pv.is<JsonObjectConst>()) err->add("presets: must be an object of name: [settings]");
     else {
-      int i = 0;
-      for (JsonObjectConst s : sv.as<JsonArrayConst>()) {
-        char path[32];
-        if (i >= Profile::MAX_SETTINGS) { err->add("settings: more than %d", Profile::MAX_SETTINGS); break; }
-        Setting &t = p->settings[i];
-        snprintf(path, sizeof path, "settings[%d].name", i);
-        copyStr(s["name"], t.name, sizeof t.name, path, false, err);
-        snprintf(path, sizeof path, "settings[%d].id", i);
-        if (!s["id"].is<int>()) err->add("%s: missing or not a whole number", path);
-        else t.id = (uint16_t)intOr(s["id"], 0, path, 1, 999, err);
-        snprintf(path, sizeof path, "settings[%d].value", i);
-        if (!s["value"].is<int>()) err->add("%s: missing or not a whole number", path);
-        else t.value = intOr(s["value"], 0, path, 0, 100000, err);
-        i++;
+      for (JsonPairConst kv : pv.as<JsonObjectConst>()) {
+        if (p->n_presets >= Profile::MAX_PRESETS) { err->add("presets: more than %d", Profile::MAX_PRESETS); break; }
+        Preset &q = p->presets[p->n_presets];
+        const char *name = kv.key().c_str();
+        char path[48];
+        snprintf(path, sizeof path, "presets.%.30s", name);
+        if (!name[0] || strlen(name) >= sizeof q.name) { err->add("%s: name must be 1-%d characters", path, (int)sizeof q.name - 1); continue; }
+        if (p->preset(name)) { err->add("%s: listed twice", path); continue; }
+        strcpy(q.name, name);
+        parseSettings(kv.value(), path, q.settings, Preset::MAX_SETTINGS, &q.n_settings, err);
+        p->n_presets++;
       }
-      p->n_settings = i;
     }
   }
 
@@ -119,6 +146,7 @@ bool parseProfile(const char *json, size_t len, Profile *p, app::Messages *err) 
   if (!t.isNull()) {
     p->join_ms = (uint32_t)intOr(t["join_s"], 20, "timing.join_s", 3, 120, err) * 1000;
     p->wake_ms = (uint32_t)intOr(t["wake_s"], 45, "timing.wake_s", 5, 140, err) * 1000;
+    p->stop_ms = (uint32_t)intOr(t["stop_s"], 45, "timing.stop_s", 5, 120, err) * 1000;
     p->http_timeout_ms = (uint32_t)intOr(t["http_timeout_ms"], 2500, "timing.http_timeout_ms", 300, 10000, err);
   }
 

@@ -25,6 +25,7 @@
 #pragma once
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
 #include "Platform.h"
 
 namespace app {
@@ -95,8 +96,8 @@ struct FsmConfig {
   uint32_t orient_ms = 20 * 60000;   // a resume may slew most of the travel: 180 deg at 2000/s = 15.5 min
   uint32_t cam_power_ms = 3000;      // rail settle before waking the camera
   uint32_t cam_total_ms = 150000;    // the whole CAM_POWER..CAM_START sequence
-  uint32_t cam_stop_ms = 30000;
-  uint32_t safe_cam_ms = 15000;      // SAFE_STOP's camera stop: short, it may be what hung
+  uint32_t cam_stop_ms = 90000;      // rejoin (20 s) + the last exposure (up to 30 s) + margin
+  uint32_t safe_cam_ms = 60000;      // SAFE_STOP's camera stop: shorter, but it must outlast a 30 s exposure
   uint32_t rewind_ms = 20 * 60000;   // 180 deg: 9.7 min at 3200/s, ~15.5 at 2000/s
   uint32_t home_ms = 20 * 60000;
   uint32_t config_ap_ms = 10 * 60000;   // CONFIG_AP with no client activity
@@ -118,6 +119,8 @@ class Fsm {
   void begin(Wake why);     // after every (re)boot, including deep-sleep wakes
   void tick();              // as often as convenient; checks run at <= 1 Hz where it matters
 
+  // the camera preset for the next TestTrackCamera ("" = the shared settings only)
+  void testPreset(const char *name) { strncpy(test_preset_, name ? name : "", sizeof test_preset_ - 1); test_preset_[sizeof test_preset_ - 1] = 0; }
   State state() const { return state_; }
   Fault fault() const { return fault_; }
   bool  asleep() const { return asleep_; }
@@ -191,6 +194,7 @@ class Fsm {
   double  div_offset_ = 0;
   bool    div_armed_ = false, div_warned_ = false;
   int     batt_low_ = 0, enc_fail_ = 0;
+  char    test_preset_[24] = "";
   Fault   pending_fault_ = Fault::None;   // SAFE_STOP -> FAULT instead of REWIND
 };
 

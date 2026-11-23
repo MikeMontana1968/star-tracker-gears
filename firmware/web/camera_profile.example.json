@@ -1,7 +1,7 @@
 {
-  "_note": "HERO5/6 gpControl values as the community documents them (KonradIT/goprowifihack). UNVERIFIED on this camera: run 'discover' and check every id/value against /camera_dump.json before trusting a night to it. wifi + mac come from the camera's Connections > Camera Info screen; they are NOT in the repo.",
-  "model": "HERO6",
-  "wifi": { "ssid": "GP-your-camera", "password": "from-the-camera-menu" },
+  "_note": "HERO5 Black (firmware HD5.02.02.70) Night Lapse: every id/value VERIFIED against that camera's gpControl dump on 2026-11-22. Another model or firmware: run 'discover' and check each id against /camera/dump.json. wifi + mac come from the camera's Connections > Camera Info screen (discover also reports the MAC); they are NOT in the repo. sleep_after_stop is false and auto-off is never: a HERO5 put to sleep over Wi-Fi ignores wake-on-LAN and the USB rail, so turn the camera on at setup. A schedule night picks a preset by name (defaults.camera).",
+  "model": "HERO5 Black",
+  "wifi": { "ssid": "your-camera-name", "password": "from-the-camera-menu" },
   "mac": "00:00:00:00:00:00",
   "commands": {
     "mode": "/gp/gpControl/command/sub_mode?mode=2&sub_mode=2",
@@ -11,12 +11,23 @@
   },
   "verify_mode": { "mode_key": 43, "mode": 2, "submode_key": 44, "submode": 2 },
   "settings": [
-    { "name": "protune",          "id": 21, "value": 1 },
-    { "name": "exposure_30s",     "id": 31, "value": 6 },
-    { "name": "interval_continuous", "id": 32, "value": 0 },
-    { "name": "iso_limit_800",    "id": 24, "value": 0 }
+    { "name": "protune",        "id": 34, "value": 1 },
+    { "name": "iso_min_800",    "id": 76, "value": 0 },
+    { "name": "iso_max_800",    "id": 37, "value": 0 },
+    { "name": "wb_4000k",       "id": 35, "value": 5 },
+    { "name": "color_flat",     "id": 36, "value": 1 },
+    { "name": "sharpness_low",  "id": 38, "value": 2 },
+    { "name": "ev_0",           "id": 39, "value": 4 },
+    { "name": "spot_meter_off", "id": 33, "value": 0 },
+    { "name": "mp_wide",        "id": 28, "value": 0 },
+    { "name": "led_off",        "id": 91, "value": 0 },
+    { "name": "auto_off_never", "id": 59, "value": 0 }
   ],
-  "status_keys": { "recording": 8, "battery_pct": 70, "sd_free_kb": 54 },
-  "sleep_after_stop": true,
-  "timing": { "join_s": 20, "wake_s": 45, "http_timeout_ms": 2500 }
+  "presets": {
+    "astro_30s":        [ { "name": "shutter_30s", "id": 31, "value": 6 }, { "name": "interval_auto", "id": 32, "value": 3601 } ],
+    "timelapse_20s_1m": [ { "name": "shutter_20s", "id": 31, "value": 5 }, { "name": "interval_1min", "id": 32, "value": 60 } ]
+  },
+  "status_keys": { "recording": 10, "battery_pct": 70, "sd_free_kb": 54 },
+  "sleep_after_stop": false,
+  "timing": { "join_s": 20, "wake_s": 45, "stop_s": 45, "http_timeout_ms": 2500 }
 }

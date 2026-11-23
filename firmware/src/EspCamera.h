@@ -29,6 +29,7 @@ class EspCamera : public app::ICamera {
   void begin(app::CamStep s) override;
   app::Op poll() override { return (app::Op)result_; }
   void cancel() override { cancel_ = true; }
+  void preset(const char *name) override;
 
   bool profileValid() const { return prof_.valid; }
   bool profileJson(std::string *out);             // stored JSON, password masked
@@ -53,6 +54,7 @@ class EspCamera : public app::ICamera {
   volatile bool busy_ = false;
   bool powered_ = false;
   char last_step_[12] = "none";
+  char preset_[24] = "";
 };
 
 }  // namespace esp

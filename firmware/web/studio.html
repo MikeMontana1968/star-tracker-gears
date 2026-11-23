@@ -67,6 +67,13 @@ ul.errs{margin:6px 0;padding-left:18px} ul.errs li.e{color:var(--bad)} ul.errs l
       <button id="fromdev">Load from device</button>
       <span class="msg" id="libmsg"></span>
     </div>
+    <div class="row quick">
+      <b>Quick plan</b>
+      <button id="qdark" class="primary" title="astronomical dusk to astronomical dawn, every night">Dark sky</button>
+      <button id="qmoon" class="primary" title="while the moon is up between astronomical dusk and dawn, at the lunar rate">Moon</button>
+      for <input id="qn" type="number" value="7" min="1" max="64" style="width:60px"> nights from <input id="qfrom" type="date">
+      camera preset <select id="qpreset"><option value="">(profile settings only)</option></select>
+    </div>
 
     <div class="tabs"><button id="tform" class="on">Form</button><button id="tjson">JSON</button></div>
 
@@ -84,8 +91,12 @@ ul.errs{margin:6px 0;padding-left:18px} ul.errs li.e{color:var(--bad)} ul.errs l
         <div class="row ov" style="margin:0" id="dstop"></div>
         <label>Start angle</label>
         <div class="row" style="margin:0"><input id="angle" type="number" step="0.5" min="-2" max="182"> ° from park (0)</div>
-        <label>Camera profile</label>
-        <div class="row" style="margin:0"><input id="camera" type="text" style="width:220px"></div>
+        <label>Target</label>
+        <div class="row" style="margin:0"><select id="target"><option value="sky">sky — sidereal, the whole window</option>
+          <option value="moon">moon — lunar rate, only while it is up in the window</option></select></div>
+        <label>Camera preset</label>
+        <div class="row" style="margin:0"><input id="camera" type="text" list="presetlist" style="width:220px">
+          <datalist id="presetlist"></datalist><span class="hint" id="camhint"></span></div>
         <label>Camera policy</label>
         <div class="row" style="margin:0"><select id="cpol"></select>
           <label>GPS</label><select id="gpol"><option>best_effort</option><option>none</option></select></div>
@@ -177,6 +188,7 @@ function blank(){
     nights: [], repeat_after_list: true};
 }
 let S = blank();
+let PRESETS = null;                                // camera presets the device reports
 try{ const d = localStorage.getItem("studio.draft"); if (d) S = JSON.parse(d); }catch(e){}
 function saveDraft(){ try{ localStorage.setItem("studio.draft", JSON.stringify(S)); }catch(e){} }
 
@@ -233,7 +245,9 @@ function render(){
   $("dstart").replaceChildren(timeSpecEditor(d.start, v => { d.start = v; changed(false); }, false));
   $("dstop").replaceChildren(timeSpecEditor(d.stop, v => { d.stop = v; changed(false); }, false));
   $("angle").value = d.start_angle_deg ?? 0;
+  $("target").value = d.target || "sky";
   $("camera").value = d.camera || "";
+  if (PRESETS) checkPresetName();
   $("cpol").replaceChildren(...POLICIES.map(p => new Option(p, p))); $("cpol").value = d.camera_policy || "best_effort";
   $("gpol").value = d.gps_policy || "best_effort";
   $("repeat").checked = !!S.repeat_after_list;
@@ -285,7 +299,8 @@ $("lon").onchange = () => { S.site.lon = parseFloat($("lon").value); changed(fal
 $("tz").onchange = () => { S.site.tz_offset_min = parseInt($("tz").value, 10); render(); changed(false); };
 $("tzpc").onclick = () => { S.site.tz_offset_min = -new Date().getTimezoneOffset(); render(); changed(false); };
 $("angle").onchange = () => { S.defaults.start_angle_deg = parseFloat($("angle").value || "0"); changed(false); };
-$("camera").onchange = () => { S.defaults.camera = $("camera").value.trim(); changed(false); };
+$("camera").onchange = () => { S.defaults.camera = $("camera").value.trim(); checkPresetName(); changed(false); };
+$("target").onchange = () => { if ($("target").value === "moon") S.defaults.target = "moon"; else delete S.defaults.target; changed(false); };
 $("cpol").onchange = () => { S.defaults.camera_policy = $("cpol").value; changed(false); };
 $("gpol").onchange = () => { S.defaults.gps_policy = $("gpol").value; changed(false); };
 $("repeat").onchange = () => { S.repeat_after_list = $("repeat").checked; changed(true); };
@@ -296,6 +311,29 @@ function nextFree(){
   const last = S.nights.map(n => n.date).sort().pop();
   const d = new Date(last + "T12:00:00"); d.setDate(d.getDate() + 1); return isoDate(d);
 }
+// ---- quick plans: generate the defaults + N listed nights, then check them on the device
+function quickNights(from, n){
+  const out = [];
+  for (let d = new Date(from + "T12:00:00"), i = 0; i < n; i++, d.setDate(d.getDate() + 1)) out.push({date: isoDate(d)});
+  return out;
+}
+function quickPlan(label, start, stop, target){
+  const n = parseInt($("qn").value || "0", 10), from = $("qfrom").value || isoDate(new Date());
+  if (!(n >= 1 && n <= 64)) { say("libmsg", "nights: 1 to 64", "err"); return; }
+  if (S.nights.length && !confirm(`Replace the ${S.nights.length} listed night(s) with ${n} ${label} night(s) from ${from}?`)) return;
+  S.defaults.start = start; S.defaults.stop = stop;
+  if (target === "moon") S.defaults.target = "moon"; else delete S.defaults.target;
+  if ($("qpreset").value) S.defaults.camera = $("qpreset").value;
+  S.nights = quickNights(from, n);
+  S.repeat_after_list = false;
+  render(); changed(false);
+  say("libmsg", `${n} ${label} nights from ${from} — checking on the device…`, "ok");
+  $("check").click();
+}
+$("qdark").onclick = () => quickPlan("dark-sky", {event: "dusk_astronomical"}, {event: "dawn_astronomical"}, "sky");
+$("qmoon").onclick = () => quickPlan("moon", {event: "dusk_astronomical"}, {event: "dawn_astronomical"}, "moon");
+$("qfrom").value = isoDate(new Date());
+
 $("addone").onclick = () => { S.nights.push({date: nextFree()}); sortNights(); changed(true); };
 $("addrange").onclick = () => {
   const a = $("rfrom").value, b = $("rto").value;
@@ -345,13 +383,23 @@ function fmtLocal(t){ const d = new Date(t * 1000);
 function fmtUtc(t){ const d = new Date(t * 1000); return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}Z`; }
 function previewTable(el, nights){
   if (!nights || !nights.length) { el.innerHTML = "<tr><td class='hint'>no nights ahead</td></tr>"; return; }
-  el.innerHTML = "<tr><th>date</th><th>start (this PC)</th><th>stop</th><th>hours</th><th>travel</th><th>camera</th></tr>" +
+  const anyMoon = nights.some(n => n.moon);
+  el.innerHTML = "<tr><th>date</th><th>start (this PC)</th><th>stop</th><th>hours</th><th>travel</th><th>camera</th>" + (anyMoon ? "<th>moon (aim)</th>" : "") + "</tr>" +
     nights.map(n => n.skipped
-      ? `<tr class="skip"><td>${n.date}</td><td colspan="5">skipped — ${esc(n.skipped)}</td></tr>`
+      ? `<tr class="skip"><td>${n.date}</td><td colspan="${anyMoon ? 6 : 5}">skipped — ${esc(n.skipped)}</td></tr>`
       : `<tr><td>${n.date}</td><td>${fmtLocal(n.start_utc)} <span class="hint">${fmtUtc(n.start_utc)}</span></td>` +
         `<td>${fmtLocal(n.stop_utc).replace(/^\w+,?\s*/, "")} <span class="hint">${fmtUtc(n.stop_utc)}</span></td>` +
-        `<td>${n.hours.toFixed(2)}</td><td>${n.start_deg.toFixed(1)}→${n.end_deg.toFixed(1)}°</td>` +
-        `<td>${esc(n.camera_policy)}${n.fallback ? ` <span class="tag fb" title="twilight fell back ${n.fallback} level(s)">fallback ${n.fallback}</span>` : ""}</td></tr>`).join("");
+        `<td>${n.hours.toFixed(2)}</td><td>${n.start_deg.toFixed(1)}→${n.end_deg.toFixed(1)}°${n.rate === "lunar" ? ` <span class="tag" title="lunar rate: the moon stays put, the stars drift">lunar</span>` : ""}</td>` +
+        `<td>${esc(n.camera_policy)}${n.preset ? ` · ${esc(n.preset)}` : ""}${n.fallback ? ` <span class="tag fb" title="twilight fell back ${n.fallback} level(s)">fallback ${n.fallback}</span>` : ""}</td>` +
+        (anyMoon ? `<td>${n.moon ? moonCell(n.moon) : "—"}</td>` : "") + `</tr>`).join("");
+}
+const COMPASS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const bearing = az => `${COMPASS[Math.round(az / 22.5) % 16]} ${az}°`;
+function moonCell(m){
+  const ph = m.illum_pct >= 97 ? "full" : m.illum_pct <= 3 ? "new" : `${m.illum_pct}% ${m.waxing ? "waxing" : "waning"}`;
+  const start = m.alt_start <= 1 ? `rises ${bearing(m.az_start)}` : `up at ${bearing(m.az_start)}, alt ${m.alt_start}°`;
+  const stop = m.alt_stop <= 1 ? `sets ${bearing(m.az_stop)}` : `ends ${bearing(m.az_stop)}, alt ${m.alt_stop}°`;
+  return `${ph} · ${start} → ${stop}`;
 }
 function showResult(j){
   $("errs").innerHTML = (j.errors || []).map(e => `<li class="e">${esc(e)}</li>`).join("") +
@@ -397,6 +445,7 @@ async function heartbeat(){
   const s = await api("GET", "/api/status");
   if (s.code === 200) {
     const j = s.json;
+    presetsFrom(j.camera);
     $("dev").textContent = `${j.state}${j.fault_code ? " · FAULT " + j.fault_text : ""} · ${j.schedule && j.schedule.valid ? "schedule " + j.schedule.source : "no schedule"}`;
     $("dev").className = "pill " + (j.fault_code ? "bad" : "ok");
     const skew = j.rtc_utc - Date.now() / 1000;
@@ -405,6 +454,24 @@ async function heartbeat(){
     $("clk").title = Math.abs(skew) > 5 ? "click to set the tracker's clock from this PC" : "";
   } else { $("dev").textContent = (s.json && s.json.error) || "device not answering"; $("dev").className = "pill bad"; }
 }
+// the camera profile's presets, as the device reports them (PRESETS is declared with the model)
+function presetsFrom(cam){
+  const list = cam && Array.isArray(cam.presets) ? cam.presets : [];
+  if (PRESETS && PRESETS.join() === list.join()) return;
+  PRESETS = list;
+  $("presetlist").replaceChildren(...list.map(p => new Option(p, p)));
+  const q = $("qpreset"), keep = q.value;
+  q.replaceChildren(new Option("(profile settings only)", ""), ...list.map(p => new Option(p, p)));
+  q.value = list.includes(keep) ? keep : (list.includes(S.defaults.camera) ? S.defaults.camera : (list[0] || ""));
+  checkPresetName();
+}
+function checkPresetName(){
+  const c = S.defaults.camera || "";
+  $("camhint").textContent = !PRESETS || !PRESETS.length ? "the camera profile has no presets: its settings apply"
+    : PRESETS.includes(c) ? "" : `not a preset in the camera profile (${PRESETS.join(", ")}): the camera would fail config`;
+  $("camhint").style.color = PRESETS && PRESETS.length && !PRESETS.includes(c) ? "var(--bad, #c33)" : "";
+}
+
 $("clk").onclick = async () => {
   if (!confirm("Set the tracker's clock from this PC?")) return;
   await api("POST", "/api/time", {utc: Math.round(Date.now() / 1000)}); heartbeat();
