@@ -3,3 +3,20 @@
 2026-11-22 18:58:35  [1/rehome]  re-seeded from the encoder: pos 0.0556 enc 0.0556
 2026-11-22 18:58:51  [1/rehome]  homed: pos 0.0000 enc 0.0556 (enc-err 0.0556) vbat 12.29
 2026-11-22 18:58:52  [1/lunar]  test track: lunar for 180 min
+2026-11-22 22:03:04  [1/lunar]  night: outcome completed reason '' tracked 3.00 h, max div 1.516 deg, min vbat 12.15, warnings 1
+2026-11-22 22:03:04  [1/lunar]    fsm: [TRACK] divergence 0.50 deg
+2026-11-22 22:03:04  [1/rehome]  before re-home: pos 0.0000 enc 0.2778 -> counter minus encoder -0.2778 deg
+2026-11-22 22:03:25  [1/rehome]  re-seeded from the encoder: pos 0.2778 enc 0.2778
+2026-11-22 22:03:51  [1/rehome]  homed: pos -0.0001 enc -0.2778 (enc-err -0.2777) vbat 12.22
+2026-11-22 22:03:52  [1/solar]  test track: solar for 360 min
+2026-11-23 01:57:20  [1/solar]  FATAL: fault 'divergence' while the solar night
+2026-11-23 01:57:20  [1/solar]  final: state FAULT fault 'divergence' pos 58.233 enc 56.046 guard 'slip' vbat 12.32
+2026-11-23 01:57:21  [1/solar]    fsm: 1795413804 [CONFIG_AP] manual move to 0.000 deg
+2026-11-23 01:57:21  [1/solar]    fsm: 1795413810 [CONFIG_AP] manual move arrived, -0.000 deg
+2026-11-23 01:57:21  [1/solar]    fsm: 1795413831 [CONFIG_AP] night 1795413851..1795435451 from 0.00 deg
+2026-11-23 01:57:21  [1/solar]    fsm: 1795413851 [WAIT_START] tracking from -0.000 deg
+2026-11-23 01:57:21  [1/solar]    fsm: 1795416119 [TRACK] divergence 0.50 deg
+2026-11-23 01:57:21  [1/solar]    fsm: 1795427827 [TRACK] SAFE_STOP: motion stopped (jam/slip guard)
+2026-11-23 01:57:21  [1/solar]    fsm: 1795427827 [SAFE_STOP] FAULT: motion stopped (jam/slip guard)
+2026-11-23 01:57:21  [1/solar]    fsm: 1795427827 [FAULT] sleep, wake on button only 0
+2026-11-23 01:57:21  [1/solar]  ran 6.99 h
