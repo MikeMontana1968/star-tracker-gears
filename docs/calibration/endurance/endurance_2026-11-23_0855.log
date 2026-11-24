@@ -1,0 +1,28 @@
+﻿2026-11-23 08:55:34  [0/start]  endurance start: lunar 180 min, solar 360 min per cycle; csv C:\Users\mikem\claude\star-tracker-gears\firmware\tools\..\..\docs\calibration\endurance\endurance_2026-11-23_0855.csv
+2026-11-23 08:55:34  [1/rehome]  before re-home: pos -0.0001 enc 1.1364 -> counter minus encoder -1.1364 deg
+2026-11-23 08:55:55  [1/rehome]  re-seeded from the encoder: pos 1.1364 enc 1.1364
+2026-11-23 08:56:21  [1/rehome]  homed: pos -0.0001 enc 0.0556 (enc-err 0.0556) vbat 12.24
+2026-11-23 08:56:22  [1/lunar]  test track: lunar for 180 min
+2026-11-23 12:00:07  [1/lunar]  night: outcome completed reason '' tracked 3.00 h, max div 0.679 deg, min vbat 12.13, warnings 1
+2026-11-23 12:00:07  [1/lunar]    fsm: [TRACK] divergence 0.50 deg
+2026-11-23 12:00:07  [1/rehome]  before re-home: pos 0.0000 enc 0.1667 -> counter minus encoder -0.1667 deg
+2026-11-23 12:00:28  [1/rehome]  re-seeded from the encoder: pos 0.1667 enc 0.1667
+2026-11-23 12:00:54  [1/rehome]  homed: pos 0.0000 enc -0.0556 (enc-err -0.0556) vbat 12.28
+2026-11-23 12:00:55  [1/solar]  test track: solar for 360 min
+2026-11-23 18:08:25  [1/solar]  night: outcome completed reason '' tracked 6.00 h, max div 1.356 deg, min vbat 12.14, warnings 1
+2026-11-23 18:08:26  [1/solar]    fsm: [TRACK] divergence 0.50 deg
+2026-11-23 18:08:26  [1/solar]  cycle 1 done; 9.21 h so far
+2026-11-23 18:08:26  [2/rehome]  before re-home: pos 0.0000 enc -0.5000 -> counter minus encoder 0.5000 deg
+2026-11-23 18:08:47  [2/rehome]  re-seeded from the encoder: pos -0.5000 enc -0.5000
+2026-11-23 18:09:03  [2/rehome]  homed: pos 0.0000 enc 0.0556 (enc-err 0.0556) vbat 12.25
+2026-11-23 18:09:03  [2/lunar]  test track: lunar for 180 min
+2026-11-23 18:32:25  [2/lunar]  FATAL: fault 'divergence' while the lunar night
+2026-11-23 18:32:26  [2/lunar]  final: state FAULT fault 'divergence' pos 5.591 enc 5.591 guard 'driver reset' vbat 12.30
+2026-11-23 18:32:26  [2/lunar]    fsm: 1795486126 [CONFIG_AP] manual move to 0.000 deg
+2026-11-23 18:32:26  [2/lunar]    fsm: 1795486129 [CONFIG_AP] manual move arrived, 0.000 deg
+2026-11-23 18:32:26  [2/lunar]    fsm: 1795486142 [CONFIG_AP] night 1795486162..1795496962 from 0.00 deg
+2026-11-23 18:32:26  [2/lunar]    fsm: 1795486162 [WAIT_START] tracking from 0.000 deg
+2026-11-23 18:32:26  [2/lunar]    fsm: 1795487518 [TRACK] SAFE_STOP: motion stopped (jam/slip guard)
+2026-11-23 18:32:26  [2/lunar]    fsm: 1795487518 [SAFE_STOP] FAULT: motion stopped (jam/slip guard)
+2026-11-23 18:32:26  [2/lunar]    fsm: 1795487518 [FAULT] sleep, wake on button only 0
+2026-11-23 18:32:26  [2/lunar]  ran 9.61 h
