@@ -1,0 +1,5 @@
+﻿2026-11-23 18:35:57  [0/start]  endurance start: lunar 180 min, solar 360 min per cycle; csv C:\Users\mikem\claude\star-tracker-gears\firmware\tools\..\..\docs\calibration\endurance\endurance_2026-11-23_1835.csv
+2026-11-23 18:35:58  [1/rehome]  before re-home: pos 5.5909 enc 5.5909 -> counter minus encoder 0.0000 deg
+2026-11-23 18:36:18  [1/rehome]  re-seeded from the encoder: pos 5.5909 enc 5.5909
+2026-11-23 18:37:06  [1/rehome]  homed: pos 0.0000 enc -0.0556 (enc-err -0.0555) vbat 12.26
+2026-11-23 18:37:06  [1/lunar]  test track: lunar for 180 min
