@@ -3,3 +3,23 @@
 2026-11-23 18:36:18  [1/rehome]  re-seeded from the encoder: pos 5.5909 enc 5.5909
 2026-11-23 18:37:06  [1/rehome]  homed: pos 0.0000 enc -0.0556 (enc-err -0.0555) vbat 12.26
 2026-11-23 18:37:06  [1/lunar]  test track: lunar for 180 min
+2026-11-23 21:40:59  [1/lunar]  night: outcome completed reason '' tracked 3.00 h, max div 0.590 deg, min vbat 12.16, warnings 1
+2026-11-23 21:41:00  [1/lunar]    fsm: [TRACK] divergence 0.50 deg
+2026-11-23 21:41:00  [1/rehome]  before re-home: pos -0.0001 enc -0.3889 -> counter minus encoder 0.3888 deg
+2026-11-23 21:41:21  [1/rehome]  re-seeded from the encoder: pos -0.3889 enc -0.3889
+2026-11-23 21:41:37  [1/rehome]  homed: pos -0.0001 enc 0.1667 (enc-err 0.1667) vbat 12.29
+2026-11-23 21:41:37  [1/solar]  test track: solar for 360 min
+2026-11-24 03:48:58  [1/solar]  night: outcome completed reason '' tracked 6.00 h, max div 1.389 deg, min vbat 12.13, warnings 1
+2026-11-24 03:48:58  [1/solar]    fsm: [TRACK] divergence 0.50 deg
+2026-11-24 03:48:58  [1/solar]  cycle 1 done; 9.22 h so far
+2026-11-24 03:48:59  [2/rehome]  before re-home: pos 0.0000 enc 0.0556 -> counter minus encoder -0.0556 deg
+2026-11-24 03:49:19  [2/rehome]  re-seeded from the encoder: pos 0.0556 enc 0.0556
+2026-11-24 03:49:35  [2/rehome]  homed: pos 0.0000 enc -0.0556 (enc-err -0.0555) vbat 12.22
+2026-11-24 03:49:36  [2/lunar]  test track: lunar for 180 min
+2026-11-24 06:53:32  [2/lunar]  night: outcome completed reason '' tracked 3.00 h, max div 0.882 deg, min vbat 12.10, warnings 1
+2026-11-24 06:53:33  [2/lunar]    fsm: [TRACK] divergence 0.58 deg
+2026-11-24 06:53:33  [2/rehome]  before re-home: pos -0.0001 enc -0.0556 -> counter minus encoder 0.0555 deg
+2026-11-24 06:53:53  [2/rehome]  re-seeded from the encoder: pos -0.0556 enc -0.0556
+2026-11-24 06:54:09  [2/rehome]  homed: pos -0.0001 enc 0.0556 (enc-err 0.0556) vbat 12.25
+2026-11-24 06:54:10  [2/solar]  test track: solar for 360 min
+2026-11-24 07:37:38  [2/solar]  stopped by hand at 13.0 h (laptop shutdown): end_night -> state CONFIG_AP pos -0.0001 enc 0.0556 vbat 12.26

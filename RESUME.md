@@ -307,8 +307,17 @@ regenerate.
 27. **Endurance + camera balance (2026-11-23).** Run 1 (GoPro on) faulted on
     divergence after 7 h: the camera's off-axis weight tilted the main gear
     until it bound. Camera off, run 2: lunar 3 h max div 0.68 deg (vs 1.52),
-    re-home lost ~0.17 deg; solar leg in progress. Lesson: **balance the
-    payload on the axis** (or counterweight) before any camera run.
+    re-home lost ~0.17 deg; solar 6 h to 89.6 deg completed (max div 1.36,
+    a repeatable step at ~53 deg: mostly encoder-map error, park check -0.5).
+    Run 2 ended at 9.6 h by a building power failure (12 V lost, ESP32 up on
+    USB -> guard 'driver reset' -> safe stop: correct). Run 3: **13.0 h, 3 legs
+    + part of a 4th, zero faults** (lunar max div 0.59 / 0.88, solar 1.39),
+    park checks within 0.39 deg; stopped by hand for a laptop shutdown.
+    Lesson: **balance the payload on the axis** (or counterweight) before any
+    camera run. Watch item: the 2 deg guard has ~0.6 deg margin at ~53 deg --
+    recheck after the bearing rebuild + recalibration. Runner:
+    tools/Run-EnduranceLoop.ps1 restarts runs after a fault (gives up after 3
+    quick fails); STOP file in docs/calibration/endurance ends it.
 28. **NEAR-TERM FEATURE: Canon EOS 70D as the camera (planned 2026-11-23).**
     May replace the GoPro. Wired, not Wi-Fi (Canon's Wi-Fi protocol is
     undocumented):
