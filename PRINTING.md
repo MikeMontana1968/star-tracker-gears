@@ -7,9 +7,10 @@ design and [DESIGN_NOTES.md](DESIGN_NOTES.md) for why it is the way it is.
 All-printed build, module-2 final stage. **2048:1**, `USTEPS_PER_REV = 13,107,200`
 at 1/32 microstepping.
 
-**The gears and spacers on shafts 1-3 are cut at `bore = 6.0`** (since 2026-10-23),
-to run on **#12 screws** (5.49 mm over the threads) nutted under the plate. The
-nails below did not work out; *Shafts* is kept as the history of why.
+**Mechanical Rev C (2026-11-24): shafts 1-3 are 6 mm shoulder bolts and each gear
+carries a 696ZZ.** See *Wheel bearings* below; it replaces the #12-screw build
+(gears at `bore = 6.0`, 2026-10-23) and the nails before that. *Shafts* and
+*Shaft spacers* are kept as the history.
 
 ## The gear train — 5 pieces from 4 files
 
@@ -204,6 +205,47 @@ holes and eyeballing.
 Firmware setup aid: read the AS5600's `AGC` and `MAGNITUDE` registers over I2C.
 They tell you "too far / too close" as a number, so the air gap is measured
 rather than guessed.
+
+## Wheel bearings — mechanical Rev C (shafts 1-3)
+
+Each compound gear turns on a **696ZZ (6 x 15 x 5, shielded)** in the underside
+of its 120T wheel, on an **ISO 7379 shoulder bolt (6 mm shoulder, M5 thread)**.
+The 15T pinions get no bearing: their root circle is 12.5 mm and the bearing is
+15, so that end runs plain on the ground shoulder (`wb_plain` 6.5 nominal). Shaft 3's
+24T module-2 pinion (root 43) takes a **second 696** in its top face.
+
+**The bolt is not a clamp.** The shoulder's end bottoms on an M5 washer (DIN 125,
+5.3 x 10 x 1) on the plate top; washer + M5 nylock underneath pull it down. The head
+is then a fixed top stop. Inner races and spacers stack between washer and head and
+stand still; the gear turns with the outer races. **The plate holes stay 5.5 — do
+not ream them**, so each mesh can still be set with a paper strip before the nut
+is tightened.
+
+| Shaft | Gear z | 696 at z | Under the 696 (on the washer) | Shoulder | Above the gear |
+|---|---|---|---|---|---|
+| 1 | 2 - 14 | 1 (4 mm in, 1 mm proud) | nothing: it sits on the washer | **14 mm** | 0.7 mm of 6x10 shims -> 0.3 end play; head top 19.5, **output wheel at 21.5** |
+| 2 | 8.5 - 20.5 | 7.5 (4 mm in, 1 mm proud) | printed spacer 6.5 | **20 mm** | 0.2 shim -> 0.3 end play |
+| 3 | 15 - 27 | 15 (flush) **and 22** (in the pinion) | printed spacer 14.0 | **30 mm** | 2.0 inner-race spacer between the bearings, 3.8 printed collar + 0.2 shim under the head |
+
+- **Why shafts 1-2 stand 1 mm proud:** a full-depth pocket would leave the wheel
+  joined to its small pinion only through tooth stubs. `wb_floor` keeps a solid
+  1 mm floor instead. Shaft 2's proud race clears shaft 1's wheel face by 0.5 mm.
+- **Every pocket has a 0.3 mm relief (`wb_relief_d` 11) over its inner face**, so
+  the gear bears on the outer race only and never rubs the stationary inner race.
+- **Anything that touches an inner race is 8.5 OD or less** (`wb_isp_od`): spacer
+  noses, the shaft-3 inner spacer and collar. It stays inside the shield.
+- **Shaft 1's shoulder must be 14 mm.** A 16 puts the head against the output wheel.
+- `SPACERS_shafts_1-3_696.stl`: shaft-2 spacer (6.5), shaft-3 spacer (14.0),
+  shaft-3 inner spacer (2.0), shaft-3 collar (3.8). Shaft 1 needs none.
+- **Print `_scratch/BEARINGGAUGE_696_pockets.stl` first** (15.0-15.7) and set
+  `$WbFit` in `build.ps1` to (smallest pocket that seats with firm thumb pressure)
+  minus 15.0, then rebuild `stage.stl` and `final_stage_gear.stl`. 0.50 is provisional.
+- `wb_on = false` in the .scad brings back the old plain-bore gears.
+
+**Assembly per shaft:** bolt down through the gear stack, washer on the plate,
+nut + washer underneath finger-tight. Set the mesh with a paper strip, tighten,
+then check the gear spins free with a hair of end play (add or remove shims under
+the head). Shaft 3: no end play wanted; shim until it spins free without rocking.
 
 ## Shaft spacers
 

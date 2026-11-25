@@ -39,6 +39,8 @@ $MotorBore = 5.45   # motor pinion, on the NEMA17's 5.00 mm ground shaft
 $MotorFlat = 2.225  # D-cut flat: 2.0 + (MotorBore - 5.0) / 2
 $PostD     = 4.70   # test-plate posts, from FITGAUGE
 $BrgFit    = 0.50   # 625ZZ pocket allowance -- SET FROM THE BEARING GAUGE
+$WbFit     = 0.50   # 696ZZ wheel-bearing pockets (shafts 1-3, mech Rev C) --
+                    # PROVISIONAL: print BEARINGGAUGE_696 and set from it
 $OutBolts  = 6      # output wheel clamp bolts
 $OutBoltR  = 18     # ...on this radius, clear of the 22 mm register
 $OutBore   = 22     # output wheel centre bore = os_reg_d, the register it sits on
@@ -57,8 +59,11 @@ $targets = @(
      d=@("mount_type=\`"dshaft\`"", 'bore=5.30', 'd_flat=2.15') }
   @{ g='gears'; f='pinion_bore5.60.stl';            p='pinion';
      d=@("mount_type=\`"dshaft\`"", 'bore=5.60', 'd_flat=2.30') }
-  @{ g='gears'; f='stage.stl';                      p='stage';      d=@("bore=$Bore") }
-  @{ g='gears'; f='final_stage_gear.stl';           p='finalstage'; d=@("bore=$Bore") }
+  # mech Rev C: 696ZZ in the wheel underside, pinion plain on a 6 mm shoulder
+  # bolt; shaft 3 also has a 696 in its pinion top (see PRINTING.md)
+  @{ g='gears'; f='stage.stl';                      p='stage';      d=@("wb_fit=$WbFit") }
+  @{ g='gears'; f='final_stage_gear.stl';           p='finalstage'; d=@("wb_fit=$WbFit") }
+  @{ g='gears'; f='SPACERS_shafts_1-3_696.stl';     p='wbspacers';  d=@() }
   @{ g='gears'; f='final_wheel_96T_m2_PRINTED.stl'; p='finalwheel';
      d=@("bore=$OutBore", "bc_holes=$OutBolts", "bc_r=$OutBoltR") }
 
@@ -104,6 +109,7 @@ $targets = @(
   @{ g='calibration'; f='_scratch/TEST_wheel_30T.stl';           p='testwheel';
      d=@('zw=30', "bore=$Bore") }
   @{ g='calibration'; f='_scratch/BEARINGGAUGE_pockets.stl';     p='bearinggauge'; d=@() }
+  @{ g='calibration'; f='_scratch/BEARINGGAUGE_696_pockets.stl'; p='bearinggauge'; d=@('bpg_d0=15.0') }
 
   # --- documentation ----------------------------------------------------
   # Laser profile: high flank resolution and a looser backlash, because a
@@ -115,8 +121,7 @@ $targets = @(
   @{ g='docs'; f='docs/assembly_exploded.png'; p='assembly'; d=@('explode=45')
      img='1800,1350'; cam='0,0,0,68,0,22,0' }
   @{ g='docs'; f='docs/assembly_top.png';      p='assembly'; d=@()
-     img='1500,1500'; cam='0,0,0,0,0,0,0' }
-)
+     img='1500,1500'; cam='0,0,0,0,0,0,0' })
 
 if ($List) {
     $targets | ForEach-Object { "{0,-12} {1}" -f $_.g, $_.f }

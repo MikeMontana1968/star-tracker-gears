@@ -111,6 +111,32 @@ sp_od  = 10;   // spacer outside diameter -- HARD MAX 13
 sp_clr = 2;    // running clearance between baseplate and the lowest gear
 explode = 0;   // assembly view only: lift every gear off its spacer, mm
 
+/* [Wheel bearings -- mechanical Rev C, 696ZZ on 6 mm shoulder bolts] */
+// Shafts 1-3 are ISO 7379 shoulder bolts (6 mm shoulder, M5 thread) standing
+// in the plate's 5.5 mm holes. The SHOULDER END bottoms on an M5 washer on the
+// plate top and the nut underneath pulls it down -- the head is a fixed top
+// stop, not a clamp, and the holes are NOT reamed (mesh stays adjustable).
+// Each gear carries a 696ZZ (6x15x5) in the underside of its 120T wheel.
+// The 15T pinions get none: their root circle (12.5) is smaller than the
+// bearing (15), so that end runs plain on the ground shoulder. Shaft 3's
+// 24T module-2 pinion (root 43) takes a SECOND 696 in its top face.
+wb_on      = true;   // false = the old plain-bore gears on #12 screws
+wb_od      = 15.0;   // 696ZZ outer race
+wb_w       = 5.0;    // 696ZZ width
+wb_fit     = 0.5;    // pocket allowance -- SET FROM BEARINGGAUGE_696 (provisional)
+wb_floor   = 1.0;    // shafts 1-2: solid floor kept above the pocket, so the wheel
+                     // joins its pinion through a full disc, not tooth stubs.
+                     // The bearing then stands (wb_w - (fw_wheel - wb_floor)) proud.
+wb_relief_d = 11.0;  // relief over each pocket's inner face: the gear bears on the
+wb_relief   = 0.3;   // OUTER race only and never rubs the stationary inner race
+wb_plain    = 6.5;   // pinion bore on the 6.00 ground shoulder (+0.5 printed-hole rule)
+wb_sp_id    = 6.5;   // printed spacers on the shoulder, same rule
+wb_isp_od   = 8.5;   // anything touching an inner race: inside the 696's shield
+wb_washer_t = 1.0;   // M5 DIN 125 washer under the shoulder end (5.3 x 10 x 1)
+wb_shoulder = [0, 14, 20, 30];   // shoulder length per shaft (index 1-3), mm
+wb_play     = 0.3;   // end play under the head on shafts 1-2 (shim to this)
+wbs_shaft   = 3;     // part="wbstack": which shaft to show
+
 /* [Output shaft and AS5600 encoder] */
 // The output is the ONE shaft that rotates: the magnet must sit on the axis
 // and turn with the wheel, and the camera load wants real bearings anyway.
@@ -347,24 +373,45 @@ module setscrew(zpos, r = 0) {
 //  printable parts
 // ---------------------------------------------------------------------
 
+// ---- 696ZZ pockets (wb_on) -------------------------------------------
+// depth of the bottom pocket in a stage gear, and how far the bearing stands
+// below the wheel face
+function wb_depth(full) = full ? wb_w : fw_wheel - wb_floor;
+function wb_proud(full) = wb_w - wb_depth(full);
+
+// pocket opening on the bottom face (z 0), with the outer-race-only relief
+// above it and a 0.4 lead-in chamfer
+module wb_pocket_bottom(full) {
+    d = wb_depth(full);
+    translate([0,0,-1])    cylinder(d = wb_od + wb_fit, h = d + 1, $fn = 96);
+    translate([0,0,-0.01]) cylinder(d1 = wb_od + wb_fit + 0.8, d2 = wb_od + wb_fit, h = 0.4, $fn = 96);
+    translate([0,0,d - 0.01]) cylinder(d = wb_relief_d, h = wb_relief, $fn = 64);
+}
+// the same, opening on the top face at height h
+module wb_pocket_top(h) {
+    translate([0,0,h]) mirror([0,0,1]) wb_pocket_bottom(true);
+}
+
 // compound reduction gear: big wheel with the next pinion stacked on top
 module stage_gear(zw_=zw, zp_=zp) {
     H  = fw_wheel + fw_pinion;
     hd = min(hub_d, 2*g_rf(zp_) - 1);   // hub must not swallow the pinion
-    // NOTE: a bearing pocket does not fit here -- brg_od (16) is wider than
-    // the pinion root circle (12.5). Bearings belong in the FRAME, not in
-    // the compound gear. Use round/dshaft/hex here.
+    // A bearing cannot go in the 15T pinion (root 12.5 < 696 OD 15); with
+    // wb_on the 696 sits in the WHEEL's underside and the pinion runs plain.
     difference() {
         union() {
             gear3d(zw_, fw_wheel,  1);
             translate([0,0,fw_wheel]) gear3d(zp_, fw_pinion, -1);
             cylinder(d=hd, h=fw_wheel, $fn=48);
         }
-        center_mount(H);
+        if (wb_on) {
+            translate([0,0,-1]) cylinder(d = wb_plain, h = H + 2, $fn = 64);
+            wb_pocket_bottom(false);
+        } else center_mount(H);
         bolt_circle(fw_wheel, bc_on == "all");
         lightening(zw_, fw_wheel);
-        // no setscrew: stages 1-3 TURN on nails that are pressed into the
-        // plate, so a grub screw here would lock the train
+        // no setscrew: stages 1-3 TURN on fixed posts, so a grub screw here
+        // would lock the train
     }
 }
 
@@ -414,9 +461,17 @@ module final_stage_gear() {
             gear3d(zw,  fw_wheel,   1, mod_);
             translate([0,0,fw_wheel]) gear3d(zpf, fw_pinion, -1, mod_f);
         }
-        center_mount(H);
+        if (wb_on) {
+            // two 696s: bottom one flush in the wheel (the 24T pinion above is
+            // wide enough to cover a full-depth pocket), top one in the pinion.
+            // The 2 mm web between them is opened to wb_relief_d so the
+            // inner-race spacer passes through without touching.
+            translate([0,0,-1]) cylinder(d = wb_relief_d, h = H + 2, $fn = 64);
+            wb_pocket_bottom(true);
+            wb_pocket_top(H);
+        } else center_mount(H);
         lightening(zw, fw_wheel);
-        // no setscrew: this gear turns on a fixed nail (see stage_gear)
+        // no setscrew: this gear turns on a fixed post (see stage_gear)
     }
 }
 
@@ -604,6 +659,95 @@ module spacer_set() {
     for (i = [0:4]) translate([i * (sp_od + 6), 0, 0]) spacer(sp_h(i));
 }
 
+// ---- Rev C stack on shafts 1-3 (wb_on). z = plate top. -----------------
+//   plate | M5 washer | [spacer] | 696 | gear ... | [shims] | bolt head
+function wb_gear_z(i)  = sp_clr + (i-1)*sp_step();            // gear underside
+function wb_gear_h(i)  = fw_wheel + fw_pinion;
+function wb_brg_z(i)   = wb_gear_z(i) - wb_proud(i == 3);     // lower 696 underside
+function wb_sp_h(i)    = wb_brg_z(i) - wb_washer_t;           // printed spacer under it
+function wb_head_z(i)  = wb_washer_t + wb_shoulder[i];        // head underside
+function wb_top(i)     = wb_gear_z(i) + wb_gear_h(i);         // gear (or top 696) top
+function wb_isp_h()    = wb_gear_h(3) - 2*wb_w;               // shaft 3 inner-race spacer
+function wb_collar_h() = wb_head_z(3) - wb_top(3) - 0.2;      // shaft 3 top collar; shim the 0.2
+function wb_shim(i)    = wb_head_z(i) - wb_top(i) - wb_play;  // shafts 1-2 shims under the head
+
+// spacer under a lower 696: sp_od body (the hard max is 13), a 0.5 nose at
+// wb_isp_od on top so it bears on the inner race only
+module wb_spacer(h) {
+    difference() {
+        union() {
+            cylinder(d = sp_od, h = h - 0.5, $fn = 64);
+            cylinder(d = wb_isp_od, h = h, $fn = 64);
+        }
+        translate([0,0,-1]) cylinder(d = wb_sp_id, h = h + 2, $fn = 48);
+        translate([0,0,-0.01]) cylinder(d1 = wb_sp_id + 1.0, d2 = wb_sp_id, h = 0.5, $fn = 48);
+    }
+}
+// thin inner-race tube (shaft 3's inner spacer and top collar)
+module wb_tube(h) {
+    difference() {
+        cylinder(d = wb_isp_od, h = h, $fn = 64);
+        translate([0,0,-1]) cylinder(d = wb_sp_id, h = h + 2, $fn = 48);
+    }
+}
+// everything printed for shafts 1-3, in shaft order (shaft 1 needs no spacer:
+// its 696 sits straight on the washer)
+module wb_spacer_set() {
+    translate([0, 0, 0])  wb_spacer(wb_sp_h(2));
+    translate([16, 0, 0]) wb_spacer(wb_sp_h(3));
+    translate([30, 0, 0]) wb_tube(wb_isp_h());
+    translate([42, 0, 0]) wb_tube(wb_collar_h());
+}
+
+// ---- hardware stand-ins for the views (not printed) ---------------------
+module wb_696(z) translate([0,0,z]) difference() {
+    cylinder(d = wb_od, h = wb_w, $fn = 64);
+    translate([0,0,-1]) cylinder(d = 6, h = wb_w + 2, $fn = 32);
+}
+module wb_bolt(i) {
+    L = wb_shoulder[i];
+    translate([0,0,wb_washer_t]) cylinder(d = 6, h = L, $fn = 32);           // shoulder
+    translate([0,0,wb_head_z(i)]) difference() {                              // head, 10 x 4.5
+        cylinder(d = 10, h = 4.5, $fn = 32);
+        translate([0,0,1.5]) cylinder(d = 3.5, h = 4, $fn = 6);               // 3 mm hex
+    }
+    translate([0,0,wb_washer_t - 9.5]) cylinder(d = 5, h = 9.5, $fn = 24);   // M5 thread
+}
+module wb_nut_washers() {
+    difference() { cylinder(d = 10, h = wb_washer_t, $fn = 32); translate([0,0,-1]) cylinder(d = 5.3, h = 3, $fn = 24); }
+    translate([0,0,-bp_t - 1]) difference() { cylinder(d = 10, h = 1, $fn = 32); translate([0,0,-1]) cylinder(d = 5.3, h = 3, $fn = 24); }
+    translate([0,0,-bp_t - 1 - 5]) difference() { cylinder(d = 8/cos(30), h = 5, $fn = 6); translate([0,0,-1]) cylinder(d = 5, h = 7, $fn = 24); }   // M5 nylock
+}
+// one complete shaft stack, hardware included, at the shaft's centre
+module wb_stack(i, gears = true) {
+    color("#b8bcc2") wb_bolt(i);
+    color("#8a8f96") wb_nut_washers();
+    color("#e8c547") {
+        wb_696(wb_brg_z(i));
+        if (i == 3) wb_696(wb_top(3) - wb_w);
+    }
+    color("#4a4a4a") {
+        if (wb_sp_h(i) > 0.4) translate([0,0,wb_washer_t]) wb_spacer(wb_sp_h(i));
+        if (i == 3) {
+            translate([0,0,wb_gear_z(3) + wb_w]) wb_tube(wb_isp_h());
+            translate([0,0,wb_top(3)])           wb_tube(wb_collar_h());
+        }
+    }
+    if (gears) color(shaft_col[i]) translate([0,0,wb_gear_z(i)])
+        { if (i == 3) final_stage_gear(); else stage_gear(); }
+}
+// half-section of the three stacks side by side, for the docs
+module wb_section_view() {
+    // keep y >= 0 within 22 mm of the axis: the cut face is the section
+    for (i = [1:3]) translate([(i-1)*55, 0, 0]) intersection() {
+        union() {
+            wb_stack(i, true);
+            color("#c8c8c0") translate([0,0,-bp_t]) cylinder(r = 30, h = bp_t, $fn = 64);
+        }
+        translate([-22, 0, -30]) cube([44, 40, 80]);
+    }
+}
+
 // ---------------------------------------------------------------------
 //  FULL ASSEMBLY -- baseplate, shafts, spacers and gears in their real
 //  places. Colours are preview-only; STL export ignores them.
@@ -655,9 +799,12 @@ module assembly(explode = 0) {
     color("#c8c8c0") baseplate();
 
     for (i=[0:4]) let(p = shaftpos(i)) translate([p[0], p[1], 0]) {
-        color("#9aa0a6")
-            translate([0,0,-4]) cylinder(d=5, h=gear_top(i)+7+explode, $fn=32);
-        color("#4a4a4a") spacer(sp_h(i));
+        if (wb_on && i >= 1 && i <= 3) wb_stack(i, false);
+        else {
+            color("#9aa0a6")
+                translate([0,0,-4]) cylinder(d=5, h=gear_top(i)+7+explode, $fn=32);
+            color("#4a4a4a") spacer(sp_h(i));
+        }
     }
 
     let(p = shaftpos(0)) translate([p[0], p[1], sp_clr + explode])
@@ -1314,6 +1461,9 @@ else if (part == "testplate")      test_plate();
 else if (part == "fitgauge")       fit_gauge();
 else if (part == "boregauge")      bore_gauge();
 else if (part == "spacers")        spacer_set();
+else if (part == "wbspacers")      wb_spacer_set();
+else if (part == "wbsection")      wb_section_view();
+else if (part == "wbstack")        wb_stack(wbs_shaft, true);
 else if (part == "assembly")       assembly(explode);
 else if (part == "encoder")        output_shaft_assembly();
 else if (part == "tower")          output_bearing_tower();
@@ -1356,5 +1506,14 @@ echo(str("  (old module-1 design was ", tip_w(zf,1.0), " mm -- too fine to laser
 echo(str("final pinion pitch radius = ", g_r(zpf,mod_f),
          " mm  (was ", g_r(zp,1.0), " mm)"));
 echo(str("SPACER HEIGHTS shaft 0..4 = ", [for(i=[0:4]) sp_h(i)], " mm"));
+if (wb_on) for (i = [1:3])
+    echo(str("WB shaft ", i, ": gear z ", wb_gear_z(i), "..", wb_top(i),
+             "  696 at z ", wb_brg_z(i), (i == 3) ? str(" + ", wb_top(3) - wb_w) : "",
+             "  spacer ", wb_sp_h(i), "  shoulder ", wb_shoulder[i],
+             "  head z ", wb_head_z(i), "..", wb_head_z(i) + 4.5,
+             (i == 3) ? str("  inner spacer ", wb_isp_h(), "  collar ", wb_collar_h(), " + 0.2 shim")
+                      : str("  shims under head ", wb_shim(i), " (play ", wb_play, ")")));
+if (wb_on) echo(str("WB shaft 1 head top ", wb_head_z(1) + 4.5, " vs output wheel underside ",
+                    os_zw(), " -> clearance ", os_zw() - wb_head_z(1) - 4.5, " mm"));
 echo(str("spacer OD = ", sp_od, " mm   clearance to neighbouring wheel = ",
          cdist(zp,zw) - g_ra(zw) - sp_od/2, " mm"));

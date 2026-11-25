@@ -318,6 +318,17 @@ regenerate.
     recheck after the bearing rebuild + recalibration. Runner:
     tools/Run-EnduranceLoop.ps1 restarts runs after a fault (gives up after 3
     quick fails); STOP file in docs/calibration/endurance ends it.
+29. **Mechanical Rev C: 696ZZ wheel bearings on shoulder bolts (CAD 2026-11-24).**
+    Parts arriving. The 15T pinions are too small for a 696 (root 12.5 < 15), so
+    each 120T wheel carries one 696 in its underside (shafts 1-2: 4 mm pocket,
+    1 mm proud, 1 mm floor kept), pinions run plain on the 6 mm shoulder, and
+    shaft 3's 24T pinion takes a second 696. Shoulder ends seat on an M5 washer
+    on the plate (holes stay 5.5, NOT reamed; mesh stays adjustable); head = fixed
+    stop. Shoulders **14 / 20 / 30 mm** (shaft 1 must be 14: output wheel 2 mm
+    above the head). `wb_*` params in the .scad, PRINTING.md "Wheel bearings".
+    **Next:** print BEARINGGAUGE_696, set `$WbFit`, rebuild stage + final stage,
+    print SPACERS_shafts_1-3_696, assemble, then Run-Calibration.ps1 vs the
+    2026-11-22 baseline (the comparison the user asked for).
 28. **NEAR-TERM FEATURE: Canon EOS 70D as the camera (planned 2026-11-23).**
     May replace the GoPro. Wired, not Wi-Fi (Canon's Wi-Fi protocol is
     undocumented):
