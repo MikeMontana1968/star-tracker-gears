@@ -39,8 +39,8 @@ $MotorBore = 5.45   # motor pinion, on the NEMA17's 5.00 mm ground shaft
 $MotorFlat = 2.225  # D-cut flat: 2.0 + (MotorBore - 5.0) / 2
 $PostD     = 4.70   # test-plate posts, from FITGAUGE
 $BrgFit    = 0.50   # 625ZZ pocket allowance -- SET FROM THE BEARING GAUGE
-$WbFit     = 0.50   # 696ZZ wheel-bearing pockets (shafts 1-3, mech Rev C) --
-                    # PROVISIONAL: print BEARINGGAUGE_696 and set from it
+$WbFit     = 0.40   # 696ZZ wheel-bearing pockets (shafts 1-3, mech Rev C) --
+                    # from BEARINGGAUGE_696 (2026-11-25): snug in the 15.4 pocket
 $OutBolts  = 6      # output wheel clamp bolts
 $OutBoltR  = 18     # ...on this radius, clear of the 22 mm register
 $OutBore   = 22     # output wheel centre bore = os_reg_d, the register it sits on

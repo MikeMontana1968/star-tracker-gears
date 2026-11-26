@@ -239,7 +239,7 @@ is tightened.
   shaft-3 inner spacer (2.0), shaft-3 collar (3.8). Shaft 1 needs none.
 - **Print `_scratch/BEARINGGAUGE_696_pockets.stl` first** (15.0-15.7) and set
   `$WbFit` in `build.ps1` to (smallest pocket that seats with firm thumb pressure)
-  minus 15.0, then rebuild `stage.stl` and `final_stage_gear.stl`. 0.50 is provisional.
+  minus 15.0, then rebuild `stage.stl` and `final_stage_gear.stl`. Set to 0.40 (snug in the 15.4 pocket, 2026-11-25).
 - `wb_on = false` in the .scad brings back the old plain-bore gears.
 
 **Assembly per shaft:** bolt down through the gear stack, washer on the plate,

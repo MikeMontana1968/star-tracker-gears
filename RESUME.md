@@ -326,8 +326,9 @@ regenerate.
     on the plate (holes stay 5.5, NOT reamed; mesh stays adjustable); head = fixed
     stop. Shoulders **14 / 20 / 30 mm** (shaft 1 must be 14: output wheel 2 mm
     above the head). `wb_*` params in the .scad, PRINTING.md "Wheel bearings".
-    **Next:** print BEARINGGAUGE_696, set `$WbFit`, rebuild stage + final stage,
-    print SPACERS_shafts_1-3_696, assemble, then Run-Calibration.ps1 vs the
+    Gauge done 2026-11-25: 696 snug in the 15.4 pocket -> `$WbFit = 0.40`;
+    stage + final stage rebuilt/sliced. **Next:** print stage x2 + final stage +
+    SPACERS_shafts_1-3_696, assemble, then Run-Calibration.ps1 vs the
     2026-11-22 baseline (the comparison the user asked for).
 28. **NEAR-TERM FEATURE: Canon EOS 70D as the camera (planned 2026-11-23).**
     May replace the GoPro. Wired, not Wi-Fi (Canon's Wi-Fi protocol is
